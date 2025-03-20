@@ -46,7 +46,7 @@ const NavBar: React.FC = () => {
                 fontWeight: "bold",
                 textDecoration: "none",
               }}
-              onClick={() => handleNavigation("/")}
+              onClick={() => handleNavigation("/Products")}
             >
               SuperSmart
             </Typography>

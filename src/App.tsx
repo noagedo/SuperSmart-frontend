@@ -7,10 +7,10 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import SignUp from "./components/SignUp";
 import SignIn from "./components/SignIn";
 import PersonalArea from "./components/PersonalArea";
-import ItemsList from "./components/ItemsList";
+
 import useUsers from "./hooks/useUsers";
 import theme from "./theme";
-
+import ProductList from "./components/ProductList";
 const App: React.FC = () => {
   const { user } = useUsers();
 
@@ -23,7 +23,7 @@ const App: React.FC = () => {
           <Route path="/" element={<HomeBeforeSignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
           <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/items" element={<ItemsList />} />
+          <Route path="/Products" element={<ProductList />} />
           <Route
             path="/personal-area"
             element={user ? <PersonalArea user={user} /> : <SignIn />}
