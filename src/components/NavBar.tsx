@@ -1,10 +1,55 @@
 import React, { useState } from "react";
-import { AppBar, Toolbar, Typography, Box, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import useUsers from "../hooks/useUsers";
-import AccountCircle from "@mui/icons-material/AccountCircle";
-import Logout from "@mui/icons-material/Logout";
+import { 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  Box, 
+  Button, 
+  IconButton,
+  Container,
+  createTheme,
+  ThemeProvider,
+  styled
+} from "@mui/material";
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { Apple } from 'lucide-react';
 import Loading from "./Loading";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#16a34a',
+      light: '#22c55e',
+      dark: '#15803d',
+    },
+  },
+});
+
+const StyledAppBar = styled(AppBar)(({ theme }) => ({
+  backgroundColor: 'white',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+}));
+
+const LogoContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  cursor: 'pointer',
+  transition: 'transform 0.2s ease-in-out',
+  '&:hover': {
+    transform: 'scale(1.02)',
+  },
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+  borderRadius: '9999px',
+  padding: '8px 24px',
+  fontWeight: 600,
+  textTransform: 'none',
+  transition: 'all 0.2s ease-in-out',
+}));
 
 const NavBar: React.FC = () => {
   const { user, signOut } = useUsers();
@@ -20,7 +65,7 @@ const NavBar: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    const confirmed = window.confirm("Are you sure you want to logout?");
+    const confirmed = window.confirm("האם אתה בטוח שברצונך להתנתק?");
     if (!confirmed) return;
 
     setLoading(true);
@@ -32,93 +77,121 @@ const NavBar: React.FC = () => {
   };
 
   return (
-    <>
-      <AppBar position="static" sx={{ backgroundColor: "#333" }}>
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography
-              variant="h4"
-              color="inherit"
-              sx={{
-                fontFamily: "'Comic Sans MS', 'Comic Sans', cursive",
-                textShadow: "2px 2px 4px rgba(0, 0, 0, 0.3)",
-                color: "#f5f5f5",
-                fontWeight: "bold",
-                textDecoration: "none",
-              }}
-              onClick={() => handleNavigation("/Products")}
-            >
-              SuperSmart
-            </Typography>
-          </Box>
+    <ThemeProvider theme={theme}>
+      <StyledAppBar position="sticky">
+        <Container maxWidth="xl">
+          <Toolbar sx={{ justifyContent: "space-between", py: 1.5 }}>
+            <LogoContainer onClick={() => handleNavigation("/Products")}>
+              <Apple 
+                size={32} 
+                color={theme.palette.primary.main}
+                style={{ marginRight: '8px' }}
+              />
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 700,
+                  color: theme.palette.primary.main,
+                  letterSpacing: '-0.5px',
+                  background: 'linear-gradient(45deg, #16a34a 30%, #22c55e 90%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                SuperSmart
+              </Typography>
+            </LogoContainer>
 
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            {user ? (
-              <>
-                <Typography
-                  variant="h6"
-                  color="inherit"
-                  sx={{ marginRight: 2 }}
-                >
-                  Welcome, {user.userName}
-                </Typography>
-                
-                <Button
-                  color="inherit"
-                  onClick={() => handleNavigation("/personal-area")}
-                  sx={{
-                    border: "2px solid pink",
-                    marginLeft: 2,
-                    color: "inherit",
-                  }}
-                  disabled={loading}
-                >
-                  <AccountCircle />
-                </Button>
-                <Button
-                  color="inherit"
-                  onClick={handleLogout}
-                  disabled={loading}
-                  sx={{
-                    border: "2px solid pink",
-                    marginLeft: 2,
-                    color: "inherit",
-                  }}
-                >
-                  <Logout />
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  color="inherit"
-                  onClick={() => handleNavigation("/sign-in")}
-                  sx={{
-                    border: "2px solid pink",
-                    marginLeft: 2,
-                    color: "inherit",
-                  }}
-                >
-                  Sign In
-                </Button>
-                <Button
-                  color="inherit"
-                  onClick={() => handleNavigation("/sign-up")}
-                  sx={{
-                    border: "2px solid pink",
-                    marginLeft: 2,
-                    color: "inherit",
-                  }}
-                >
-                  Sign Up
-                </Button>
-              </>
-            )}
-          </Box>
-        </Toolbar>
-      </AppBar>
+            <Box sx={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 2 
+            }}>
+              {user ? (
+                <>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      color: 'text.primary',
+                      fontWeight: 500,
+                      display: { xs: 'none', sm: 'block' }
+                    }}
+                  >
+                    שלום, {user.userName}
+                  </Typography>
+                  
+                  <IconButton
+                    onClick={() => handleNavigation("/personal-area")}
+                    disabled={loading}
+                    sx={{
+                      color: theme.palette.primary.main,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        backgroundColor: theme.palette.primary.light,
+                        color: 'white',
+                        transform: 'scale(1.1)',
+                      }
+                    }}
+                  >
+                    <AccountCircleIcon />
+                  </IconButton>
+
+                  <IconButton
+                    onClick={handleLogout}
+                    disabled={loading}
+                    sx={{
+                      color: theme.palette.primary.main,
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        backgroundColor: theme.palette.primary.light,
+                        color: 'white',
+                        transform: 'scale(1.1)',
+                      }
+                    }}
+                  >
+                    <LogoutIcon />
+                  </IconButton>
+                </>
+              ) : (
+                <>
+                  <ActionButton
+                    variant="outlined"
+                    onClick={() => handleNavigation("/sign-in")}
+                    sx={{
+                      borderColor: theme.palette.primary.main,
+                      color: theme.palette.primary.main,
+                      '&:hover': {
+                        backgroundColor: theme.palette.primary.light,
+                        borderColor: theme.palette.primary.light,
+                        color: 'white',
+                        transform: 'scale(1.02)',
+                      }
+                    }}
+                  >
+                    התחברות
+                  </ActionButton>
+                  <ActionButton
+                    variant="contained"
+                    onClick={() => handleNavigation("/sign-up")}
+                    sx={{
+                      backgroundColor: theme.palette.primary.main,
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: theme.palette.primary.dark,
+                        transform: 'scale(1.02)',
+                      }
+                    }}
+                  >
+                    הרשמה
+                  </ActionButton>
+                </>
+              )}
+            </Box>
+          </Toolbar>
+        </Container>
+      </StyledAppBar>
       {loading && <Loading />}
-    </>
+    </ThemeProvider>
   );
 };
 

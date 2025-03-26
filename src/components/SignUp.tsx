@@ -1,7 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useUsers from '../hooks/useUsers';
-import { Box, Button, TextField, Typography, Alert } from '@mui/material';
+import { 
+  Box, 
+  Button, 
+  TextField, 
+  Typography, 
+  Alert,
+  Container,
+  Paper,
+  IconButton,
+  Divider,
+  createTheme,
+  ThemeProvider,
+  styled
+} from '@mui/material';
 import avatar from '../assets/avatarProfile.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faImage } from '@fortawesome/free-solid-svg-icons';
@@ -10,6 +23,22 @@ import logoGif from '../assets/Animation - 1735911293502.gif';
 import { CredentialResponse, GoogleLogin } from '@react-oauth/google';
 import userService from '../services/user-service';
 import Loading from './Loading';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#16a34a',
+      light: '#22c55e',
+      dark: '#15803d',
+    },
+  },
+});
+
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(4),
+  borderRadius: theme.spacing(2),
+  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+}));
 
 interface FormData {
   email: string;
@@ -70,7 +99,7 @@ const SignUp: React.FC = () => {
       if (!error) {
         setIsSubmitting(true);
         setTimeout(() => {
-          navigate('/posts');
+          navigate('/');
           window.location.reload();
         }, 1000);
       }
@@ -88,7 +117,7 @@ const SignUp: React.FC = () => {
       if (result.success) {
         setIsSubmitting(true);
         setTimeout(() => {
-          navigate('/posts');
+          navigate('/');
           window.location.reload();
         }, 1000);
       } else {
@@ -109,123 +138,252 @@ const SignUp: React.FC = () => {
   const { ref, ...restRegisterParams } = register("img");
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: '#f5f5f5', p: 2 }}>
-      {isSubmitting && <Loading />}
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 400, padding: 3, boxShadow: 3, borderRadius: 2, bgcolor: 'background.paper' }}>
-        <Box component="img" src={logoGif} alt="Logo" sx={{ width: 150, height: 150, marginBottom: 2 }} />
-        <Typography variant="h4" component="h1" gutterBottom>Sign Up</Typography>
-
-        {signupError && (
-          <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{signupError}</Alert>
-        )}
-
-        <Box sx={{ width: '100%', mb: 2 }}>
-          <GoogleLogin 
-            onSuccess={onGoogleLoginSuccess} 
-            onError={onGoogleLoginFailure}
-            theme="outline"
-            size="large"
-            text="signup_with"
-            shape="rectangular"
-          />
-        </Box>
-
-        <Typography variant="body1" sx={{ my: 2 }}>Or sign up with email</Typography>
-
-        <form onSubmit={handleSubmit(onSubmit)} style={{ width: '100%' }}>
-          <TextField
-            label="Email"
-            type="email"
-            variant="outlined"
-            fullWidth
-            {...register("email", { 
-              required: "Email is required",
-              pattern: {
-                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                message: "Invalid email address"
-              }
-            })}
-            error={!!errors.email}
-            helperText={errors.email?.message}
-            margin="normal"
-          />
-          <TextField
-            label="Password"
-            type="password"
-            variant="outlined"
-            fullWidth
-            {...register("password", { 
-              required: "Password is required",
-              minLength: {
-                value: 8,
-                message: "Password must be at least 8 characters long"
-              }
-            })}
-            error={!!errors.password}
-            helperText={errors.password?.message}
-            margin="normal"
-          />
-          <TextField
-            label="Username"
-            type="text"
-            variant="outlined"
-            fullWidth
-            {...register("userName", { required: "Username is required" })}
-            error={!!errors.userName}
-            helperText={errors.userName?.message}
-            margin="normal"
-          />
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', my: 2 }}>
-            <Box sx={{ position: 'relative', mb: 2 }}>
-              <img 
-                src={selectedImage ? URL.createObjectURL(selectedImage) : avatar}
-                alt="Profile"
-                style={{ width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-              <Button
-                variant="contained"
-                component="label"
-                sx={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  minWidth: 'auto',
-                  width: '40px',
-                  height: '40px',
+    <ThemeProvider theme={theme}>
+      <Container maxWidth="sm">
+        <Box
+          sx={{
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            py: 4
+          }}
+        >
+          {isSubmitting && <Loading />}
+          
+          <StyledPaper elevation={3}>
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              mb: 4
+            }}>
+              <Box
+                component="img"
+                src={logoGif}
+                alt="Logo"
+                sx={{ 
+                  width: 120,
+                  height: 120,
+                  mb: 2,
                   borderRadius: '50%',
-                  padding: 0,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                }}
+              />
+              <Typography variant="h4" sx={{ fontWeight: 700, color: '#16a34a' }}>
+                Create Account
+              </Typography>
+              <Typography variant="body1" sx={{ color: 'text.secondary', mt: 1 }}>
+                Join us and start saving on your groceries
+              </Typography>
+            </Box>
+
+            {signupError && (
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 3,
+                  '& .MuiAlert-icon': {
+                    color: '#ef4444'
+                  }
                 }}
               >
-                <FontAwesomeIcon icon={faImage} />
-                <input
-                  ref={(item) => { 
-                    ref(item); 
-                    inputFileRef.current = item;
-                  }}
-                  {...restRegisterParams}
-                  type="file"
-                  accept='image/png, image/jpeg'
-                  style={{ display: 'none' }}
-                />
-              </Button>
-            </Box>
-            <Typography variant="body2" color="text.secondary">
-              {selectedImage ? selectedImage.name : 'No file selected'}
-            </Typography>
-          </Box>
+                {signupError}
+              </Alert>
+            )}
 
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            disabled={isLoading}
-          >
-            {isLoading ? 'Signing up...' : 'Sign Up'}
-          </Button>
-        </form>
-      </Box>
-    </Box>
+            <Box sx={{ width: '100%', mb: 3 }}>
+              <GoogleLogin 
+                onSuccess={onGoogleLoginSuccess} 
+                onError={onGoogleLoginFailure}
+                theme="outline"
+                size="large"
+                text="signup_with"
+                shape="rectangular"
+              />
+            </Box>
+
+            <Divider sx={{ my: 3 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', px: 2 }}>
+                OR
+              </Typography>
+            </Divider>
+
+            <form onSubmit={handleSubmit(onSubmit)} style={{ width: '100%' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center',
+                mb: 3
+              }}>
+                <Box sx={{ position: 'relative', mb: 2 }}>
+                  <Box
+                    component="img"
+                    src={selectedImage ? URL.createObjectURL(selectedImage) : avatar}
+                    alt="Profile"
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '4px solid',
+                      borderColor: 'primary.light'
+                    }}
+                  />
+                  <IconButton
+                    onClick={() => inputFileRef.current?.click()}
+                    sx={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      bgcolor: '#16a34a',
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: '#15803d'
+                      }
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faImage} />
+                  </IconButton>
+                  <input
+                    ref={(item) => { 
+                      ref(item); 
+                      inputFileRef.current = item;
+                    }}
+                    {...restRegisterParams}
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    style={{ display: 'none' }}
+                  />
+                </Box>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {selectedImage ? selectedImage.name : 'No file selected'}
+                </Typography>
+              </Box>
+
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                variant="outlined"
+                {...register("email", { 
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address"
+                  }
+                })}
+                error={!!errors.email}
+                helperText={errors.email?.message}
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#16a34a',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#16a34a',
+                  }
+                }}
+              />
+
+              <TextField
+                label="Password"
+                type="password"
+                fullWidth
+                variant="outlined"
+                {...register("password", { 
+                  required: "Password is required",
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters long"
+                  }
+                })}
+                error={!!errors.password}
+                helperText={errors.password?.message}
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#16a34a',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#16a34a',
+                  }
+                }}
+              />
+
+              <TextField
+                label="Username"
+                fullWidth
+                variant="outlined"
+                {...register("userName", { required: "Username is required" })}
+                error={!!errors.userName}
+                helperText={errors.userName?.message}
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#16a34a',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#16a34a',
+                  }
+                }}
+              />
+
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={isLoading}
+                sx={{
+                  bgcolor: '#16a34a',
+                  py: 1.5,
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  '&:hover': {
+                    bgcolor: '#15803d'
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: '#16a34a',
+                    opacity: 0.7
+                  }
+                }}
+              >
+                {isLoading ? 'Signing up...' : 'Sign Up'}
+              </Button>
+
+              <Box sx={{ 
+                mt: 3,
+                textAlign: 'center'
+              }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Already have an account?{' '}
+                  <Button 
+                    onClick={() => navigate('/signin')}
+                    sx={{ 
+                      color: '#16a34a',
+                      fontWeight: 600,
+                      '&:hover': {
+                        bgcolor: 'transparent',
+                        textDecoration: 'underline'
+                      }
+                    }}
+                  >
+                    Sign In
+                  </Button>
+                </Typography>
+              </Box>
+            </form>
+          </StyledPaper>
+        </Box>
+      </Container>
+    </ThemeProvider>
   );
 };
 

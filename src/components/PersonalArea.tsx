@@ -1,11 +1,11 @@
 import { FC, useState, useRef } from "react";
-import { Avatar, Box, Typography, TextField, Button, Alert } from "@mui/material";
+import { Box, Typography, TextField, Button, Alert, Paper } from "@mui/material";
 import useUsers from "../hooks/useUsers";
 import { User } from "../services/user-service";
-
 import userService from "../services/user-service";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faImage } from '@fortawesome/free-solid-svg-icons';
+import { Apple, Camera, Save, Edit2 } from 'lucide-react';
 
 interface PersonalAreaProps {
   user: User;
@@ -55,66 +55,184 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
   };
 
   return (
-    <Box>
-      <Box display="flex" alignItems="center" mb={2} p={2} border={1} borderColor="grey.300" borderRadius={2}>
-        <Avatar src={profilePicture ? URL.createObjectURL(profilePicture) : user.profilePicture} alt={user.userName} sx={{ width: 80, height: 80 }} />
-        <Box ml={3} flex={1}>
-          {editMode ? (
-            <>
-              <TextField
-                label="User Name"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                variant="outlined"
-                size="small"
-                margin="dense"
-                sx={{ width: 'auto' }}
+    <Box sx={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+      py: 6,
+      px: 4
+    }}>
+      <Paper elevation={3} sx={{ 
+        maxWidth: 800,
+        mx: 'auto',
+        borderRadius: 3,
+        overflow: 'hidden'
+      }}>
+        {/* Header */}
+        <Box sx={{ 
+          bgcolor: '#16a34a',
+          p: 3,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <Apple size={32} color="white" />
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 700 }}>
+            האזור האישי שלי
+          </Typography>
+        </Box>
+
+        {/* Profile Content */}
+        <Box sx={{ p: 4 }}>
+          {/* Profile Picture Section */}
+          <Box sx={{ 
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: 'center',
+            gap: 4,
+            mb: 4
+          }}>
+            <Box sx={{ position: 'relative' }}>
+              <Box
+                component="img"
+                src={profilePicture ? URL.createObjectURL(profilePicture) : user.profilePicture}
+                alt={user.userName}
+                sx={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '4px solid #16a34a'
+                }}
               />
-              <TextField
-                label="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                variant="outlined"
-                size="small"
-                margin="dense"
-                sx={{ mt: 1, width: 'auto' }}
-              />
+              {editMode && (
+                <Button
+                  variant="contained"
+                  component="label"
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    minWidth: 'auto',
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    bgcolor: '#16a34a',
+                    '&:hover': { bgcolor: '#15803d' }
+                  }}
+                >
+                  <Camera size={18} />
+                  <input
+                    ref={inputFileRef}
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                  />
+                </Button>
+              )}
+            </Box>
+
+            <Box sx={{ flex: 1 }}>
+              {editMode ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TextField
+                    label="שם משתמש"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    variant="outlined"
+                    fullWidth
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#16a34a',
+                        },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': {
+                        color: '#16a34a',
+                      }
+                    }}
+                  />
+                  <TextField
+                    label="אימייל"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    variant="outlined"
+                    fullWidth
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': {
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#16a34a',
+                        },
+                      },
+                      '& .MuiInputLabel-root.Mui-focused': {
+                        color: '#16a34a',
+                      }
+                    }}
+                  />
+                </Box>
+              ) : (
+                <>
+                  <Typography variant="h4" sx={{ color: '#16a34a', fontWeight: 700, mb: 1 }}>
+                    {user.userName}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                    {user.email}
+                  </Typography>
+                </>
+              )}
+            </Box>
+          </Box>
+
+          {/* Action Buttons */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            mt: 4
+          }}>
+            {editMode ? (
               <Button
                 variant="contained"
-                component="label"
-                sx={{ mt: 1 }}
+                onClick={handleSave}
+                startIcon={<Save />}
+                sx={{
+                  bgcolor: '#16a34a',
+                  '&:hover': { bgcolor: '#15803d' },
+                  px: 4
+                }}
               >
-                <FontAwesomeIcon icon={faImage} />
-                <input
-                  ref={inputFileRef}
-                  type="file"
-                  accept="image/png, image/jpeg"
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                />
+                שמור שינויים
               </Button>
-            </>
-          ) : (
-            <>
-              <Typography variant="h6">{user.userName}</Typography>
-              <Typography variant="body2" color="textSecondary">Email: {user.email}</Typography>
-            </>
+            ) : (
+              <Button
+                variant="outlined"
+                onClick={() => setEditMode(true)}
+                startIcon={<Edit2 />}
+                sx={{
+                  color: '#16a34a',
+                  borderColor: '#16a34a',
+                  '&:hover': {
+                    borderColor: '#15803d',
+                    bgcolor: 'rgba(22, 163, 74, 0.04)'
+                  },
+                  px: 4
+                }}
+              >
+                ערוך פרופיל
+              </Button>
+            )}
+          </Box>
+
+          {/* Error Message */}
+          {updateError && (
+            <Alert 
+              severity="error" 
+              sx={{ mt: 3 }}
+            >
+              {updateError}
+            </Alert>
           )}
         </Box>
-        <Box mt={2} display="flex" justifyContent="flex-start">
-          {editMode ? (
-            <Button variant="contained" color="primary" onClick={handleSave} sx={{ mr: 1 }}>
-              Save
-            </Button>
-          ) : (
-            <Button variant="outlined" color="primary" onClick={() => setEditMode(true)} sx={{ mr: 1 }}>
-              Edit Profile
-            </Button>
-          )}
-        </Box>
-      </Box>
-      
-      {updateError && <Alert severity="error">{updateError}</Alert>}
+      </Paper>
     </Box>
   );
 };

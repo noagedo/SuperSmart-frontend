@@ -9,8 +9,41 @@ import {
   Select,
   MenuItem,
   Divider,
+  createTheme,
+  ThemeProvider,
+  styled
 } from "@mui/material";
 import { CartItem } from "../services/item-service";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#16a34a',
+      light: '#22c55e',
+      dark: '#15803d',
+    },
+  },
+});
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+  overflow: 'hidden',
+}));
+
+const CartItemContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+  padding: theme.spacing(2),
+  marginBottom: theme.spacing(2),
+  backgroundColor: '#f8fafc',
+  borderRadius: theme.spacing(1),
+  transition: 'transform 0.2s ease-in-out',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+  },
+}));
 
 interface CartProps {
   items: CartItem[];
@@ -26,104 +59,150 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
 
   if (items.length === 0) {
     return (
-      <Card>
-        <CardContent>
-          <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-            <CartIcon fontSize="large" color="disabled" />
-            <Typography variant="h6" color="textSecondary">
-              Your cart is empty
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Start adding some products!
-            </Typography>
-          </Box>
+      <StyledCard>
+        <CardContent sx={{ textAlign: 'center', py: 6 }}>
+          <CartIcon 
+            sx={{ 
+              fontSize: 48, 
+              color: 'primary.main',
+              opacity: 0.6,
+              mb: 2
+            }} 
+          />
+          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
+            Your cart is empty
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Start adding some products!
+          </Typography>
         </CardContent>
-      </Card>
+      </StyledCard>
     );
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Typography variant="h5" fontWeight="bold" gutterBottom>
-          Shopping Cart
-        </Typography>
-        <Typography variant="body2" color="textSecondary" gutterBottom>
-          {items.length} {items.length === 1 ? "item" : "items"}
-        </Typography>
+    <ThemeProvider theme={theme}>
+      <StyledCard>
+        <Box sx={{ bgcolor: 'primary.main', p: 3, color: 'white' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Shopping Cart ({items.length} {items.length === 1 ? "item" : "items"})
+          </Typography>
+        </Box>
 
-        <Divider sx={{ my: 2 }} />
+        <CardContent>
+          <Box sx={{ mb: 3 }}>
+            {items.map((item) => (
+              <CartItemContainer key={item._id}>
+                <CardMedia
+                  component="img"
+                  image={item.image || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"}
+                  alt={item.name}
+                  sx={{ 
+                    width: 80, 
+                    height: 80, 
+                    borderRadius: 1.5,
+                    objectFit: "cover",
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {item.name}
+                    </Typography>
+                    <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                      ₪{(item.selectedStorePrice.price * item.quantity).toFixed(2)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Select
+                      value={item.quantity}
+                      onChange={(e) => onUpdateQuantity(item._id, Number(e.target.value))}
+                      size="small"
+                      sx={{
+                        minWidth: 80,
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'primary.main',
+                        },
+                      }}
+                    >
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <MenuItem key={num} value={num}>
+                          {num}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <Button
+                      onClick={() => onRemoveItem(item._id)}
+                      color="error"
+                      startIcon={<TrashIcon />}
+                      size="small"
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: 'error.light',
+                          color: 'white',
+                        },
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                </Box>
+              </CartItemContainer>
+            ))}
+          </Box>
 
-        {items.map((item) => (
-          <Box key={item._id} display="flex" alignItems="center" gap={2} mb={2}>
-            <CardMedia
-              component="img"
-              image={
-                item.image ||
-                "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"
-              }
-              alt={item.name}
-              sx={{ width: 80, height: 80, borderRadius: 1, objectFit: "cover" }}
-            />
-            <Box flex={1}>
-              <Typography variant="subtitle1" fontWeight="bold" noWrap>
-                {item.name}
+          <Divider sx={{ my: 3 }} />
+
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="body1" color="text.secondary">
+                Subtotal
               </Typography>
-              <Typography variant="body2" color="textSecondary">
-                ₪{item.selectedStorePrice.price.toFixed(2)}
+              <Typography variant="body1" color="text.secondary">
+                ₪{total.toFixed(2)}
               </Typography>
-              <Box display="flex" alignItems="center" gap={2} mt={1}>
-                <Select
-                  value={item.quantity}
-                  onChange={(e) => onUpdateQuantity(item._id, Number(e.target.value))}
-                  size="small"
-                >
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <MenuItem key={num} value={num}>
-                      {num}
-                    </MenuItem>
-                  ))}
-                </Select>
-                <Button
-                  onClick={() => onRemoveItem(item._id)}
-                  color="error"
-                  startIcon={<TrashIcon />}
-                  size="small"
-                >
-                  Remove
-                </Button>
-              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="body1" color="text.secondary">
+                Shipping
+              </Typography>
+              <Typography variant="body1" sx={{ color: 'primary.main', fontWeight: 500 }}>
+                Free
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Total
+              </Typography>
+              <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                ₪{total.toFixed(2)}
+              </Typography>
             </Box>
           </Box>
-        ))}
 
-        <Divider sx={{ my: 2 }} />
-
-        <Box display="flex" justifyContent="space-between" mb={1}>
-          <Typography variant="body2" color="textSecondary">
-            Subtotal
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            ₪{total.toFixed(2)}
-          </Typography>
-        </Box>
-        <Box display="flex" justifyContent="space-between" mb={1}>
-          <Typography variant="body2" color="textSecondary">
-            Shipping
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Free
-          </Typography>
-        </Box>
-        <Box display="flex" justifyContent="space-between" fontWeight="bold" mb={2}>
-          <Typography variant="h6">Total</Typography>
-          <Typography variant="h6">₪{total.toFixed(2)}</Typography>
-        </Box>
-
-        <Button variant="contained" color="primary" fullWidth>
-          Proceed to Checkout
-        </Button>
-      </CardContent>
-    </Card>
+          <Button 
+            variant="contained" 
+            fullWidth
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'white',
+              py: 1.5,
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              borderRadius: 2,
+              '&:hover': {
+                bgcolor: 'primary.dark',
+              },
+              '&:active': {
+                transform: 'scale(0.98)',
+              },
+            }}
+          >
+            Proceed to Checkout
+          </Button>
+        </CardContent>
+      </StyledCard>
+    </ThemeProvider>
   );
 }
