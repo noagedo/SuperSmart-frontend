@@ -3,14 +3,24 @@ import createHttpService from "./http-service";
 
 export { CanceledError };
 
+export interface Price {
+  date: string; // תאריך בפורמט ISO
+  price: number;
+}
+
+export interface StorePrice {
+  storeId: string;
+  prices: Price[];
+}
+
 export interface Item {
   _id: string;
   name: string;
-  description?: string;
   category: string;
-  storePrices: { storeId: string; price: number }[];
-  suggestedAlternatives: { itemId: string }[];
+  storePrices: StorePrice[];
   image?: string;
+  code?: string;
+  barcode?: string;
 }
 
 export interface CartItem extends Item {

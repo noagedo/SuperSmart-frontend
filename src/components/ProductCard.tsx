@@ -1,6 +1,6 @@
-
-import { ShoppingCart } from 'lucide-react';
-import { Item } from '../services/item-service';
+import { Card, CardMedia, CardContent, Typography, Button, Box } from "@mui/material";
+import { ShoppingCart } from "lucide-react";
+import { Item, StorePrice } from "../services/item-service";
 
 interface ProductCardProps {
   product: Item;
@@ -8,45 +8,61 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
-  const lowestPrice = product.storePrices.reduce((min, current) => 
-    current.price < min.price ? current : min
-  , product.storePrices[0]);
+  const getLatestPrice = (storePrice: StorePrice) => {
+    const latestPrice = storePrice.prices.reduce((latest, current) =>
+      new Date(current.date) > new Date(latest.date) ? current : latest
+    );
+    return latestPrice.price;
+  };
 
-  const highestPrice = product.storePrices.reduce((max, current) => 
-    current.price > max.price ? current : max
-  , product.storePrices[0]);
+
+  const prices = product.storePrices.map(getLatestPrice);
+  const lowestPrice = Math.min(...prices);
+  const highestPrice = Math.max(...prices);
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform hover:scale-[1.02]">
-      <img 
-        src={product.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'} 
+    <Card
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+    >
+      <CardMedia
+        component="img"
+        height="200"
+        width="100"
+        image={product.image || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"}
         alt={product.name}
-        className="w-full h-48 object-cover"
+        
       />
-      <div className="p-4">
-        <div className="flex justify-between items-start">
-          <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-          <span className="text-sm text-gray-500">{product.category}</span>
-        </div>
-        <p className="mt-1 text-sm text-gray-600">{product.description}</p>
-        <div className="mt-4">
-          <div className="mb-2">
-            <span className="text-xl font-bold text-gray-900">${lowestPrice.price}</span>
-            {highestPrice.price > lowestPrice.price && (
-              <span className="ml-2 text-sm text-gray-500">
-                up to ${highestPrice.price}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={() => onAddToCart(product, lowestPrice)}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <ShoppingCart size={18} />
-            Add to Cart
-          </button>
-        </div>
-      </div>
-    </div>
+      <CardContent sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" component="div" gutterBottom>
+          {product.name}
+        </Typography>
+        <Typography variant="body2" color="textSecondary">
+          {product.category}
+        </Typography>
+        <Box mt={2}>
+          <Typography variant="h5" color="textPrimary" fontWeight="bold">
+            {lowestPrice === highestPrice
+              ? `${lowestPrice} ₪`
+              : `${lowestPrice} - ${highestPrice} ₪`}
+          </Typography>
+        </Box>
+      </CardContent>
+      <Box p={2}>
+        <Button
+          variant="contained"
+          color="primary"
+          fullWidth
+          startIcon={<ShoppingCart size={18} />}
+          onClick={() => onAddToCart(product, { storeId: "", price: lowestPrice })}
+        >
+          Add to Cart
+        </Button>
+      </Box>
+    </Card>
   );
 }
