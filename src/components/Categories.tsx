@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import ReceiptAnalyzer from '../components/ReceiptAnalyzer';
 
 const ImageBackdrop = styled('div')(({ theme }) => ({
   position: 'absolute',
@@ -87,9 +88,9 @@ const images = [
 export default function ProductCategories() {
   return (
     <Container component="section" sx={{ mt: 8, mb: 4 }}>
-      <Typography 
-        variant="h4" 
-        align="center" 
+      <Typography
+        variant="h4"
+        align="center"
         component="h2"
         sx={{
           color: '#16a34a',
@@ -111,13 +112,15 @@ export default function ProductCategories() {
       >
         הכלים שלנו לחיסכון בקניות
       </Typography>
-      <Box sx={{ 
-        mt: 8, 
-        display: 'flex', 
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: 2
-      }}>
+      <Box
+        sx={{
+          mt: 8,
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: 2
+        }}
+      >
         {images.map((image) => (
           <ImageIconButton
             key={image.title}
@@ -162,6 +165,9 @@ export default function ProductCategories() {
             </Box>
           </ImageIconButton>
         ))}
+      </Box>
+      <Box sx={{ mt: 4 }}>
+        <ReceiptAnalyzer />
       </Box>
     </Container>
   );
