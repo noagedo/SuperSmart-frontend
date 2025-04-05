@@ -1,5 +1,6 @@
-import { CanceledError } from "./api-client";
+import apiClient,{ CanceledError } from "./api-client";
 import createHttpService from "./http-service";
+
 
 export { CanceledError };
 
@@ -30,4 +31,15 @@ export interface CartItem extends Item {
 
 const itemService = createHttpService<Item>("/items");
 
-export default itemService;
+const analyzeReceipt = (receiptImage: FormData) => {
+  const controller = new AbortController();
+  const request = apiClient.post("/items/analyze-receipt", receiptImage, { // Use the full endpoint
+      headers: {
+          'Content-Type': 'multipart/form-data',
+      },
+      signal: controller.signal,
+  });
+  return { request, cancel: () => controller.abort() };
+};
+
+export default { ...itemService, analyzeReceipt };
