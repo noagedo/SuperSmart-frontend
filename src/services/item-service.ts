@@ -29,7 +29,12 @@ export interface CartItem extends Item {
   selectedStorePrice: { storeId: string; price: number };
 }
 
-const itemService = createHttpService<Item>("/items");
+const itemService = {
+  ...createHttpService<Item>("/items"),
+  getAll: () => apiClient.get<Item[]>("/items"),
+};
+
+
 
 const analyzeReceipt = (receiptImage: FormData) => {
   const controller = new AbortController();

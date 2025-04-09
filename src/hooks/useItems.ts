@@ -7,19 +7,19 @@ const useItems = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const { request, cancel } = itemService.getAll();
-    request
-      .then((response) => {
+    const controller = new AbortController();
+    itemService.getAll()
+      .then((response: { data: Item[] }) => {
         setItems(response.data);
         setIsLoading(false);
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         if (error instanceof CanceledError) return;
-        setError(error.message);
+        setError((error as Error).message);
         setIsLoading(false);
       });
 
-    return () => cancel();
+    return () => controller.abort();
   }, []);
 
   return { items, isLoading, error };
