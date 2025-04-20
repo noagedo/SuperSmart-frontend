@@ -21,8 +21,17 @@ import {
   ListItem,
   ListItemText,
   Chip,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { CartItem } from "../services/item-service";
+import cartService from "../services/cart-service";
+import useUsers from "../hooks/useUsers";
 
 const theme = createTheme({
   palette: {
@@ -62,6 +71,14 @@ interface CartProps {
 
 export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const [showShopComparison, setShowShopComparison] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [cartName, setCartName] = useState("");
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success" as "success" | "error",
+  });
+  const { user } = useUsers();
 
   useEffect(() => {
     if (items.length > 0) {
@@ -73,11 +90,11 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
     if (!storePrices || !Array.isArray(storePrices)) {
       return { lowestPrice: 0, highestPrice: 0 };
     }
-  
+
     const allPrices = storePrices
       .filter((sp) => sp && Array.isArray(sp.prices))
       .flatMap((sp) => sp.prices.map((p) => p.price ?? 0));
-  
+
     return {
       lowestPrice: allPrices.length ? Math.min(...allPrices) : 0,
       highestPrice: allPrices.length ? Math.max(...allPrices) : 0,
@@ -93,7 +110,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
 
   const calculateShopTotals = () => {
     const allStoreIds = new Set<string>();
-    
+
     // Add safe guards for undefined properties
     items.forEach((item) => {
       if (item.storePrices && Array.isArray(item.storePrices)) {
@@ -145,12 +162,57 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
     return sum + price * quantity;
   }, 0);
 
+  const handleSaveCart = async () => {
+    if (!user) {
+      setSnackbar({
+        open: true,
+        message: "יש להתחבר כדי לשמור את העגלה",
+        severity: "error",
+      });
+      return;
+    }
+
+    try {
+      const { request } = cartService.createCart({
+        name: cartName || `העגלה שלי ${new Date().toLocaleDateString("he-IL")}`,
+        ownerId: user._id || "",
+        participants: [],
+        items: cartService.transformCartItems(items),
+      });
+
+      await request;
+      setSaveDialogOpen(false);
+      setSnackbar({
+        open: true,
+        message: "העגלה נשמרה בהצלחה",
+        severity: "success",
+      });
+      setCartName("");
+    } catch (error) {
+      console.error("Failed to save cart:", error);
+      setSnackbar({
+        open: true,
+        message: "שגיאה בשמירת העגלה",
+        severity: "error",
+      });
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
   if (items.length === 0) {
     return (
       <StyledCard>
         <CardContent sx={{ textAlign: "center", py: 6 }}>
-          <CartIcon sx={{ fontSize: 48, color: "primary.main", opacity: 0.6, mb: 2 }} />
-          <Typography variant="h6" sx={{ color: "primary.main", fontWeight: 600 }}>
+          <CartIcon
+            sx={{ fontSize: 48, color: "primary.main", opacity: 0.6, mb: 2 }}
+          />
+          <Typography
+            variant="h6"
+            sx={{ color: "primary.main", fontWeight: 600 }}
+          >
             העגלה ריקה
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -177,25 +239,52 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                 השוואת מחירים בין חנויות
               </Typography>
               <List>
-                {calculateShopTotals().map(([storeId, { total, name }], index) => (
-                  <ListItem
-                    key={storeId}
-                    sx={{
-                      bgcolor: index === 0 ? "rgba(22, 163, 74, 0.1)" : "transparent",
-                      borderRadius: 1,
-                      mb: 1,
-                      border: index === 0 ? "1px solid rgba(22, 163, 74, 0.3)" : "none",
-                    }}
-                  >
-                    <ListItemText primary={name} secondary={index === 0 ? "המחיר הנמוך ביותר" : null} />
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      {index === 0 && <Chip label="הכי זול" size="small" color="primary" sx={{ mr: 1 }} />}
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: index === 0 ? "primary.main" : "text.primary" }}>
-                        ₪{total.toFixed(2)}
-                      </Typography>
-                    </Box>
-                  </ListItem>
-                ))}
+                {calculateShopTotals().map(
+                  ([storeId, { total, name }], index) => (
+                    <ListItem
+                      key={storeId}
+                      sx={{
+                        bgcolor:
+                          index === 0
+                            ? "rgba(22, 163, 74, 0.1)"
+                            : "transparent",
+                        borderRadius: 1,
+                        mb: 1,
+                        border:
+                          index === 0
+                            ? "1px solid rgba(22, 163, 74, 0.3)"
+                            : "none",
+                      }}
+                    >
+                      <ListItemText
+                        primary={name}
+                        secondary={index === 0 ? "המחיר הנמוך ביותר" : null}
+                      />
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        {index === 0 && (
+                          <Chip
+                            label="הכי זול"
+                            size="small"
+                            color="primary"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontWeight: 600,
+                            color:
+                              index === 0 ? "primary.main" : "text.primary",
+                          }}
+                        >
+                          ₪{total.toFixed(2)}
+                        </Typography>
+                      </Box>
+                    </ListItem>
+                  )
+                )}
               </List>
             </Box>
           ) : (
@@ -204,30 +293,67 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                 <CartItemContainer key={item._id}>
                   <CardMedia
                     component="img"
-                    image={item.image || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"}
+                    image={
+                      item.image ||
+                      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"
+                    }
                     alt={item.name}
-                    sx={{ width: 80, height: 80, borderRadius: 1.5, objectFit: "cover", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)" }}
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: 1.5,
+                      objectFit: "cover",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                    }}
                   />
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{item.name}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {item.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
                       כמות: {item.quantity}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-  {(() => {
-    const { lowestPrice, highestPrice } = calculatePriceRange(item.storePrices);
-    return `טווח מחיר: ₪${lowestPrice.toFixed(2)} - ₪${highestPrice.toFixed(2)}`;
-  })()}
-</Typography>
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      {(() => {
+                        const { lowestPrice, highestPrice } =
+                          calculatePriceRange(item.storePrices);
+                        return `טווח מחיר: ₪${lowestPrice.toFixed(
+                          2
+                        )} - ₪${highestPrice.toFixed(2)}`;
+                      })()}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
                       <Select
                         value={item.quantity}
-                        onChange={(e) => onUpdateQuantity(item._id, Number(e.target.value))}
+                        onChange={(e) =>
+                          onUpdateQuantity(item._id, Number(e.target.value))
+                        }
                         size="small"
-                        sx={{ minWidth: 80, "& .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" } }}
+                        sx={{
+                          minWidth: 80,
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "primary.main",
+                          },
+                        }}
                       >
                         {[1, 2, 3, 4, 5].map((num) => (
-                          <MenuItem key={num} value={num}>{num}</MenuItem>
+                          <MenuItem key={num} value={num}>
+                            {num}
+                          </MenuItem>
                         ))}
                       </Select>
                       <Button
@@ -235,7 +361,12 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                         color="error"
                         startIcon={<TrashIcon />}
                         size="small"
-                        sx={{ "&:hover": { backgroundColor: "error.light", color: "white" } }}
+                        sx={{
+                          "&:hover": {
+                            backgroundColor: "error.light",
+                            color: "white",
+                          },
+                        }}
                       >
                         הסר
                       </Button>
@@ -248,25 +379,99 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
 
           <Divider sx={{ my: 3 }} />
 
-          <Button
-            variant="contained"
-            fullWidth
-            sx={{
-              bgcolor: "primary.main",
-              color: "white",
-              py: 1.5,
-              fontSize: "1.1rem",
-              fontWeight: 600,
-              borderRadius: 2,
-              mb: 2,
-              "&:hover": { bgcolor: "primary.dark" },
-              "&:active": { transform: "scale(0.98)" },
-            }}
-            onClick={() => setShowShopComparison(!showShopComparison)}
-          >
-            {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בסופרים"}
-          </Button>
+          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              sx={{
+                bgcolor: "primary.main",
+                color: "white",
+                py: 1.5,
+                fontSize: "1.1rem",
+                fontWeight: 600,
+                borderRadius: 2,
+                "&:hover": { bgcolor: "primary.dark" },
+                "&:active": { transform: "scale(0.98)" },
+              }}
+              onClick={() => setShowShopComparison(!showShopComparison)}
+            >
+              {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בסופרים"}
+            </Button>
+
+            <Button
+              variant="outlined"
+              fullWidth
+              sx={{
+                borderColor: "primary.main",
+                color: "primary.main",
+                py: 1.5,
+                fontSize: "1.1rem",
+                fontWeight: 600,
+                borderRadius: 2,
+                "&:hover": {
+                  borderColor: "primary.dark",
+                  color: "primary.dark",
+                  bgcolor: "rgba(22, 163, 74, 0.05)",
+                },
+                "&:active": { transform: "scale(0.98)" },
+              }}
+              onClick={() => setSaveDialogOpen(true)}
+              disabled={items.length === 0}
+            >
+              שמירת עגלה
+            </Button>
+          </Box>
         </CardContent>
+
+        {/* Save Cart Dialog */}
+        <Dialog
+          open={saveDialogOpen}
+          onClose={() => setSaveDialogOpen(false)}
+          dir="rtl"
+        >
+          <DialogTitle>שמירת עגלה</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="שם העגלה"
+              fullWidth
+              variant="outlined"
+              value={cartName}
+              onChange={(e) => setCartName(e.target.value)}
+              placeholder={`העגלה שלי ${new Date().toLocaleDateString(
+                "he-IL"
+              )}`}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSaveDialogOpen(false)} color="primary">
+              ביטול
+            </Button>
+            <Button
+              onClick={handleSaveCart}
+              color="primary"
+              variant="contained"
+            >
+              שמור
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Success/Error Notification */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+        >
+          <Alert
+            onClose={handleCloseSnackbar}
+            severity={snackbar.severity}
+            sx={{ width: "100%" }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </StyledCard>
     </ThemeProvider>
   );

@@ -1,89 +1,111 @@
 // 📁 hooks/useCart.ts
-import { useEffect, useState, useCallback } from "react";
-import cartService, { Cart } from "../services/cart-service";
+import { useEffect, useState } from "react";
 import { CartItem } from "../services/item-service";
+import cartService from "../services/cart-service";
 import useUsers from "./useUsers";
 
+interface CartState {
+  items: CartItem[];
+}
+
 const useCart = () => {
+  const [cart, setCart] = useState<CartState>({ items: [] });
   const { user } = useUsers();
-  const [cart, setCart] = useState<Cart | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchCart = useCallback(async () => {
-    if (!user?._id) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { data } = await cartService.getUserCarts(user._id);
-      if (data.length > 0) {
-        setCart(data[0]);
-      } else {
-        const { data: newCart } = await cartService.createCart({
-          ownerId: user._id,
-          participants: [],
-          items: [],
-        });
-        setCart(newCart);
-      }
-    } catch (err) {
-      console.error("Error fetching cart:", err);
-      setError("Failed to load cart");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
-
+  // Load cart from localStorage on initial load
   useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
-
-  const addItem = (item: CartItem) => {
-    if (!cart) return;
-    const existing = cart.items.find((i) => i._id === item._id);
-    const updatedItems = existing
-      ? cart.items.map((i) =>
-          i._id === item._id ? { ...i, quantity: i.quantity + 1 } : i
-        )
-      : [...(cart.items || []), { ...item, quantity: 1 }];
-
-    setCart({ ...cart, items: updatedItems });
-  };
-
-  const removeItem = (itemId: string) => {
-    if (!cart) return;
-    const updatedItems = cart.items.filter((item) => item._id !== itemId);
-    setCart({ ...cart, items: updatedItems });
-  };
-
-  const updateQuantity = (itemId: string, quantity: number) => {
-    if (!cart) return;
-    const updatedItems = cart.items.map((item) =>
-      item._id === itemId ? { ...item, quantity } : item
-    );
-    setCart({ ...cart, items: updatedItems });
-  };
-
-  const save = async () => {
-    if (cart?._id) {
+    const savedCart = localStorage.getItem("cartItems");
+    if (savedCart) {
       try {
-        await cartService.updateCart(cart._id, cart);
-        console.log("Cart saved.");
-      } catch (err) {
-        console.error("Failed to save cart:", err);
+        const parsedItems = JSON.parse(savedCart);
+        setCart({ items: parsedItems });
+      } catch (error) {
+        console.error("Failed to parse cart from localStorage:", error);
       }
     }
+  }, []);
+
+  // Save cart to localStorage whenever items change
+  const save = () => {
+    if (cart.items.length > 0) {
+      localStorage.setItem("cartItems", JSON.stringify(cart.items));
+    }
+  };
+
+  // Add item to cart
+  const addItem = (item: CartItem) => {
+    setCart((prevCart) => {
+      const existingItemIndex = prevCart.items.findIndex(
+        (i) => i._id === item._id
+      );
+
+      if (existingItemIndex >= 0) {
+        // Item exists, update quantity
+        const updatedItems = [...prevCart.items];
+        updatedItems[existingItemIndex].quantity =
+          (updatedItems[existingItemIndex].quantity || 0) +
+          (item.quantity || 1);
+        return { ...prevCart, items: updatedItems };
+      } else {
+        // Add new item
+        return { ...prevCart, items: [...prevCart.items, item] };
+      }
+    });
+  };
+
+  // Update item quantity
+  const updateQuantity = (id: string, quantity: number) => {
+    setCart((prevCart) => {
+      const updatedItems = prevCart.items.map((item) =>
+        item._id === id ? { ...item, quantity } : item
+      );
+      return { ...prevCart, items: updatedItems };
+    });
+  };
+
+  // Remove item from cart
+  const removeItem = (id: string) => {
+    setCart((prevCart) => {
+      const updatedItems = prevCart.items.filter((item) => item._id !== id);
+      return { ...prevCart, items: updatedItems };
+    });
+  };
+
+  // Save cart to backend
+  const saveCart = async (name?: string) => {
+    if (!user) {
+      throw new Error("User must be logged in to save cart");
+    }
+
+    try {
+      const { request } = cartService.createCart({
+        name: name || `Cart ${new Date().toLocaleDateString()}`,
+        ownerId: user._id || "",
+        participants: [],
+        items: cartService.transformCartItems(cart.items),
+      });
+
+      return await request;
+    } catch (error) {
+      console.error("Failed to save cart:", error);
+      throw error;
+    }
+  };
+
+  // Clear cart
+  const clearCart = () => {
+    setCart({ items: [] });
+    localStorage.removeItem("cartItems");
   };
 
   return {
     cart,
-    isLoading,
-    error,
     addItem,
-    removeItem,
     updateQuantity,
+    removeItem,
+    saveCart,
+    clearCart,
     save,
-    refetch: fetchCart,
   };
 };
 
