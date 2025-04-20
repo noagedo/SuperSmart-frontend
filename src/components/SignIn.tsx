@@ -55,7 +55,7 @@ const SignIn: React.FC = () => {
       if (result.success) {
         setIsSubmitting(true);
         setTimeout(() => {
-          navigate('/posts');
+          navigate('/');
           window.location.reload();
         }, 1000);
       } else {
@@ -75,7 +75,7 @@ const SignIn: React.FC = () => {
       if (result.success) {
         setIsSubmitting(true);
         setTimeout(() => {
-          navigate('/posts');
+          navigate('/');
           window.location.reload();
         }, 1000);
       } else {
@@ -98,7 +98,7 @@ const SignIn: React.FC = () => {
   }
 
   if (user) {
-    navigate('/posts');
+    navigate('/');
     return null;
   }
 
