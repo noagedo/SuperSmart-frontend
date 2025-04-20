@@ -77,8 +77,10 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               yAxis={[
                 {
                   label: "מחיר (₪)",
+                  
                   labelStyle: {
-                    transform: "rotate(-90deg)",
+                    transform: "none",
+                    textAnchor: "middle",
                   },
                 },
               ]}
@@ -86,7 +88,7 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               slotProps={{
                 legend: {
                   direction: "row",
-                  position: { vertical: "bottom", horizontal: "middle" },
+                  position: { vertical: "top", horizontal: "middle" },
                 },
               }}
             />

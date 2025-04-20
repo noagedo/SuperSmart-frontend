@@ -15,6 +15,8 @@ import {
 } from "@mui/material";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
+import HomeIcon from '@mui/icons-material/Home'; // Import home icon
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'; // Import cart icon for consistency
 import { Apple } from 'lucide-react';
 import Loading from "./Loading";
 
@@ -51,6 +53,18 @@ const ActionButton = styled(Button)(({ theme }) => ({
   transition: 'all 0.2s ease-in-out',
 }));
 
+const NavButton = styled(Button)(({ theme }) => ({
+  borderRadius: '8px',
+  padding: '6px 16px',
+  fontWeight: 500,
+  textTransform: 'none',
+  color: theme.palette.text.secondary,
+  '&:hover': {
+    backgroundColor: 'rgba(22, 163, 74, 0.08)',
+    color: theme.palette.primary.main,
+  },
+}));
+
 const NavBar: React.FC = () => {
   const { user, signOut } = useUsers();
   const [loading, setLoading] = useState(false);
@@ -81,26 +95,40 @@ const NavBar: React.FC = () => {
       <StyledAppBar position="sticky">
         <Container maxWidth="xl">
           <Toolbar sx={{ justifyContent: "space-between", py: 1.5 }}>
-            <LogoContainer onClick={() => handleNavigation("/Products")}>
-              <Apple 
-                size={32} 
-                color={theme.palette.primary.main}
-                style={{ marginRight: '8px' }}
-              />
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 700,
-                  color: theme.palette.primary.main,
-                  letterSpacing: '-0.5px',
-                  background: 'linear-gradient(45deg, #16a34a 30%, #22c55e 90%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                SuperSmart
-              </Typography>
-            </LogoContainer>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <LogoContainer onClick={() => handleNavigation("/Products")}>
+                <Apple 
+                  size={32} 
+                  color={theme.palette.primary.main}
+                  style={{ marginRight: '8px' }}
+                />
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: theme.palette.primary.main,
+                    letterSpacing: '-0.5px',
+                    background: 'linear-gradient(45deg, #16a34a 30%, #22c55e 90%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  SuperSmart
+                </Typography>
+              </LogoContainer>
+              
+              {/* Navigation Links */}
+              <Box sx={{ display: { xs: 'none', md: 'flex' }, ml: 4 }}>
+                <NavButton 
+                  startIcon={<HomeIcon />}
+                  onClick={() => handleNavigation("/")}
+                >
+                  דף הבית
+                </NavButton>
+                
+              
+              </Box>
+            </Box>
 
             <Box sx={{ 
               display: "flex", 

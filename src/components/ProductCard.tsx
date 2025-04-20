@@ -111,15 +111,14 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             }
             alt={product.name}
             sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              transition: "transform 0.3s ease-in-out",
-              "&:hover": {
-                transform: "scale(1.05)",
+              position: 'absolute',
+              top: 2,
+              left: 60,
+              width: '250px',
+              height: '200px',
+              transition: 'transform 0.3s ease-in-out',
+              '&:hover': {
+                transform: 'scale(1.05)',
               },
             }}
           />
