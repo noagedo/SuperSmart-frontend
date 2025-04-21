@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import userService, { googleSignin, User } from "../services/user-service";
-import { CredentialResponse } from '@react-oauth/google';
+import { CredentialResponse } from "@react-oauth/google";
 
 const useUsers = () => {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); 
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem("user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
-    setIsLoading(false); 
+    setIsLoading(false);
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -22,7 +22,10 @@ const useUsers = () => {
       const { request } = userService.signIn({ email, password });
       const response = await request;
       setUser(response.data);
-      localStorage.setItem('user', JSON.stringify(response.data));
+
+      localStorage.setItem("user", JSON.stringify(response.data));
+      localStorage.setItem("token", response.data.accessToken!); // 🛠️ assert בטוח
+
       return { success: true };
     } catch (err) {
       const errorMessage = "Email or password is incorrect. Please try again.";
@@ -40,7 +43,8 @@ const useUsers = () => {
     try {
       const user = await googleSignin(credentialResponse);
       setUser(user);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", user.accessToken!); // 🛠️ assert בטוח
       return { success: true };
     } catch (err) {
       const errorMessage = "Failed to sign up with Google. Please try again.";
@@ -52,29 +56,34 @@ const useUsers = () => {
     }
   };
 
-  const signUp = async (email: string, password: string, userName: string, avatarFile?: File) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    userName: string,
+    avatarFile?: File
+  ) => {
     setIsLoading(true);
     setError(null);
     try {
-      let avatarUrl = '';
-      
-      
+      let avatarUrl = "";
+
       if (avatarFile) {
         const { request: imageRequest } = userService.uploadImage(avatarFile);
         const imageResponse = await imageRequest;
         avatarUrl = imageResponse.data.url;
       }
 
-      const { request } = userService.signUp({ 
-        email, 
+      const { request } = userService.signUp({
+        email,
         userName,
-        password, 
-        profilePicture: avatarUrl 
+        password,
+        profilePicture: avatarUrl,
       });
-      
+
       const response = await request;
       setUser(response.data);
-      localStorage.setItem('user', JSON.stringify(response.data));
+      localStorage.setItem("user", JSON.stringify(response.data));
+      localStorage.setItem("token", response.data.accessToken!); // 🛠️ assert בטוח
     } catch (err) {
       setError("Failed to sign up. Please try again.");
       console.error(err);
@@ -85,7 +94,8 @@ const useUsers = () => {
 
   const signOut = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
   };
 
   const updateUser = async (updatedUser: User) => {
@@ -95,7 +105,7 @@ const useUsers = () => {
       const { request } = userService.update(updatedUser);
       const response = await request;
       setUser(response.data);
-      localStorage.setItem('user', JSON.stringify(response.data));
+      localStorage.setItem("user", JSON.stringify(response.data));
       return { success: true };
     } catch (err) {
       const errorMessage = "Failed to update user details. Please try again.";
@@ -107,7 +117,16 @@ const useUsers = () => {
     }
   };
 
-  return { user, error, isLoading, signIn, signUp, signOut, updateUser, signUpWithGoogle };
+  return {
+    user,
+    error,
+    isLoading,
+    signIn,
+    signUp,
+    signOut,
+    updateUser,
+    signUpWithGoogle,
+  };
 };
 
 export default useUsers;
