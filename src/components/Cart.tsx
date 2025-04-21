@@ -80,12 +80,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   });
   const { user } = useUsers();
 
-  useEffect(() => {
-    if (items.length > 0) {
-      localStorage.setItem("cartItems", JSON.stringify(items));
-    }
-  }, [items]);
-
   const calculatePriceRange = (storePrices: CartItem["storePrices"] = []) => {
     if (!storePrices || !Array.isArray(storePrices)) {
       return { lowestPrice: 0, highestPrice: 0 };

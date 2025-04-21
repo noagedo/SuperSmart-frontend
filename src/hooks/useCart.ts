@@ -1,5 +1,5 @@
 // 📁 hooks/useCart.ts
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { CartItem } from "../services/item-service";
 import cartService from "../services/cart-service";
 import useUsers from "./useUsers";
@@ -11,24 +11,68 @@ interface CartState {
 const useCart = () => {
   const [cart, setCart] = useState<CartState>({ items: [] });
   const { user } = useUsers();
+  const [initialized, setInitialized] = useState(false);
 
-  // Load cart from localStorage on initial load
-  useEffect(() => {
-    const savedCart = localStorage.getItem("cartItems");
-    if (savedCart) {
-      try {
-        const parsedItems = JSON.parse(savedCart);
-        setCart({ items: parsedItems });
-      } catch (error) {
-        console.error("Failed to parse cart from localStorage:", error);
-      }
+  // Get user-specific localStorage key
+  const getCartKey = useCallback(() => {
+    if (!user || !user._id) {
+      return null;
     }
-  }, []);
+    return `cart_${user._id}`;
+  }, [user]);
 
-  // Save cart to localStorage whenever items change
-  const save = () => {
+  // Load cart from localStorage when user changes
+  useEffect(() => {
+    const cartKey = getCartKey();
+    console.log("Loading cart for key:", cartKey);
+
+    if (!cartKey) {
+      console.log("No user logged in, using empty cart");
+      setCart({ items: [] });
+      return;
+    }
+
+    try {
+      const savedCart = localStorage.getItem(cartKey);
+      if (savedCart) {
+        const parsedItems = JSON.parse(savedCart);
+        console.log("Loaded cart with items:", parsedItems.length);
+        setCart({ items: parsedItems });
+      } else {
+        console.log("No saved cart found for user:", cartKey);
+        setCart({ items: [] });
+      }
+    } catch (error) {
+      console.error(`Error loading cart from localStorage:`, error);
+      setCart({ items: [] });
+    }
+  }, [user, getCartKey]);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    const cartKey = getCartKey();
+    if (!cartKey) return;
+
+    console.log(`Auto-saving cart with ${cart.items.length} items`);
+
     if (cart.items.length > 0) {
-      localStorage.setItem("cartItems", JSON.stringify(cart.items));
+      localStorage.setItem(cartKey, JSON.stringify(cart.items));
+    } else {
+      localStorage.removeItem(cartKey);
+    }
+  }, [cart.items, getCartKey]);
+
+  // Simplified manual save function
+  const save = () => {
+    const cartKey = getCartKey();
+    if (!cartKey) return;
+
+    if (cart.items.length > 0) {
+      localStorage.setItem(cartKey, JSON.stringify(cart.items));
+      console.log("Cart manually saved");
+    } else {
+      localStorage.removeItem(cartKey);
+      console.log("Empty cart - removed from localStorage");
     }
   };
 
@@ -45,10 +89,10 @@ const useCart = () => {
         updatedItems[existingItemIndex].quantity =
           (updatedItems[existingItemIndex].quantity || 0) +
           (item.quantity || 1);
-        return { ...prevCart, items: updatedItems };
+        return { items: updatedItems };
       } else {
         // Add new item
-        return { ...prevCart, items: [...prevCart.items, item] };
+        return { items: [...prevCart.items, item] };
       }
     });
   };
@@ -59,15 +103,18 @@ const useCart = () => {
       const updatedItems = prevCart.items.map((item) =>
         item._id === id ? { ...item, quantity } : item
       );
-      return { ...prevCart, items: updatedItems };
+      return { items: updatedItems };
     });
   };
 
-  // Remove item from cart
+  // Remove item from cart (simplified)
   const removeItem = (id: string) => {
+    console.log(`Removing item with ID: ${id}`);
+
     setCart((prevCart) => {
       const updatedItems = prevCart.items.filter((item) => item._id !== id);
-      return { ...prevCart, items: updatedItems };
+      console.log(`Updated cart has ${updatedItems.length} items`);
+      return { items: updatedItems };
     });
   };
 
@@ -95,7 +142,6 @@ const useCart = () => {
   // Clear cart
   const clearCart = () => {
     setCart({ items: [] });
-    localStorage.removeItem("cartItems");
   };
 
   return {
