@@ -1,5 +1,4 @@
-// 📁 ProductList.tsx
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Container,
   Grid,
@@ -23,6 +22,7 @@ import { Item } from "../services/item-service";
 import useItems from "../hooks/useItems";
 import useUsers from "../hooks/useUsers";
 import useCart from "../hooks/useCart";
+
 import ReceiptAnalyzer from "../components/ReceiptAnalyzer"; // Import ReceiptAnalyzer
 
 const theme = createTheme({
@@ -279,6 +279,7 @@ function ProductList() {
               <ReceiptAnalyzer onAddToCart={handleAddToCartFromReceipt} />
             </Box>
 
+
             {isLoading ? (
               <Box
                 sx={{
@@ -368,6 +369,7 @@ function ProductList() {
                 mb: 3,
               }}
             >
+
               <Typography variant="h5" sx={{ fontWeight: 600 }}>
                 עגלת קניות
               </Typography>
@@ -386,6 +388,7 @@ function ProductList() {
       </Box>
     </ThemeProvider>
   );
+
 }
 
 export default ProductList;

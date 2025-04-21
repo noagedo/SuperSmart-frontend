@@ -1,9 +1,5 @@
-// 📁 components/Cart.tsx
 import { useEffect, useState } from "react";
-import {
-  ShoppingCart as CartIcon,
-  Delete as TrashIcon,
-} from "@mui/icons-material";
+import { ShoppingCart as CartIcon, Delete as TrashIcon } from "@mui/icons-material";
 import {
   Box,
   Typography,
@@ -28,6 +24,7 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  Paper,
 } from "@mui/material";
 import { CartItem } from "../services/item-service";
 import cartService from "../services/cart-service";
@@ -45,21 +42,51 @@ const theme = createTheme({
 
 const StyledCard = styled(Card)(({ theme }) => ({
   borderRadius: theme.spacing(2),
-  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
   overflow: "hidden",
+  background: "linear-gradient(to bottom, #ffffff, #f8fafc)",
 }));
 
-const CartItemContainer = styled(Box)(({ theme }) => ({
+const CartItemContainer = styled(Paper)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
-  gap: theme.spacing(2),
-  padding: theme.spacing(2),
+  gap: theme.spacing(3),
+  padding: theme.spacing(3),
   marginBottom: theme.spacing(2),
-  backgroundColor: "#f8fafc",
-  borderRadius: theme.spacing(1),
-  transition: "transform 0.2s ease-in-out",
+  borderRadius: theme.spacing(2),
+  backgroundColor: "#ffffff",
+  transition: "all 0.3s ease-in-out",
+  border: "1px solid rgba(22, 163, 74, 0.1)",
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: "0 12px 24px rgba(22, 163, 74, 0.08)",
+    borderColor: "rgba(22, 163, 74, 0.2)",
+  },
+}));
+
+const StyledSelect = styled(Select)(({ theme }) => ({
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: theme.palette.primary.main,
+    borderRadius: theme.spacing(1),
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: theme.palette.primary.dark,
+  },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: theme.palette.primary.dark,
+  },
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.spacing(1.5),
+  padding: theme.spacing(1, 3),
+  fontWeight: 600,
+  textTransform: "none",
+  transition: "all 0.2s ease-in-out",
+  boxShadow: "none",
   "&:hover": {
     transform: "translateY(-2px)",
+    boxShadow: "0 4px 12px rgba(22, 163, 74, 0.15)",
   },
 }));
 
@@ -94,6 +121,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
       highestPrice: allPrices.length ? Math.max(...allPrices) : 0,
     };
   };
+
   const getStoreName = (storeId: string) => {
     const storeNames: Record<string, string> = {
       "65a4e1e1e1e1e1e1e1e1e1e1": "חצי חינם",
@@ -105,7 +133,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const calculateShopTotals = () => {
     const allStoreIds = new Set<string>();
 
-    // Add safe guards for undefined properties
     items.forEach((item) => {
       if (item.storePrices && Array.isArray(item.storePrices)) {
         item.storePrices.forEach((sp) => {
@@ -199,18 +226,35 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   if (items.length === 0) {
     return (
       <StyledCard>
-        <CardContent sx={{ textAlign: "center", py: 6 }}>
+        <CardContent sx={{ 
+          textAlign: "center", 
+          py: 8,
+          background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)"
+        }}>
           <CartIcon
-            sx={{ fontSize: 48, color: "primary.main", opacity: 0.6, mb: 2 }}
+            sx={{ 
+              fontSize: 64,
+              color: "primary.main",
+              opacity: 0.8,
+              mb: 3
+            }}
           />
           <Typography
-            variant="h6"
-            sx={{ color: "primary.main", fontWeight: 600 }}
+            variant="h5"
+            sx={{ 
+              color: "primary.main",
+              fontWeight: 700,
+              mb: 2
+            }}
           >
-            העגלה ריקה
+            העגלה שלך ריקה
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            הוסף מוצרים כדי להתחיל
+          <Typography 
+            variant="body1" 
+            color="text.secondary"
+            sx={{ maxWidth: 400, mx: "auto" }}
+          >
+            התחל להוסיף מוצרים לעגלה שלך כדי לראות השוואת מחירים בין רשתות
           </Typography>
         </CardContent>
       </StyledCard>
@@ -220,57 +264,75 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   return (
     <ThemeProvider theme={theme}>
       <StyledCard>
-        <Box sx={{ bgcolor: "primary.main", p: 3, color: "white" }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            עגלת קניות ({items.length} פריטים)
+        <Box 
+          sx={{ 
+            bgcolor: "primary.main",
+            p: 4,
+            color: "white",
+            background: "linear-gradient(45deg, #16a34a 30%, #22c55e 90%)"
+          }}
+        >
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            עגלת קניות ({items.length} {items.length === 1 ? "פריט" : "פריטים"})
           </Typography>
         </Box>
 
-        <CardContent>
+        <CardContent sx={{ p: 4 }}>
           {showShopComparison ? (
             <Box>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  mb: 3,
+                  fontWeight: 700,
+                  color: "primary.main"
+                }}
+              >
                 השוואת מחירים בין חנויות
               </Typography>
-              <List>
+              <List sx={{ bgcolor: "#f8fafc", borderRadius: 2, p: 2 }}>
                 {calculateShopTotals().map(
                   ([storeId, { total, name }], index) => (
                     <ListItem
                       key={storeId}
                       sx={{
-                        bgcolor:
-                          index === 0
-                            ? "rgba(22, 163, 74, 0.1)"
-                            : "transparent",
-                        borderRadius: 1,
-                        mb: 1,
-                        border:
-                          index === 0
-                            ? "1px solid rgba(22, 163, 74, 0.3)"
-                            : "none",
+                        bgcolor: index === 0 ? "rgba(22, 163, 74, 0.1)" : "white",
+                        borderRadius: 2,
+                        mb: 2,
+                        border: index === 0 
+                          ? "2px solid rgba(22, 163, 74, 0.3)"
+                          : "1px solid rgba(0, 0, 0, 0.1)",
+                        transition: "transform 0.2s ease-in-out",
+                        "&:hover": {
+                          transform: "translateX(-8px)",
+                        },
                       }}
                     >
                       <ListItemText
-                        primary={name}
+                        primary={
+                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            {name}
+                          </Typography>
+                        }
                         secondary={index === 0 ? "המחיר הנמוך ביותר" : null}
                       />
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                      >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                         {index === 0 && (
                           <Chip
-                            label="הכי זול"
-                            size="small"
+                            label="הכי זול!"
                             color="primary"
-                            sx={{ mr: 1 }}
+                            sx={{ 
+                              fontWeight: 600,
+                              bgcolor: "primary.main",
+                              "& .MuiChip-label": { px: 2 }
+                            }}
                           />
                         )}
                         <Typography
-                          variant="h6"
+                          variant="h5"
                           sx={{
-                            fontWeight: 600,
-                            color:
-                              index === 0 ? "primary.main" : "text.primary",
+                            fontWeight: 700,
+                            color: index === 0 ? "primary.main" : "text.primary",
                           }}
                         >
                           ₪{total.toFixed(2)}
@@ -282,7 +344,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
               </List>
             </Box>
           ) : (
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: 4 }}>
               {items.map((item) => (
                 <CartItemContainer key={item._id}>
                   <CardMedia
@@ -293,33 +355,35 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                     }
                     alt={item.name}
                     sx={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 1.5,
+                      width: 100,
+                      height: 100,
+                      borderRadius: 2,
                       objectFit: "cover",
-                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                     }}
                   />
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        fontWeight: 700,
+                        mb: 1,
+                        color: "text.primary"
+                      }}
+                    >
                       {item.name}
                     </Typography>
                     <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 1 }}
-                    >
-                      כמות: {item.quantity}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 1 }}
+                      variant="body1"
+                      sx={{
+                        color: "text.secondary",
+                        mb: 2
+                      }}
                     >
                       {(() => {
                         const { lowestPrice, highestPrice } =
                           calculatePriceRange(item.storePrices);
-                        return `טווח מחיר: ₪${lowestPrice.toFixed(
+                        return `טווח מחירים: ₪${lowestPrice.toFixed(
                           2
                         )} - ₪${highestPrice.toFixed(2)}`;
                       })()}
@@ -329,41 +393,39 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
+                        gap: 2,
                       }}
                     >
-                      <Select
+                      <StyledSelect
                         value={item.quantity}
                         onChange={(e) =>
                           onUpdateQuantity(item._id, Number(e.target.value))
                         }
                         size="small"
-                        sx={{
-                          minWidth: 80,
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "primary.main",
-                          },
-                        }}
+                        sx={{ minWidth: 100 }}
                       >
                         {[1, 2, 3, 4, 5].map((num) => (
                           <MenuItem key={num} value={num}>
-                            {num}
+                            {num} יח׳
                           </MenuItem>
                         ))}
-                      </Select>
-                      <Button
+                      </StyledSelect>
+                      <ActionButton
                         onClick={() => onRemoveItem(item._id)}
                         color="error"
                         startIcon={<TrashIcon />}
-                        size="small"
+                        variant="outlined"
                         sx={{
+                          borderColor: "error.main",
+                          color: "error.main",
                           "&:hover": {
-                            backgroundColor: "error.light",
+                            bgcolor: "error.main",
                             color: "white",
                           },
                         }}
                       >
-                        הסר
-                      </Button>
+                        הסר מהעגלה
+                      </ActionButton>
                     </Box>
                   </Box>
                 </CartItemContainer>
@@ -371,60 +433,64 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
             </Box>
           )}
 
-          <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 4 }} />
 
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <Button
+          <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+            <ActionButton
               variant="contained"
               fullWidth
+              onClick={() => setShowShopComparison(!showShopComparison)}
               sx={{
                 bgcolor: "primary.main",
                 color: "white",
-                py: 1.5,
+                py: 2,
                 fontSize: "1.1rem",
-                fontWeight: 600,
-                borderRadius: 2,
-                "&:hover": { bgcolor: "primary.dark" },
-                "&:active": { transform: "scale(0.98)" },
               }}
-              onClick={() => setShowShopComparison(!showShopComparison)}
             >
-              {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בסופרים"}
-            </Button>
+              {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בין רשתות"}
+            </ActionButton>
 
-            <Button
+            <ActionButton
               variant="outlined"
               fullWidth
+              onClick={() => setSaveDialogOpen(true)}
+              disabled={items.length === 0}
               sx={{
                 borderColor: "primary.main",
                 color: "primary.main",
-                py: 1.5,
+                py: 2,
                 fontSize: "1.1rem",
-                fontWeight: 600,
-                borderRadius: 2,
                 "&:hover": {
                   borderColor: "primary.dark",
-                  color: "primary.dark",
                   bgcolor: "rgba(22, 163, 74, 0.05)",
                 },
-                "&:active": { transform: "scale(0.98)" },
               }}
-              onClick={() => setSaveDialogOpen(true)}
-              disabled={items.length === 0}
             >
               שמירת עגלה
-            </Button>
+            </ActionButton>
           </Box>
         </CardContent>
 
-        {/* Save Cart Dialog */}
         <Dialog
           open={saveDialogOpen}
           onClose={() => setSaveDialogOpen(false)}
-          dir="rtl"
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              overflow: "hidden",
+            },
+          }}
         >
-          <DialogTitle>שמירת עגלה</DialogTitle>
-          <DialogContent>
+          <DialogTitle
+            sx={{
+              bgcolor: "primary.main",
+              color: "white",
+              py: 3,
+            }}
+          >
+            שמירת עגלה
+          </DialogTitle>
+          <DialogContent sx={{ p: 4 }}>
             <TextField
               autoFocus
               margin="dense"
@@ -436,32 +502,53 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
               placeholder={`העגלה שלי ${new Date().toLocaleDateString(
                 "he-IL"
               )}`}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": {
+                    borderColor: "primary.main",
+                  },
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "primary.main",
+                },
+              }}
             />
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setSaveDialogOpen(false)} color="primary">
+          <DialogActions sx={{ p: 3 }}>
+            <Button
+              onClick={() => setSaveDialogOpen(false)}
+              sx={{ color: "text.secondary" }}
+            >
               ביטול
             </Button>
             <Button
               onClick={handleSaveCart}
-              color="primary"
               variant="contained"
+              sx={{
+                bgcolor: "primary.main",
+                "&:hover": { bgcolor: "primary.dark" },
+              }}
             >
-              שמור
+              שמור עגלה
             </Button>
           </DialogActions>
         </Dialog>
 
-        {/* Success/Error Notification */}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={6000}
           onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         >
           <Alert
             onClose={handleCloseSnackbar}
             severity={snackbar.severity}
-            sx={{ width: "100%" }}
+            sx={{
+              width: "100%",
+              borderRadius: 2,
+              bgcolor: snackbar.severity === "success" ? "#16a34a" : undefined,
+              color: snackbar.severity === "success" ? "white" : undefined,
+            }}
           >
             {snackbar.message}
           </Alert>
