@@ -25,6 +25,7 @@ const useUsers = () => {
 
       localStorage.setItem("user", JSON.stringify(response.data));
       localStorage.setItem("token", response.data.accessToken!); // 🛠️ assert בטוח
+      localStorage.setItem("refreshToken", response.data.refreshToken!); // ✅ חדש
 
       return { success: true };
     } catch (err) {
@@ -45,6 +46,8 @@ const useUsers = () => {
       setUser(user);
       localStorage.setItem("user", JSON.stringify(user));
       localStorage.setItem("token", user.accessToken!); // 🛠️ assert בטוח
+      localStorage.setItem("refreshToken", user.refreshToken!);
+
       return { success: true };
     } catch (err) {
       const errorMessage = "Failed to sign up with Google. Please try again.";
@@ -84,6 +87,8 @@ const useUsers = () => {
       setUser(response.data);
       localStorage.setItem("user", JSON.stringify(response.data));
       localStorage.setItem("token", response.data.accessToken!); // 🛠️ assert בטוח
+      localStorage.setItem("refreshToken", response.data.refreshToken!); // ✅ חדש
+
     } catch (err) {
       setError("Failed to sign up. Please try again.");
       console.error(err);
@@ -92,11 +97,22 @@ const useUsers = () => {
     }
   };
 
-  const signOut = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+  const signOut = async () => {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        await userService.logout(refreshToken); // ← קריאה לשרת
+      }
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      setUser(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+    }
   };
+  
 
   const updateUser = async (updatedUser: User) => {
     setIsLoading(true);
