@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+
+import { useState, useMemo } from "react";
+
 import {
   Container,
   Grid,
@@ -339,20 +341,22 @@ function ProductList() {
           </Container>
         </Box>
 
-        <Drawer
-          anchor="right"
-          open={cartOpen}
-          onClose={toggleCart}
-          variant="persistent"
-          sx={{
-            "& .MuiDrawer-paper": {
-              width: 600,
-              boxSizing: "border-box",
-              bgcolor: "#f8fafc",
-              borderLeft: `1px solid ${theme.palette.divider}`,
-            },
+
+        <Drawer 
+          anchor="right" 
+          open={cartOpen} 
+          onClose={toggleCart} 
+          variant="persistent" 
+          sx={{ 
+            "& .MuiDrawer-paper": { 
+              width: 600, 
+              boxSizing: "border-box", 
+              bgcolor: "#f8fafc", 
+              borderLeft: `1px solid ${theme.palette.divider}` 
+            } 
           }}
         >
+
           <Box
             sx={{
               p: 3,
@@ -369,6 +373,7 @@ function ProductList() {
                 mb: 3,
               }}
             >
+
 
               <Typography variant="h5" sx={{ fontWeight: 600 }}>
                 עגלת קניות
