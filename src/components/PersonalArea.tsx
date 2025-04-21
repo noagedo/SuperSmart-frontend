@@ -1,4 +1,4 @@
-import { FC, useState, useRef } from "react";
+import { FC, useState, useRef, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -10,11 +10,34 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Chip,
+  CircularProgress,
+  Card,
+  CardContent,
+  Grid,
 } from "@mui/material";
 import useUsers from "../hooks/useUsers";
 import { User } from "../services/user-service";
 import userService from "../services/user-service";
-import { Apple, Camera, Save, Edit2, Lock } from "lucide-react";
+import cartService, { Cart } from "../services/cart-service";
+import {
+  Apple,
+  Camera,
+  Save,
+  Edit2,
+  Lock,
+  ShoppingBag,
+  Trash2,
+  ArrowRight,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import useCart from "../hooks/useCart";
+import useItems from "../hooks/useItems"; // Add this import
 
 // 🧩 Props
 interface PersonalAreaProps {
@@ -29,6 +52,33 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const inputFileRef = useRef<HTMLInputElement | null>(null);
+  const navigate = useNavigate();
+  const { addItem, clearCart } = useCart();
+
+  // Add states for carts
+  const [savedCarts, setSavedCarts] = useState<Cart[]>([]);
+  const [loadingCarts, setLoadingCarts] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
+  const [selectedCart, setSelectedCart] = useState<Cart | null>(null);
+  const [cartDetailsOpen, setCartDetailsOpen] = useState(false);
+
+  // Add state for cart items with product details
+  const [cartItemsWithDetails, setCartItemsWithDetails] = useState<
+    Array<{
+      productId: string;
+      quantity: number;
+      productName?: string;
+      price?: number;
+      category?: string;
+      image?: string;
+    }>
+  >([]);
+
+  // Add loading state for product details
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  // Get items hook to access products data
+  const { items: allProducts } = useItems();
 
   // 🔒 Password change
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
@@ -45,12 +95,18 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
       let avatarUrl = user.profilePicture;
 
       if (profilePicture) {
-        const { request: uploadRequest } = userService.uploadImage(profilePicture);
+        const { request: uploadRequest } =
+          userService.uploadImage(profilePicture);
         const uploadResponse = await uploadRequest;
         avatarUrl = uploadResponse.data.url;
       }
 
-      const updatedUser = { ...user, userName, email, profilePicture: avatarUrl };
+      const updatedUser = {
+        ...user,
+        userName,
+        email,
+        profilePicture: avatarUrl,
+      };
       const result = await updateUser(updatedUser);
 
       if (result.success) {
@@ -95,7 +151,11 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
     }
 
     try {
-      const { request } = userService.changePassword(user._id, currentPassword, newPassword);
+      const { request } = userService.changePassword(
+        user._id,
+        currentPassword,
+        newPassword
+      );
       await request;
       setPasswordSuccess(true);
       setTimeout(() => {
@@ -110,17 +170,147 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
       const errorMessage =
         typeof err.response?.data?.error === "string"
           ? err.response.data.error
-          : err.response?.data?.error?.message || "Failed to change password. Please try again.";
+          : err.response?.data?.error?.message ||
+            "Failed to change password. Please try again.";
 
       setPasswordError(errorMessage);
       setIsSubmitting(false);
     }
   };
 
+  // Fetch user's carts
+  useEffect(() => {
+    const fetchCarts = async () => {
+      if (!user || !user._id) {
+        console.log("No user ID available, can't fetch carts");
+        return;
+      }
+
+      setLoadingCarts(true);
+      setCartError(null);
+
+      try {
+        console.log(`Fetching carts for user ID: ${user._id}`);
+        const { request } = cartService.getCartsByUser(user._id);
+        const response = await request;
+
+        console.log("Carts fetched successfully:", response.data);
+        setSavedCarts(response.data);
+      } catch (error) {
+        console.error("Error fetching carts:", error);
+        setCartError("Failed to load saved carts");
+      } finally {
+        setLoadingCarts(false);
+      }
+    };
+
+    fetchCarts();
+  }, [user?._id]);
+
+  // Handle deleting a cart
+  const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!confirm("האם אתה בטוח שברצונך למחוק את העגלה?")) return;
+
+    try {
+      const { request } = cartService.deleteCart(cartId);
+      await request;
+      // Update the carts list after deletion
+      setSavedCarts(savedCarts.filter((cart) => cart._id !== cartId));
+    } catch (error) {
+      console.error("Error deleting cart:", error);
+      setCartError("Failed to delete cart");
+    }
+  };
+
+  // Handle loading a saved cart
+  const handleLoadCart = async (cart: Cart) => {
+    setSelectedCart(null);
+    setCartDetailsOpen(false);
+
+    // Navigate to products page with cart loaded
+    clearCart(); // Clear current cart first
+
+    if (cart.items && cart.items.length > 0) {
+      navigate("/Products"); // Navigate to products page
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateString?: Date) => {
+    if (!dateString) return "Unknown date";
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat("he-IL", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  };
+
+  // View cart details
+  const handleViewCartDetails = async (cart: Cart) => {
+    setSelectedCart(cart);
+    setCartDetailsOpen(true);
+    setLoadingDetails(true);
+
+    try {
+      // If we already have all products loaded, use them to get details
+      if (Array.isArray(allProducts) && allProducts.length > 0) {
+        const itemsWithDetails = cart.items.map((item) => {
+          const productDetails = allProducts.find(
+            (p) => p._id === item.productId
+          );
+          return {
+            ...item,
+            productName: productDetails?.name || "מוצר לא מזוהה",
+            category: productDetails?.category,
+            price: productDetails?.storePrices?.[0]?.prices?.[0]?.price || 0,
+            image: productDetails?.image,
+          };
+        });
+
+        setCartItemsWithDetails(itemsWithDetails);
+      } else {
+        // Fallback to using just the IDs and quantities
+        setCartItemsWithDetails(cart.items);
+      }
+    } catch (error) {
+      console.error("Error getting product details:", error);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   return (
-    <Box sx={{ minHeight: "100vh", background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)", py: 6, px: 4 }}>
-      <Paper elevation={3} sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}>
-        <Box sx={{ bgcolor: "#16a34a", p: 3, display: "flex", alignItems: "center", gap: 2 }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+        py: 6,
+        px: 4,
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          maxWidth: 800,
+          mx: "auto",
+          borderRadius: 3,
+          overflow: "hidden",
+          mb: 4,
+        }}
+      >
+        <Box
+          sx={{
+            bgcolor: "#16a34a",
+            p: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
           <Apple size={32} color="white" />
           <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
             האזור האישי שלי
@@ -129,11 +319,23 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
 
         {/* Profile content */}
         <Box sx={{ p: 4 }}>
-          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", gap: 4, mb: 4 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: "center",
+              gap: 4,
+              mb: 4,
+            }}
+          >
             <Box sx={{ position: "relative" }}>
               <Box
                 component="img"
-                src={profilePicture ? URL.createObjectURL(profilePicture) : user.profilePicture}
+                src={
+                  profilePicture
+                    ? URL.createObjectURL(profilePicture)
+                    : user.profilePicture
+                }
                 alt={user.userName}
                 sx={{
                   width: 120,
@@ -160,7 +362,13 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
                   }}
                 >
                   <Camera size={18} />
-                  <input ref={inputFileRef} type="file" accept="image/png, image/jpeg" onChange={handleFileChange} style={{ display: "none" }} />
+                  <input
+                    ref={inputFileRef}
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                  />
                 </Button>
               )}
             </Box>
@@ -197,7 +405,10 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
                 </Box>
               ) : (
                 <>
-                  <Typography variant="h4" sx={{ color: "#16a34a", fontWeight: 700, mb: 1 }}>
+                  <Typography
+                    variant="h4"
+                    sx={{ color: "#16a34a", fontWeight: 700, mb: 1 }}
+                  >
                     {user.userName}
                   </Typography>
                   <Typography variant="body1" sx={{ color: "text.secondary" }}>
@@ -232,7 +443,11 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
                 variant="contained"
                 onClick={handleSave}
                 startIcon={<Save />}
-                sx={{ bgcolor: "#16a34a", "&:hover": { bgcolor: "#15803d" }, px: 4 }}
+                sx={{
+                  bgcolor: "#16a34a",
+                  "&:hover": { bgcolor: "#15803d" },
+                  px: 4,
+                }}
               >
                 שמור שינויים
               </Button>
@@ -264,8 +479,243 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
         </Box>
       </Paper>
 
+      {/* Saved Carts Section */}
+      <Paper
+        elevation={3}
+        sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
+      >
+        <Box
+          sx={{
+            bgcolor: "#16a34a",
+            p: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <ShoppingBag size={32} color="white" />
+          <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
+            העגלות השמורות שלי
+          </Typography>
+        </Box>
+
+        <Box sx={{ p: 4 }}>
+          {loadingCarts ? (
+            <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+              <CircularProgress color="primary" />
+            </Box>
+          ) : cartError ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {cartError}
+            </Alert>
+          ) : savedCarts.length === 0 ? (
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Typography variant="h6" color="text.secondary">
+                אין לך עגלות שמורות עדיין
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => navigate("/Products")}
+                startIcon={<ShoppingBag />}
+                sx={{
+                  mt: 2,
+                  bgcolor: "#16a34a",
+                  "&:hover": { bgcolor: "#15803d" },
+                }}
+              >
+                התחל קניות
+              </Button>
+            </Box>
+          ) : (
+            <Grid container spacing={3}>
+              {savedCarts.map((cart) => (
+                <Grid item xs={12} md={6} key={cart._id}>
+                  <Card
+                    sx={{
+                      cursor: "pointer",
+                      transition: "transform 0.2s, box-shadow 0.2s",
+                      "&:hover": {
+                        transform: "translateY(-4px)",
+                        boxShadow: 4,
+                      },
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                    onClick={() => handleViewCartDetails(cart)}
+                  >
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mb: 2,
+                        }}
+                      >
+                        <Typography
+                          variant="h6"
+                          sx={{ fontWeight: 600, color: "#16a34a" }}
+                        >
+                          {cart.name || "עגלה ללא שם"}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => handleDeleteCart(cart._id!, e)}
+                          sx={{
+                            "&:hover": { bgcolor: "rgba(211, 47, 47, 0.1)" },
+                          }}
+                        >
+                          <Trash2 size={18} />
+                        </IconButton>
+                      </Box>
+
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        נוצר: {formatDate(cart.createdAt)}
+                      </Typography>
+
+                      <Chip
+                        label={`${cart.items?.length || 0} פריטים`}
+                        size="small"
+                        sx={{
+                          bgcolor: "rgba(22, 163, 74, 0.1)",
+                          color: "#16a34a",
+                          fontWeight: 600,
+                          mb: 2,
+                        }}
+                      />
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          mt: 2,
+                        }}
+                      >
+                        <Button
+                          size="small"
+                          endIcon={<ArrowRight size={16} />}
+                          sx={{ color: "#16a34a" }}
+                        >
+                          צפה בפרטים
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Box>
+      </Paper>
+
+      {/* Cart Details Dialog */}
+      <Dialog
+        open={cartDetailsOpen}
+        onClose={() => setCartDetailsOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        {selectedCart && (
+          <>
+            <DialogTitle sx={{ bgcolor: "#16a34a", color: "white" }}>
+              {selectedCart.name || "עגלה ללא שם"}
+            </DialogTitle>
+            <DialogContent sx={{ py: 3, mt: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                נוצר בתאריך: {formatDate(selectedCart.createdAt)}
+              </Typography>
+
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                תכולת העגלה:
+              </Typography>
+
+              {loadingDetails ? (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                  <CircularProgress size={30} color="primary" />
+                </Box>
+              ) : (
+                <List sx={{ bgcolor: "#f8fafc", borderRadius: 2 }}>
+                  {cartItemsWithDetails.length > 0 ? (
+                    cartItemsWithDetails.map((item, index) => (
+                      <ListItem
+                        key={index}
+                        divider={index < cartItemsWithDetails.length - 1}
+                        alignItems="flex-start"
+                      >
+                        {item.image && (
+                          <Box
+                            component="img"
+                            src={
+                              item.image ||
+                              "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"
+                            }
+                            alt={item.productName || `מוצר #${index + 1}`}
+                            sx={{
+                              width: 60,
+                              height: 60,
+                              borderRadius: 1.5,
+                              objectFit: "cover",
+                              mr: 2,
+                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                              border: "1px solid rgba(22, 163, 74, 0.2)",
+                            }}
+                          />
+                        )}
+                        <ListItemText
+                          primary={item.productName || `מוצר #${index + 1}`}
+                          secondary={
+                            <Box>
+                              <Typography variant="body2">
+                                כמות: {item.quantity || 1}
+                              </Typography>
+                              {item.category && (
+                                <Typography variant="body2">
+                                  קטגוריה: {item.category}
+                                </Typography>
+                              )}
+                              {item.price !== undefined && (
+                                <Typography variant="body2">
+                                  מחיר: ₪{item.price.toFixed(2)}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    ))
+                  ) : (
+                    <ListItem>
+                      <ListItemText primary="אין פריטים בעגלה זו" />
+                    </ListItem>
+                  )}
+                </List>
+              )}
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button
+                onClick={() => setCartDetailsOpen(false)}
+                sx={{ color: "text.secondary" }}
+              >
+                סגור
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
       {/* Password Change Dialog */}
-      <Dialog open={isPasswordDialogOpen} onClose={() => !isSubmitting && setIsPasswordDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={isPasswordDialogOpen}
+        onClose={() => !isSubmitting && setIsPasswordDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle
           sx={{
             bgcolor: "#16a34a",
@@ -279,18 +729,58 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
           שינוי סיסמה
         </DialogTitle>
         <DialogContent sx={{ pt: 2, mt: 2 }}>
-          {passwordSuccess && <Alert severity="success" sx={{ mb: 2 }}>הסיסמה שונתה בהצלחה!</Alert>}
-          {passwordError && <Alert severity="error" sx={{ mb: 2 }}>{passwordError}</Alert>}
+          {passwordSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              הסיסמה שונתה בהצלחה!
+            </Alert>
+          )}
+          {passwordError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {passwordError}
+            </Alert>
+          )}
 
-          <TextField label="סיסמה נוכחית" type="password" fullWidth value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} disabled={isSubmitting} sx={{ mb: 2 }} />
-          <TextField label="סיסמה חדשה" type="password" fullWidth value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={isSubmitting} sx={{ mb: 2 }} />
-          <TextField label="אימות סיסמה חדשה" type="password" fullWidth value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isSubmitting} />
+          <TextField
+            label="סיסמה נוכחית"
+            type="password"
+            fullWidth
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            disabled={isSubmitting}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="סיסמה חדשה"
+            type="password"
+            fullWidth
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            disabled={isSubmitting}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="אימות סיסמה חדשה"
+            type="password"
+            fullWidth
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={isSubmitting}
+          />
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setIsPasswordDialogOpen(false)} disabled={isSubmitting} sx={{ color: "text.secondary" }}>
+          <Button
+            onClick={() => setIsPasswordDialogOpen(false)}
+            disabled={isSubmitting}
+            sx={{ color: "text.secondary" }}
+          >
             ביטול
           </Button>
-          <Button variant="contained" onClick={handlePasswordChange} disabled={isSubmitting} sx={{ bgcolor: "#16a34a", "&:hover": { bgcolor: "#15803d" } }}>
+          <Button
+            variant="contained"
+            onClick={handlePasswordChange}
+            disabled={isSubmitting}
+            sx={{ bgcolor: "#16a34a", "&:hover": { bgcolor: "#15803d" } }}
+          >
             {isSubmitting ? "מעדכן..." : "שנה סיסמה"}
           </Button>
         </DialogActions>
