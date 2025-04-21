@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { Button, Typography, Box, TextField } from '@mui/material';
-import itemService from '../services/item-service'; 
+import { Button, Typography, Box } from '@mui/material';
+import itemService from '../services/item-service';
 
-interface ReceiptAnalyzerProps {}
+interface ReceiptAnalyzerProps {
+    onAddToCart?: (items: { _id: string; quantity: number }[]) => void;
+}
 
-const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = () => {
+const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
-    const [productList, setProductList] = useState<string>('');
+    const [analysisResult, setAnalysisResult] = useState<string | { cartItems: { _id: string; quantity: number }[] } | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
 
     const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
             setSelectedImage(event.target.files[0]);
-            setProductList(''); // Clear previous results
+            setAnalysisResult(null);
             setError('');
         }
     };
@@ -26,15 +28,31 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = () => {
 
         setLoading(true);
         setError('');
-        setProductList('');
+        setAnalysisResult(null);
 
         const formData = new FormData();
         formData.append('receiptImage', selectedImage);
 
         try {
-            const { request } = itemService.analyzeReceipt(formData); // Get the request promise
-            const response = await request; // Await the promise to get the AxiosResponse
-            setProductList(response.data.products);
+            const { request } = itemService.analyzeReceipt(formData);
+            const response = await request;
+
+            console.log("Full response from analyzeReceipt:", response); // Debugging: Inspect the entire response
+
+            if (response.data?.cartItems) {
+                const cartItems = response.data.cartItems;
+                console.log("Items from ReceiptAnalyzer:", cartItems);
+                setAnalysisResult({ cartItems });
+                if (onAddToCart) {
+                    onAddToCart(cartItems);
+                }
+            }
+            else if (response.data?.message) {
+                setAnalysisResult(response.data.message);
+            }
+            else {
+                setAnalysisResult('Could not process the receipt.');
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to analyze receipt.');
             console.error('Error analyzing receipt:', err);
@@ -42,7 +60,7 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = () => {
             setLoading(false);
         }
     };
-    
+
     return (
         <Box sx={{ mt: 4, p: 3, border: '1px solid #ccc', borderRadius: 2 }}>
             <Typography variant="h6" gutterBottom>
@@ -82,10 +100,23 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = () => {
                 </Typography>
             )}
 
-            {productList && (
+            {analysisResult && typeof analysisResult === 'string' && (
                 <Box sx={{ mt: 2, border: '1px solid #eee', p: 2, borderRadius: 1 }}>
-                    <Typography variant="subtitle1">מוצרים שזוהו:</Typography>
-                    <Typography>{productList}</Typography>
+                    <Typography variant="subtitle1">תוצאת ניתוח:</Typography>
+                    <Typography>{analysisResult}</Typography>
+                </Box>
+            )}
+
+            {analysisResult && typeof analysisResult === 'object' && analysisResult.cartItems && analysisResult.cartItems.length > 0 && (
+                <Box sx={{ mt: 2, border: '1px solid #eee', p: 2, borderRadius: 1 }}>
+                    <Typography variant="subtitle1">מוצרים שזוהו והועברו לעגלה:</Typography>
+                    <ul>
+                        {analysisResult.cartItems.map(item => (
+                            <li key={item._id}>
+                                מזהה מוצר: {item._id}, כמות: {item.quantity}
+                            </li>
+                        ))}
+                    </ul>
                 </Box>
             )}
         </Box>
