@@ -4,14 +4,15 @@ import apiClient, { CanceledError } from "./api-client";
 export { CanceledError }
 
 export interface User {
-  _id?: string;
-  userName: string;
-  email: string;
-  password: string;
-  profilePicture?: string;
-  accessToken?: string;
-  refereshToken?: string;
-}
+    _id?: string;
+    userName: string;
+    email: string;
+    password: string;
+    profilePicture?: string;
+    accessToken?: string;
+    refreshToken?: string; // ✅ תיקון שם
+  }
+  
 
 const signUp = (user: User) => {
   const abortController = new AbortController();
@@ -96,6 +97,14 @@ const changePassword = (
   
     return { request, cancel: () => abortController.abort() };
   };
+  const logout = (refreshToken: string) => {
+    const request = apiClient.post("/auth/logout", { refreshToken }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+    return { request };
+  };
   
   
 
@@ -106,4 +115,5 @@ export default {
   update,
   getUser,
   changePassword, // ← כאן הוספת הפונקציה
+  logout,
 };
