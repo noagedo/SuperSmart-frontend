@@ -15,8 +15,8 @@ import {
 } from "@mui/material";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
-import HomeIcon from '@mui/icons-material/Home'; // Import home icon
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'; // Import cart icon for consistency
+import HomeIcon from '@mui/icons-material/Home'; 
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import { Apple } from 'lucide-react';
 import Loading from "./Loading";
 
@@ -128,7 +128,20 @@ const NavBar: React.FC = () => {
                 
               
               </Box>
+
+              <Box sx={{ display: { xs: 'none', md: 'flex' }, ml: 4 }}>
+                <NavButton 
+                  startIcon={<ShoppingCartIcon />}
+                  onClick={() => handleNavigation("/Products")}
+                >
+                  מוצרים 
+                </NavButton>
+                
+              
+              </Box>
             </Box>
+
+            
 
             <Box sx={{ 
               display: "flex", 
