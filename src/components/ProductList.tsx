@@ -1,5 +1,4 @@
-// 📁 ProductList.tsx
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Container,
   Grid,
@@ -23,7 +22,6 @@ import { Item } from "../services/item-service";
 import useItems from "../hooks/useItems";
 import useUsers from "../hooks/useUsers";
 import useCart from "../hooks/useCart";
-import { useEffect } from "react";
 
 const theme = createTheme({
   palette: {
@@ -229,37 +227,36 @@ function ProductList() {
         </Box>
 
         <Drawer 
-  anchor="right" 
-  open={cartOpen} 
-  onClose={toggleCart} 
-  variant="persistent" 
-  sx={{ 
-    "& .MuiDrawer-paper": { 
-      width: 600, 
-      boxSizing: "border-box", 
-      bgcolor: "#f8fafc", 
-      borderLeft: `1px solid ${theme.palette.divider}` 
-    } 
-  }}
->
-  <Box sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column" }}>
-    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-      <Typography variant="h5" sx={{ fontWeight: 600 }}>
-        עגלת קניות
-      </Typography>
-      <IconButton onClick={toggleCart}>
-        <X size={24} />
-      </IconButton>
-    </Box>
+          anchor="right" 
+          open={cartOpen} 
+          onClose={toggleCart} 
+          variant="persistent" 
+          sx={{ 
+            "& .MuiDrawer-paper": { 
+              width: 600, 
+              boxSizing: "border-box", 
+              bgcolor: "#f8fafc", 
+              borderLeft: `1px solid ${theme.palette.divider}` 
+            } 
+          }}
+        >
+          <Box sx={{ p: 3, height: "100%", display: "flex", flexDirection: "column" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+              <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                עגלת קניות
+              </Typography>
+              <IconButton onClick={toggleCart}>
+                <X size={24} />
+              </IconButton>
+            </Box>
 
-    {/* Fix: Remove extra Box wrapper */}
-    <Cart
-      items={cart?.items || []}
-      onUpdateQuantity={handleUpdateQuantity}
-      onRemoveItem={handleRemoveItem}
-    />
-  </Box>
-</Drawer>
+            <Cart
+              items={cart?.items || []}
+              onUpdateQuantity={handleUpdateQuantity}
+              onRemoveItem={handleRemoveItem}
+            />
+          </Box>
+        </Drawer>
       </Box>
     </ThemeProvider>
   );
