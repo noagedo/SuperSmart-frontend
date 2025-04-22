@@ -148,6 +148,7 @@ function ProductList() {
                 price: firstPrice.price ?? 0,
               },
               image: productToAdd.image,
+
             });
             setCartOpen(true); // Open the cart only once, after adding all items
           } else if (firstStorePrice) {
@@ -181,6 +182,7 @@ function ProductList() {
       storePrices: product.storePrices,
       quantity: 1,
       selectedStorePrice: storePrice,
+      image: product.image,
     });
     setCartOpen(true);
   };

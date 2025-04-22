@@ -87,8 +87,8 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               height={300}
               slotProps={{
                 legend: {
-                  direction: "row",
-                  position: { vertical: "top", horizontal: "middle" },
+                  direction: "horizontal",
+                  position: { vertical: "top", horizontal: "center" },
                 },
               }}
             />
