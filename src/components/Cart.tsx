@@ -8,7 +8,6 @@ import {
   Button,
   Select,
   MenuItem,
-  Divider,
   createTheme,
   ThemeProvider,
   styled,
@@ -99,6 +98,7 @@ interface CartProps {
 export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const [showShopComparison, setShowShopComparison] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [clearCartDialogOpen, setClearCartDialogOpen] = useState(false);
   const [cartName, setCartName] = useState("");
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -106,8 +106,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
     severity: "success" as "success" | "error",
   });
   const { user } = useUsers();
-
-  
 
   const calculatePriceRange = (storePrices: CartItem["storePrices"] = []) => {
     const allPrices = storePrices
@@ -124,7 +122,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
       "65a4e1e1e1e1e1e1e1e1e1e1": "חצי חינם",
       "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",
     };
-    return storeNames[storeId] ||` חנות ${storeId.substring(0, 5)}`;
+    return storeNames[storeId] || `חנות ${storeId.substring(0, 5)}`;
   };
 
   const calculateShopTotals = () => {
@@ -166,7 +164,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
     }
     try {
       const { request } = cartService.createCart({
-        name: cartName ||` העגלה שלי ${new Date().toLocaleDateString("he-IL")}`,
+        name: cartName || `העגלה שלי ${new Date().toLocaleDateString("he-IL")}`,
         ownerId: user._id || "",
         participants: [],
         items: cartService.transformCartItems(items),
@@ -182,6 +180,22 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // Fixed handleClearCart function
+  const handleClearCart = () => {
+    // Remove all items from cart
+    items.forEach(item => onRemoveItem(item._id));
+    
+    // Close the dialog
+    setClearCartDialogOpen(false);
+    
+    // Show success message
+    setSnackbar({ 
+      open: true, 
+      message: "העגלה נוקתה בהצלחה", 
+      severity: "success" 
+    });
   };
 
   if (items.length === 0) {
@@ -259,9 +273,8 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                 <CartItemContainer key={item._id}>
                   <CardMedia
                     component="img"
-                    image={item.image}
+                    image={item.image || "https://placehold.co/100x100?text=No+Image"}
                     alt={item.name}
-                    // console.log(item.name)
                     sx={{
                       width: 100,
                       height: 100,
@@ -282,7 +295,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                     <Typography variant="body1" sx={{ color: "text.secondary", mb: 2 }}>
                       {(() => {
                         const { lowestPrice, highestPrice } = calculatePriceRange(item.storePrices);
-                        return` טווח מחירים: ₪${lowestPrice.toFixed(2)} - ₪${highestPrice.toFixed(2)}`;
+                        return `טווח מחירים: ₪${lowestPrice.toFixed(2)} - ₪${highestPrice.toFixed(2)}`;
                       })()}
                     </Typography>
                     <Box sx={{ display: "flex", gap: 2 }}>
@@ -313,16 +326,34 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
           )}
         </CardContent>
 
-        <Box sx={{ p: 3, display: "flex", gap: 2 }}>
-          <ActionButton fullWidth variant="contained" onClick={() => setShowShopComparison(!showShopComparison)}>
+        {/* Action buttons with new Clear Cart button */}
+        <Box sx={{ p: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
+          <ActionButton 
+            fullWidth 
+            variant="contained" 
+            onClick={() => setShowShopComparison(!showShopComparison)}
+          >
             {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בין רשתות"}
           </ActionButton>
-          <ActionButton fullWidth variant="outlined" onClick={() => setSaveDialogOpen(true)}>
+          <ActionButton 
+            fullWidth 
+            variant="outlined" 
+            onClick={() => setSaveDialogOpen(true)}
+          >
             שמירת עגלה
+          </ActionButton>
+          <ActionButton
+            fullWidth
+            variant="outlined"
+            color="error"
+            startIcon={<TrashIcon />}
+            onClick={() => setClearCartDialogOpen(true)}
+          >
+            ניקוי עגלה
           </ActionButton>
         </Box>
 
-        {/* דיאלוג שמירה */}
+        {/* Save cart dialog */}
         <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
           <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>שמירת עגלה</DialogTitle>
           <DialogContent sx={{ p: 4 }}>
@@ -342,6 +373,28 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
           </DialogActions>
         </Dialog>
 
+        {/* Clear cart confirmation dialog */}
+        <Dialog open={clearCartDialogOpen} onClose={() => setClearCartDialogOpen(false)}>
+          <DialogTitle sx={{ bgcolor: "error.main", color: "white", py: 3 }}>ניקוי העגלה</DialogTitle>
+          <DialogContent sx={{ p: 4 }}>
+            <Typography>
+              האם אתה בטוח שברצונך למחוק את כל המוצרים מהעגלה?
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setClearCartDialogOpen(false)}>ביטול</Button>
+            <Button 
+              onClick={handleClearCart} 
+              variant="contained" 
+              color="error"
+              startIcon={<TrashIcon />}
+            >
+              ניקוי העגלה
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar for notifications */}
         <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
           <Alert severity={snackbar.severity} onClose={handleCloseSnackbar}>
             {snackbar.message}
