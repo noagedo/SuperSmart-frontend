@@ -1,66 +1,66 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import useUsers from "../hooks/useUsers";
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Box, 
-  Button, 
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+  Button,
   IconButton,
   Container,
   createTheme,
   ThemeProvider,
-  styled
+  styled,
 } from "@mui/material";
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import LogoutIcon from '@mui/icons-material/Logout';
-import HomeIcon from '@mui/icons-material/Home'; 
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import { Apple } from 'lucide-react';
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LogoutIcon from "@mui/icons-material/Logout";
+import HomeIcon from "@mui/icons-material/Home";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import { Apple, Heart } from "lucide-react";
 import Loading from "./Loading";
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#16a34a',
-      light: '#22c55e',
-      dark: '#15803d',
+      main: "#16a34a",
+      light: "#22c55e",
+      dark: "#15803d",
     },
   },
 });
 
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
-  backgroundColor: 'white',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+  backgroundColor: "white",
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
 }));
 
 const LogoContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  cursor: 'pointer',
-  transition: 'transform 0.2s ease-in-out',
-  '&:hover': {
-    transform: 'scale(1.02)',
+  display: "flex",
+  alignItems: "center",
+  cursor: "pointer",
+  transition: "transform 0.2s ease-in-out",
+  "&:hover": {
+    transform: "scale(1.02)",
   },
 }));
 
 const ActionButton = styled(Button)(({ theme }) => ({
-  borderRadius: '9999px',
-  padding: '8px 24px',
+  borderRadius: "9999px",
+  padding: "8px 24px",
   fontWeight: 600,
-  textTransform: 'none',
-  transition: 'all 0.2s ease-in-out',
+  textTransform: "none",
+  transition: "all 0.2s ease-in-out",
 }));
 
 const NavButton = styled(Button)(({ theme }) => ({
-  borderRadius: '8px',
-  padding: '6px 16px',
+  borderRadius: "8px",
+  padding: "6px 16px",
   fontWeight: 500,
-  textTransform: 'none',
+  textTransform: "none",
   color: theme.palette.text.secondary,
-  '&:hover': {
-    backgroundColor: 'rgba(22, 163, 74, 0.08)',
+  "&:hover": {
+    backgroundColor: "rgba(22, 163, 74, 0.08)",
     color: theme.palette.primary.main,
   },
 }));
@@ -97,81 +97,89 @@ const NavBar: React.FC = () => {
           <Toolbar sx={{ justifyContent: "space-between", py: 1.5 }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <LogoContainer onClick={() => handleNavigation("/Products")}>
-                <Apple 
-                  size={32} 
+                <Apple
+                  size={32}
                   color={theme.palette.primary.main}
-                  style={{ marginRight: '8px' }}
+                  style={{ marginRight: "8px" }}
                 />
                 <Typography
                   variant="h5"
                   sx={{
                     fontWeight: 700,
                     color: theme.palette.primary.main,
-                    letterSpacing: '-0.5px',
-                    background: 'linear-gradient(45deg, #16a34a 30%, #22c55e 90%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
+                    letterSpacing: "-0.5px",
+                    background:
+                      "linear-gradient(45deg, #16a34a 30%, #22c55e 90%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
                   }}
                 >
                   SuperSmart
                 </Typography>
               </LogoContainer>
-              
+
               {/* Navigation Links */}
-              <Box sx={{ display: { xs: 'none', md: 'flex' }, ml: 4 }}>
-                <NavButton 
+              <Box sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
+                <NavButton
                   startIcon={<HomeIcon />}
                   onClick={() => handleNavigation("/")}
                 >
                   דף הבית
                 </NavButton>
-                
-              
               </Box>
 
-              <Box sx={{ display: { xs: 'none', md: 'flex' }, ml: 4 }}>
-                <NavButton 
+              <Box sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
+                <NavButton
                   startIcon={<ShoppingCartIcon />}
                   onClick={() => handleNavigation("/Products")}
                 >
-                  מוצרים 
+                  מוצרים
                 </NavButton>
-                
-              
               </Box>
+
+              {user && (
+                <Box sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
+                  <NavButton
+                    onClick={() => navigate("/wishlists")}
+                    startIcon={<Heart size={18} />}
+                  >
+                    רשימות מועדפים
+                  </NavButton>
+                </Box>
+              )}
             </Box>
 
-            
-
-            <Box sx={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: 2 
-            }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
               {user ? (
                 <>
                   <Typography
                     variant="subtitle1"
                     sx={{
-                      color: 'text.primary',
+                      color: "text.primary",
                       fontWeight: 500,
-                      display: { xs: 'none', sm: 'block' }
+                      display: { xs: "none", sm: "block" },
                     }}
                   >
                     שלום, {user.userName}
                   </Typography>
-                  
+
                   <IconButton
                     onClick={() => handleNavigation("/personal-area")}
                     disabled={loading}
                     sx={{
                       color: theme.palette.primary.main,
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
+                      transition: "all 0.2s ease-in-out",
+                      "&:hover": {
                         backgroundColor: theme.palette.primary.light,
-                        color: 'white',
-                        transform: 'scale(1.1)',
-                      }
+                        color: "white",
+                        transform: "scale(1.1)",
+                      },
                     }}
                   >
                     <AccountCircleIcon />
@@ -182,12 +190,12 @@ const NavBar: React.FC = () => {
                     disabled={loading}
                     sx={{
                       color: theme.palette.primary.main,
-                      transition: 'all 0.2s ease-in-out',
-                      '&:hover': {
+                      transition: "all 0.2s ease-in-out",
+                      "&:hover": {
                         backgroundColor: theme.palette.primary.light,
-                        color: 'white',
-                        transform: 'scale(1.1)',
-                      }
+                        color: "white",
+                        transform: "scale(1.1)",
+                      },
                     }}
                   >
                     <LogoutIcon />
@@ -201,12 +209,12 @@ const NavBar: React.FC = () => {
                     sx={{
                       borderColor: theme.palette.primary.main,
                       color: theme.palette.primary.main,
-                      '&:hover': {
+                      "&:hover": {
                         backgroundColor: theme.palette.primary.light,
                         borderColor: theme.palette.primary.light,
-                        color: 'white',
-                        transform: 'scale(1.02)',
-                      }
+                        color: "white",
+                        transform: "scale(1.02)",
+                      },
                     }}
                   >
                     התחברות
@@ -216,11 +224,11 @@ const NavBar: React.FC = () => {
                     onClick={() => handleNavigation("/sign-up")}
                     sx={{
                       backgroundColor: theme.palette.primary.main,
-                      color: 'white',
-                      '&:hover': {
+                      color: "white",
+                      "&:hover": {
                         backgroundColor: theme.palette.primary.dark,
-                        transform: 'scale(1.02)',
-                      }
+                        transform: "scale(1.02)",
+                      },
                     }}
                   >
                     הרשמה
