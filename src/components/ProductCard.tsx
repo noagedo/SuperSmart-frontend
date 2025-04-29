@@ -13,6 +13,7 @@ import { ShoppingCart, BarChart2 } from "lucide-react";
 import { useState } from "react";
 import { Item, StorePrice } from "../services/item-service";
 import PriceChart from "./PriceChart";
+import WishButton from "./WishButton";
 
 const theme = createTheme({
   palette: {
@@ -103,6 +104,10 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
           >
             <BarChart2 size={18} />
           </GraphButton>
+
+          {/* Add WishButton component */}
+          <WishButton product={product} />
+
           <Box
             component="img"
             src={
@@ -111,14 +116,14 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             }
             alt={product.name}
             sx={{
-              position: 'absolute',
+              position: "absolute",
               top: 2,
               left: 60,
-              width: '250px',
-              height: '200px',
-              transition: 'transform 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'scale(1.05)',
+              width: "250px",
+              height: "200px",
+              transition: "transform 0.3s ease-in-out",
+              "&:hover": {
+                transform: "scale(1.05)",
               },
             }}
           />

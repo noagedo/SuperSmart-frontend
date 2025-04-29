@@ -7,10 +7,13 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import SignUp from "./components/SignUp";
 import SignIn from "./components/SignIn";
 import PersonalArea from "./components/PersonalArea";
+import WishlistsPage from "./components/WishlistsPage";
+import WishlistDetail from "./components/WishlistDetail";
 
 import useUsers from "./hooks/useUsers";
 import theme from "./theme";
 import ProductList from "./components/ProductList";
+
 const App: React.FC = () => {
   const { user } = useUsers();
 
@@ -28,7 +31,16 @@ const App: React.FC = () => {
             path="/personal-area"
             element={user ? <PersonalArea user={user} /> : <SignIn />}
           />
-        
+
+          {/* Add wishlist routes */}
+          <Route
+            path="/wishlists"
+            element={user ? <WishlistsPage /> : <SignIn />}
+          />
+          <Route
+            path="/wishlists/:id"
+            element={user ? <WishlistDetail /> : <SignIn />}
+          />
         </Routes>
       </Router>
     </ThemeProvider>
