@@ -27,7 +27,9 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
   const xLabels =
     item.storePrices.length > 0 && item.storePrices[0].prices.length > 0
       ? item.storePrices[0].prices.map((p) => {
-          const date = new Date(p.date);
+          const dateString = p.date || p.data || "";
+          if (!dateString) return "";
+          const date = new Date(dateString);
           return `${date.getDate()}/${date.getMonth() + 1}`;
         })
       : [];
@@ -77,7 +79,7 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               yAxis={[
                 {
                   label: "מחיר (₪)",
-                  
+
                   labelStyle: {
                     transform: "none",
                     textAnchor: "middle",
@@ -87,8 +89,8 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               height={300}
               slotProps={{
                 legend: {
-                  direction: "row",
-                  position: { vertical: "top", horizontal: "middle" },
+                  
+                  position: { vertical: "top", horizontal: "center" },
                 },
               }}
             />

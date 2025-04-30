@@ -4,7 +4,8 @@ import createHttpService from "./http-service";
 export { CanceledError };
 
 export interface Price {
-  date: string; // תאריך בפורמט ISO
+  date?: string; // תאריך בפורמט ISO
+  data?: string; // Alternative field name found in the database
   price: number;
 }
 
@@ -33,8 +34,6 @@ const itemService = {
   getAll: () => apiClient.get<Item[]>("/items"),
 };
 
-
-
 const analyzeReceipt = (receiptImage: FormData) => {
   const controller = new AbortController();
   const request = apiClient.post("/items/analyze-receipt", receiptImage, {
@@ -59,12 +58,16 @@ const formatPriceDataForChart = (item: Item) => {
 
   return item.storePrices.map((storePrice) => {
     // Sort prices by date (ascending)
-    const sortedPrices = [...storePrice.prices].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    const sortedPrices = [...storePrice.prices].sort((a, b) => {
+      const dateA = a.date || a.data || "1970-01-01"; // Provide a default date string
+      const dateB = b.date || b.data || "1970-01-01";
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
 
     // Extract just the price values for the chart
-    const priceValues = sortedPrices.map((p) => p.price);
+    const priceValues = sortedPrices.map((p) =>
+      typeof p.price === "string" ? parseFloat(p.price) : p.price
+    );
 
     return {
       curve: "linear",
