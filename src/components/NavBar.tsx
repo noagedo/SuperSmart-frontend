@@ -19,6 +19,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { Apple, Heart } from "lucide-react";
 import Loading from "./Loading";
+import NotificationsCenter from "./NotificationsCenter";
 
 const theme = createTheme({
   palette: {
@@ -122,18 +123,9 @@ const NavBar: React.FC = () => {
               <Box sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
                 <NavButton
                   startIcon={<HomeIcon />}
-                  onClick={() => handleNavigation("/")}
+                  onClick={() => handleNavigation(user ? "/Products" : "/")}
                 >
                   דף הבית
-                </NavButton>
-              </Box>
-
-              <Box sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
-                <NavButton
-                  startIcon={<ShoppingCartIcon />}
-                  onClick={() => handleNavigation("/Products")}
-                >
-                  מוצרים
                 </NavButton>
               </Box>
 
@@ -168,6 +160,9 @@ const NavBar: React.FC = () => {
                   >
                     שלום, {user.userName}
                   </Typography>
+
+                  {/* Only show notifications when user is logged in */}
+                  {user._id && <NotificationsCenter />}
 
                   <IconButton
                     onClick={() => handleNavigation("/personal-area")}

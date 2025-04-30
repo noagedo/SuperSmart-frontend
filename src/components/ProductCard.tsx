@@ -83,10 +83,20 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const [showChart, setShowChart] = useState(false);
 
   const getLatestPrice = (storePrice: StorePrice) => {
-    const latestPrice = storePrice.prices.reduce((latest, current) =>
-      new Date(current.date) > new Date(latest.date) ? current : latest
-    );
-    return latestPrice.price;
+    const latestPrice = storePrice.prices.reduce((latest, current) => {
+      // Get date from either 'date' or 'data' property with a fallback
+      const latestDate = new Date(latest.date || latest.data || "1970-01-01");
+      const currentDate = new Date(
+        current.date || current.data || "1970-01-01"
+      );
+
+      return currentDate > latestDate ? current : latest;
+    });
+
+    // Make sure to convert price to number if it's a string
+    return typeof latestPrice.price === "string"
+      ? parseFloat(latestPrice.price)
+      : latestPrice.price;
   };
 
   const prices = product.storePrices.map(getLatestPrice);
