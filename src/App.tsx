@@ -21,7 +21,7 @@ const App: React.FC = () => {
 
   // Initialize socket and check for price changes on app load
   React.useEffect(() => {
-    if (user) {
+    if (user && user._id) {
       // Ensure socket is connected
       const initializeSocket = async () => {
         try {

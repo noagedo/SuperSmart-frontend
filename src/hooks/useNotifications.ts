@@ -14,12 +14,88 @@ const useNotifications = () => {
   const checkIntervalRef = useRef<number | null>(null);
   const hasCheckedRecently = useRef<boolean>(false);
 
+  // Helper function to filter notifications by time and user's wishlists
+  const filterRecentNotifications = useCallback(
+    (notifs: PriceDropNotification[]): PriceDropNotification[] => {
+      if (!user || !user._id) return [];
+
+      // Get 24 hours ago timestamp
+      const oneDayAgo = new Date();
+      oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+      // Get all user's wishlist IDs
+      const userWishlists = wishlists.filter((w) => w.userId === user._id);
+      const userWishlistIds = userWishlists.map((w) => w._id);
+
+      // Filter by both time and wishlist ownership
+      return notifs.filter((notif) => {
+        // Check if notification is recent (last 24 hours)
+        const isRecent = new Date(notif.changeDate) >= oneDayAgo;
+
+        // Check if belongs to user's wishlist
+        const isUsersWishlist =
+          !notif.wishlistId || userWishlistIds.includes(notif.wishlistId);
+
+        return isRecent && isUsersWishlist;
+      });
+    },
+    [user, wishlists]
+  );
+
   // Setup notification listener for real-time updates
   useEffect(() => {
     console.log("Setting up notification listener");
 
     notificationService.onPriceDrop((notification) => {
       console.log("Received price drop notification:", notification);
+
+      // Only process notifications if user is logged in
+      if (!user || !user._id) {
+        console.log("Ignoring notification - no user logged in");
+        return;
+      }
+
+      // Multiple filtering criteria to ensure we only show relevant notifications
+
+      // 1. Filter by userId if it exists in the notification
+      if (notification.userId && notification.userId !== user._id) {
+        console.log(
+          `Ignoring notification - user mismatch: ${notification.userId} vs ${user._id}`
+        );
+        return;
+      }
+
+      // 2. Filter by wishlist ownership
+      // Get all wishlists belonging to current user
+      const userWishlists = wishlists.filter((w) => w.userId === user._id);
+      const userWishlistIds = userWishlists.map((w) => w._id);
+
+      // Only accept notification if:
+      // - It doesn't have a wishlistId (general notification) OR
+      // - The wishlistId belongs to the current user
+      if (
+        notification.wishlistId &&
+        !userWishlistIds.includes(notification.wishlistId)
+      ) {
+        console.log(
+          `Ignoring notification - wishlist ${notification.wishlistId} doesn't belong to user ${user._id}`
+        );
+        console.log(`User's wishlists: ${userWishlistIds.join(", ")}`);
+        return;
+      }
+
+      // 3. Filter by time - only accept notifications from the last 24 hours
+      const oneDayAgo = new Date();
+      oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+      if (new Date(notification.changeDate) < oneDayAgo) {
+        console.log(
+          `Ignoring notification - too old: ${notification.changeDate}`
+        );
+        return;
+      }
+
+      // At this point, we've verified the notification belongs to this user
       setNotifications((prev) => {
         // Avoid duplicates
         const isDuplicate = prev.some(
@@ -41,7 +117,7 @@ const useNotifications = () => {
       }
       notificationService.disconnect();
     };
-  }, []);
+  }, [user, wishlists]);
 
   // Create a stable checkRecentChanges function with useCallback
   const checkRecentChanges = useCallback(() => {
@@ -106,13 +182,27 @@ const useNotifications = () => {
                 .filter(Boolean); // Remove null items
             };
 
-            const priceChanges = parsePriceChanges(response.data);
+            // Get user's wishlist IDs for filtering
+            const userWishlists = wishlists.filter(
+              (w) => w.userId === user?._id
+            );
+            const userWishlistIds = userWishlists.map((w) => w._id);
 
-            if (priceChanges.length > 0) {
-              console.log("Found valid price changes:", priceChanges);
+            const priceChanges = parsePriceChanges(response.data);
+            // Filter changes to only include user's wishlists
+            const userPriceChanges = priceChanges.filter(
+              (change: PriceDropNotification) =>
+                change.wishlistId && userWishlistIds.includes(change.wishlistId)
+            );
+
+            if (userPriceChanges.length > 0) {
+              console.log(
+                "Found valid price changes for current user:",
+                userPriceChanges
+              );
               setNotifications((prev) => {
                 // Filter out duplicates
-                const newChanges = priceChanges.filter(
+                const newChanges = userPriceChanges.filter(
                   (newChange: PriceDropNotification) =>
                     !prev.some(
                       (existingNotif: PriceDropNotification) =>
@@ -136,7 +226,7 @@ const useNotifications = () => {
       .catch((error) => {
         console.error("Failed to check recent price changes:", error);
       });
-  }, [user]);
+  }, [user, wishlists]);
 
   // Subscribe to updates when user is available
   useEffect(() => {
@@ -165,6 +255,9 @@ const useNotifications = () => {
       // Force check recent changes immediately on login
       localStorage.removeItem("lastPriceCheckTimestamp");
       checkRecentChanges();
+
+      // Clear old notifications when user logs in
+      cleanOldNotifications();
     }
     // Stop checks if user logs out
     if (!user || !user._id) {
@@ -173,6 +266,9 @@ const useNotifications = () => {
         checkIntervalRef.current = null;
       }
       hasCheckedRecently.current = false;
+
+      // Clear all notifications when user logs out
+      setNotifications([]);
     }
 
     return () => {
@@ -185,7 +281,7 @@ const useNotifications = () => {
   // Check for price changes when wishlists change
   useEffect(() => {
     if (user && user._id && wishlists.length > 0) {
-      // Make sure these are the current user's wishlists
+      // Get current user's wishlists
       const userWishlists = wishlists.filter((w) => w.userId === user._id);
 
       if (userWishlists.length === 0) {
@@ -214,15 +310,40 @@ const useNotifications = () => {
         JSON.stringify(productWishlistMap)
       );
 
-      // Check all user wishlist products at once
+      // Check at once
       if (allProductIds.length > 0) {
         console.log(
           `Checking ${allProductIds.length} products from ${userWishlists.length} wishlists`
         );
         checkSpecificProducts(allProductIds);
       }
+
+      // Cleanup old notifications when wishlist changes
+      cleanOldNotifications();
     }
   }, [user, wishlists]);
+
+  // Function to clean old notifications (older than 24 hours)
+  const cleanOldNotifications = useCallback(() => {
+    console.log("Cleaning old notifications (older than 24 hours)");
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+    setNotifications((prevNotifications) =>
+      prevNotifications.filter(
+        (notification) => new Date(notification.changeDate) >= oneDayAgo
+      )
+    );
+  }, []);
+
+  // Periodically clean old notifications (every hour)
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      cleanOldNotifications();
+    }, 60 * 60 * 1000); // Every hour
+
+    return () => clearInterval(cleanupInterval);
+  }, [cleanOldNotifications]);
 
   const startPeriodicChecks = () => {
     if (checkIntervalRef.current) {
@@ -238,9 +359,6 @@ const useNotifications = () => {
 
   const checkPriceChanges = () => {
     if (!user || !user._id) return;
-
-    // For testing, you might want to reset this
-    // localStorage.removeItem('lastPriceCheckTimestamp');
 
     // Get last checked timestamp from localStorage or use a very old date
     const lastCheckedStr = localStorage.getItem("lastPriceCheckTimestamp");
@@ -303,11 +421,30 @@ const useNotifications = () => {
       });
   };
 
+  // Filter to make sure we only process products from current user's wishlists
   const checkSpecificProducts = (productIds: string[]) => {
-    if (!productIds.length) return;
+    if (!productIds.length || !user || !user._id) return;
+
+    // Get all products that are in the user's wishlists
+    const userWishlists = wishlists.filter((w) => w.userId === user._id);
+    const userProductIds = userWishlists.flatMap((w) => w.products);
+
+    // Only check products that are in the user's wishlists
+    const filteredProductIds = productIds.filter((id) =>
+      userProductIds.includes(id)
+    );
+
+    if (filteredProductIds.length === 0) {
+      console.log("No products to check in user wishlists");
+      return;
+    }
+
+    console.log(
+      `Checking ${filteredProductIds.length} products from user's wishlists`
+    );
 
     notificationService
-      .checkProductPrices(productIds)
+      .checkProductPrices(filteredProductIds)
       .then((response) => {
         if (response.data && Array.isArray(response.data)) {
           // Process the items differently since we're using a different endpoint
@@ -381,13 +518,44 @@ const useNotifications = () => {
               `Found ${priceChanges.length} price drops in wishlist products:`,
               priceChanges
             );
-            setNotifications((prev) => [...prev, ...priceChanges]);
+            addNewNotifications(priceChanges);
           }
         }
       })
       .catch((error) => {
         console.error("Failed to check specific product prices:", error);
       });
+  };
+
+  // Helper function to add new notifications while avoiding duplicates
+  const addNewNotifications = (newNotifications: PriceDropNotification[]) => {
+    // First filter to keep only recent notifications (last 24 hours)
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+    const recentNotifications = newNotifications.filter(
+      (notif) => new Date(notif.changeDate) >= oneDayAgo
+    );
+
+    if (recentNotifications.length === 0) {
+      console.log("No recent notifications to add (all older than 24 hours)");
+      return;
+    }
+
+    setNotifications((prev) => {
+      // Filter out duplicates
+      const uniqueNewChanges = recentNotifications.filter(
+        (newChange) =>
+          !prev.some(
+            (existingNotif) =>
+              existingNotif.productId === newChange.productId &&
+              existingNotif.storeId === newChange.storeId &&
+              Math.abs(existingNotif.newPrice - newChange.newPrice) < 0.01
+          )
+      );
+
+      return [...prev, ...uniqueNewChanges];
+    });
   };
 
   const dismissNotification = (id: string) => {

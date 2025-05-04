@@ -24,6 +24,7 @@ import {
   ShoppingCart,
   BarChart2,
   Store,
+  Heart,
 } from "lucide-react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import useWishlists from "../hooks/useWishlists";
@@ -32,6 +33,7 @@ import wishlistService from "../services/wishlist-service";
 import useCart from "../hooks/useCart";
 import { Item } from "../services/item-service";
 import PriceChart from "./PriceChart";
+import { getStoreName } from "../utils/storeUtils";
 
 const WishlistDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -200,16 +202,6 @@ const WishlistDetail: React.FC = () => {
     return validStorePrices.sort((a, b) => a.price - b.price);
   };
 
-  const getStoreName = (storeId: string): string => {
-    // This function should be expanded with actual store names
-    const storeNames: Record<string, string> = {
-      "65a4e1e1e1e1e1e1e1e1e1e1": "שופרסל",
-      "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",
-      // Add more stores as needed
-    };
-    return storeNames[storeId] || `חנות ${storeId.substring(0, 5)}`;
-  };
-
   if (loading || isLoading) {
     return (
       <Box
@@ -220,224 +212,353 @@ const WishlistDetail: React.FC = () => {
           height: "70vh",
         }}
       >
-        <CircularProgress color="primary" />
+        <CircularProgress sx={{ color: "#16a34a" }} />
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Alert severity="error">{error}</Alert>
-      </Container>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+          py: 6,
+          px: 4,
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            maxWidth: 800,
+            mx: "auto",
+            borderRadius: 3,
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              bgcolor: "#16a34a",
+              p: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <Heart size={32} color="white" />
+            <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
+              פרטי רשימה
+            </Typography>
+          </Box>
+          <Box sx={{ p: 4 }}>
+            <Alert severity="error">{error}</Alert>
+          </Box>
+        </Paper>
+      </Box>
     );
   }
 
   if (!wishlist) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Alert severity="error">Wishlist not found</Alert>
-      </Container>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+          py: 6,
+          px: 4,
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            maxWidth: 800,
+            mx: "auto",
+            borderRadius: 3,
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              bgcolor: "#16a34a",
+              p: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <Heart size={32} color="white" />
+            <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
+              פרטי רשימה
+            </Typography>
+          </Box>
+          <Box sx={{ p: 4 }}>
+            <Alert severity="error">הרשימה לא נמצאה</Alert>
+          </Box>
+        </Paper>
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs sx={{ mb: 3 }}>
-        <Link
-          to="/wishlists"
-          style={{
-            textDecoration: "none",
-            color: "inherit",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          <ArrowLeft size={16} style={{ marginRight: 4 }} />
-          All Wishlists
-        </Link>
-        <Typography color="text.primary">{wishlist.name}</Typography>
-      </Breadcrumbs>
-
-      {/* Header */}
-      <Box
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+        py: 6,
+        px: 4,
+      }}
+    >
+      <Paper
+        elevation={3}
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          maxWidth: 800,
+          mx: "auto",
+          borderRadius: 3,
+          overflow: "hidden",
           mb: 4,
-          bgcolor: "primary.light",
-          p: 3,
-          borderRadius: 2,
-          color: "white",
         }}
       >
-        <Box>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-            {wishlist.name}
-          </Typography>
-          <Typography variant="body1" sx={{ mt: 1, opacity: 0.9 }}>
-            {wishlist.products.length}{" "}
-            {wishlist.products.length === 1 ? "product" : "products"}
-          </Typography>
+        {/* Breadcrumbs */}
+        <Box sx={{ p: 2, bgcolor: "#f9fafb" }}>
+          <Breadcrumbs>
+            <Link
+              to="/wishlists"
+              style={{
+                textDecoration: "none",
+                color: "#16a34a",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <ArrowLeft size={16} style={{ marginRight: 4 }} />
+              כל הרשימות
+            </Link>
+            <Typography color="text.primary">{wishlist.name}</Typography>
+          </Breadcrumbs>
         </Box>
 
-        <Button
-          variant="contained"
-          color="error"
-          startIcon={<Trash2 size={16} />}
-          onClick={handleDeleteWishlist}
+        {/* Header */}
+        <Box
           sx={{
-            bgcolor: "rgba(255, 255, 255, 0.2)",
-            color: "white",
-            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
+            bgcolor: "#16a34a",
+            p: 3,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
-          Delete Wishlist
-        </Button>
-      </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Heart size={32} color="white" />
+            <Box>
+              <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
+                {wishlist.name}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "white", opacity: 0.9 }}>
+                {wishlist.products.length}{" "}
+                {wishlist.products.length === 1 ? "מוצר" : "מוצרים"}
+              </Typography>
+            </Box>
+          </Box>
 
-      {/* Products */}
-      {wishlistProducts.length === 0 ? (
-        <Paper
-          elevation={0}
-          sx={{
-            p: 4,
-            textAlign: "center",
-            bgcolor: "#f8fafc",
-            borderRadius: 3,
-          }}
-        >
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            This wishlist is empty
-          </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Browse products and add them to this wishlist
-          </Typography>
-          <Button component={Link} to="/products" variant="contained">
-            Browse Products
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<Trash2 size={16} />}
+            onClick={handleDeleteWishlist}
+            sx={{
+              bgcolor: "rgba(255, 255, 255, 0.2)",
+              color: "white",
+              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
+            }}
+          >
+            מחק רשימה
           </Button>
-        </Paper>
-      ) : (
-        <Grid container spacing={3}>
-          {wishlistProducts.map((product) => {
-            const { lowestPrice, highestPrice } = getProductPriceRange(product);
-            return (
-              <Grid item xs={12} key={product._id}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      mr: 3,
-                      position: "relative",
-                    }}
-                  >
-                    <IconButton
-                      aria-label="הצג גרף מחירים"
-                      onClick={() => setShowChartForProduct(product._id)}
-                      size="small"
+        </Box>
+
+        {/* Products */}
+        <Box sx={{ p: 4 }}>
+          {wishlistProducts.length === 0 ? (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 4,
+                textAlign: "center",
+                bgcolor: "#f8fafc",
+                borderRadius: 3,
+              }}
+            >
+              <Heart
+                size={60}
+                color="#d1d5db"
+                style={{ margin: "0 auto 20px" }}
+              />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                הרשימה ריקה
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                עבור לדף המוצרים והוסף מוצרים לרשימה זו
+              </Typography>
+              <Button
+                component={Link}
+                to="/products"
+                variant="contained"
+                sx={{
+                  bgcolor: "#16a34a",
+                  "&:hover": { bgcolor: "#15803d" },
+                }}
+              >
+                צפה במוצרים
+              </Button>
+            </Paper>
+          ) : (
+            <Grid container spacing={3}>
+              {wishlistProducts.map((product) => {
+                const { lowestPrice, highestPrice } =
+                  getProductPriceRange(product);
+                return (
+                  <Grid item xs={12} key={product._id}>
+                    <Paper
+                      elevation={1}
                       sx={{
-                        position: "absolute",
-                        top: 4,
-                        right: 4,
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        zIndex: 10,
-                        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                        p: 3,
+                        borderRadius: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        transition:
+                          "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
                         "&:hover": {
-                          backgroundColor: "primary.main",
-                          color: "white",
+                          transform: "translateY(-4px)",
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
                         },
                       }}
                     >
-                      <BarChart2 size={16} />
-                    </IconButton>
+                      <Box
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 2,
+                          overflow: "hidden",
+                          flexShrink: 0,
+                          mr: 3,
+                          position: "relative",
+                          border: "1px solid rgba(22, 163, 74, 0.2)",
+                        }}
+                      >
+                        <IconButton
+                          aria-label="הצג גרף מחירים"
+                          onClick={() => setShowChartForProduct(product._id)}
+                          size="small"
+                          sx={{
+                            position: "absolute",
+                            top: 4,
+                            right: 4,
+                            backgroundColor: "rgba(255, 255, 255, 0.9)",
+                            zIndex: 10,
+                            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                            "&:hover": {
+                              backgroundColor: "#16a34a",
+                              color: "white",
+                            },
+                          }}
+                        >
+                          <BarChart2 size={16} />
+                        </IconButton>
 
-                    <img
-                      src={product.image || "https://via.placeholder.com/80"}
-                      alt={product.name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  </Box>
+                        <img
+                          src={
+                            product.image || "https://via.placeholder.com/80"
+                          }
+                          alt={product.name}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      </Box>
 
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="h6" sx={{ mb: 0.5 }}>
-                      {product.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {product.category}
-                    </Typography>
-                    <Box
-                      sx={{
-                        mt: 1,
-                        display: "inline-block",
-                        backgroundColor: "rgba(22, 163, 74, 0.9)",
-                        color: "white",
-                        px: 1.5,
-                        py: 0.75,
-                        borderRadius: 1,
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {lowestPrice === highestPrice
-                        ? `₪${lowestPrice.toFixed(2)}`
-                        : `₪${lowestPrice.toFixed(2)} - ₪${highestPrice.toFixed(
-                            2
-                          )}`}
-                    </Box>
-                  </Box>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            mb: 0.5,
+                            fontWeight: 600,
+                            color: "#16a34a",
+                          }}
+                        >
+                          {product.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {product.category}
+                        </Typography>
+                        <Box
+                          sx={{
+                            mt: 1,
+                            display: "inline-block",
+                            backgroundColor: "#16a34a",
+                            color: "white",
+                            px: 1.5,
+                            py: 0.75,
+                            borderRadius: 1,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {lowestPrice === highestPrice
+                            ? `₪${lowestPrice.toFixed(2)}`
+                            : `₪${lowestPrice.toFixed(
+                                2
+                              )} - ₪${highestPrice.toFixed(2)}`}
+                        </Box>
+                      </Box>
 
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <Button
-                      variant="outlined"
-                      color="info"
-                      startIcon={<Store size={16} />}
-                      onClick={() => setShowStoresForProduct(product._id)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      Store Prices
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<ShoppingCart size={16} />}
-                      onClick={() => handleAddToCart(product)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      Add to Cart
-                    </Button>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleRemoveProduct(product._id)}
-                      sx={{
-                        border: "1px solid rgba(239, 68, 68, 0.5)",
-                        borderRadius: 2,
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </IconButton>
-                  </Box>
-                </Paper>
-              </Grid>
-            );
-          })}
-        </Grid>
-      )}
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Button
+                          variant="outlined"
+                          startIcon={<Store size={16} />}
+                          onClick={() => setShowStoresForProduct(product._id)}
+                          sx={{
+                            borderRadius: 2,
+                            color: "#16a34a",
+                            borderColor: "#16a34a",
+                            "&:hover": {
+                              borderColor: "#15803d",
+                              bgcolor: "rgba(22, 163, 74, 0.04)",
+                            },
+                          }}
+                        >
+                          מחירי חנויות
+                        </Button>
+                        <Button
+                          variant="contained"
+                          startIcon={<ShoppingCart size={16} />}
+                          onClick={() => handleAddToCart(product)}
+                          sx={{
+                            borderRadius: 2,
+                            bgcolor: "#16a34a",
+                            "&:hover": { bgcolor: "#15803d" },
+                          }}
+                        >
+                          הוסף לעגלה
+                        </Button>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleRemoveProduct(product._id)}
+                          sx={{
+                            border: "1px solid rgba(239, 68, 68, 0.5)",
+                            borderRadius: 2,
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+        </Box>
+      </Paper>
 
       {/* Price Chart Dialog */}
       {showChartForProduct && (
@@ -455,10 +576,27 @@ const WishlistDetail: React.FC = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          Store Prices
+        <DialogTitle
+          sx={{
+            bgcolor: "#16a34a",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <Store size={24} />
+          מחירי חנויות
           {showStoresForProduct && (
-            <Typography variant="subtitle1" color="text.secondary">
+            <Typography
+              variant="subtitle1"
+              sx={{
+                color: "white",
+                opacity: 0.9,
+                fontWeight: "normal",
+                ml: 1,
+              }}
+            >
               {
                 wishlistProducts.find((p) => p._id === showStoresForProduct)
                   ?.name
@@ -466,7 +604,7 @@ const WishlistDetail: React.FC = () => {
             </Typography>
           )}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2, mt: 2 }}>
           {showStoresForProduct && (
             <List>
               {getProductStorePrices(
@@ -490,8 +628,7 @@ const WishlistDetail: React.FC = () => {
                             variant="body1"
                             sx={{
                               fontWeight: "bold",
-                              color:
-                                index === 0 ? "success.main" : "text.primary",
+                              color: index === 0 ? "#16a34a" : "text.primary",
                             }}
                           >
                             ₪{storePrice.price.toFixed(2)}
@@ -500,8 +637,10 @@ const WishlistDetail: React.FC = () => {
                       }
                       secondary={
                         <Typography variant="caption" color="text.secondary">
-                          Last updated:{" "}
-                          {new Date(storePrice.date).toLocaleDateString()}
+                          עודכן לאחרונה:{" "}
+                          {new Date(storePrice.date).toLocaleDateString(
+                            "he-IL"
+                          )}
                         </Typography>
                       }
                     />
@@ -512,14 +651,14 @@ const WishlistDetail: React.FC = () => {
                 wishlistProducts.find((p) => p._id === showStoresForProduct)!
               ).length === 0 && (
                 <ListItem>
-                  <ListItemText primary="No store prices available" />
+                  <ListItemText primary="אין מחירי חנויות זמינים" />
                 </ListItem>
               )}
             </List>
           )}
         </DialogContent>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 

@@ -12,6 +12,7 @@ export interface PriceDropNotification {
   image?: string;
   wishlistId: string;
   wishlistName: string;
+  userId?: string; // Add userId field for client-side filtering
 }
 
 class NotificationService {
@@ -19,6 +20,7 @@ class NotificationService {
   private onPriceDropCallback:
     | ((notification: PriceDropNotification) => void)
     | null = null;
+  private currentUserId: string | null = null;
 
   constructor() {
     this.connectSocket();
@@ -55,6 +57,12 @@ class NotificationService {
       if (typeof window !== "undefined") {
         (window as any).socketConnected = true;
       }
+
+      // Resubscribe with user ID after reconnection
+      const userId = localStorage.getItem("userId");
+      if (userId) {
+        this.subscribeToWishlistUpdates(userId);
+      }
     });
 
     this.socket.on("connect_error", (error) => {
@@ -65,31 +73,91 @@ class NotificationService {
       console.log("Socket disconnected");
     });
 
-    // Listen for price drop notifications
-    this.socket.on("price-drop", (data) => {
-      console.log("Received price-drop event:", data);
-      if (this.onPriceDropCallback) {
-        const notification: PriceDropNotification = {
-          id:
-            new Date().getTime().toString() +
-            Math.random().toString(36).substring(2, 9),
-          ...data,
-          changeDate: new Date(data.changeDate),
-        };
-        this.onPriceDropCallback(notification);
-      }
-    });
+    // Replace direct event binding with our custom method
+    this.setupNotificationListener();
   }
 
   public subscribeToWishlistUpdates(userId: string) {
     if (this.socket) {
       console.log("Subscribing to wishlist updates for user:", userId);
-      this.socket.emit("subscribe-to-wishlists", userId);
+      this.currentUserId = userId; // Store current user ID
+      localStorage.setItem("userId", userId);
+
+      // Explicitly request to only get events for this user's wishlists
+      this.socket.emit("subscribe-to-wishlists", {
+        userId: userId,
+        onlyUserWishlists: true,
+      });
+
+      // Send a separate message to ensure backward compatibility
+      this.socket.emit("set-user-filter", userId);
     }
   }
 
   public onPriceDrop(callback: (notification: PriceDropNotification) => void) {
     this.onPriceDropCallback = callback;
+  }
+
+  // Listen for price drop notifications
+  private setupNotificationListener() {
+    if (!this.socket) return;
+
+    this.socket.on("price-drop", (data) => {
+      console.log("Received price-drop event:", data);
+
+      // If we have a callback and the notification is for the current user
+      if (this.onPriceDropCallback) {
+        // Get current user ID
+        const userId = this.currentUserId || localStorage.getItem("userId");
+
+        if (!userId) {
+          console.log("No user ID available, ignoring notification");
+          return;
+        }
+
+        // Strict filtering - ignore notifications without proper user context
+        // Check both wishlistUserId and userId fields
+        if (data.wishlistUserId && data.wishlistUserId !== userId) {
+          console.log(
+            `Ignoring notification - wishlist belongs to different user (${data.wishlistUserId} vs ${userId})`
+          );
+          return;
+        }
+
+        if (data.userId && data.userId !== userId) {
+          console.log(
+            `Ignoring notification - belongs to different user (${data.userId} vs ${userId})`
+          );
+          return;
+        }
+
+        // Filter by time - only accept notifications from the last 24 hours
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+        const notificationDate = new Date(
+          data.changeDate || data.date || new Date()
+        );
+        if (notificationDate < oneDayAgo) {
+          console.log(
+            `Ignoring notification - too old: ${notificationDate.toISOString()}`
+          );
+          return;
+        }
+
+        // Add user ID to the notification for client-side filtering
+        const notification: PriceDropNotification = {
+          id:
+            new Date().getTime().toString() +
+            Math.random().toString(36).substring(2, 9),
+          ...data,
+          changeDate: notificationDate,
+          userId: userId, // Add current user ID to ensure filtering works even if server doesn't provide it
+        };
+
+        this.onPriceDropCallback(notification);
+      }
+    });
   }
 
   public checkPriceChanges(lastCheckedTimestamp?: Date) {
@@ -136,12 +204,13 @@ class NotificationService {
 
     console.log(`Checking price changes in last 24 hours for user: ${userId}`);
 
-    // Add userId parameter to only get this user's wishlist products
+    // Always use 24 hours as the timeframe and make sure we only get this user's wishlist products
     return apiClient.get("/items/wishlist-price-changes", {
       params: {
         lastCheckedTimestamp: yesterday.toISOString(),
         onlyWishlistItems: true,
-        userId: userId, // Add user ID parameter
+        userId: userId,
+        enforce24HourLimit: true, // Add parameter to ensure server enforces 24 hour limit
       },
     });
   }
