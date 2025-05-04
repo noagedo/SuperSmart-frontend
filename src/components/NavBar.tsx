@@ -161,7 +161,7 @@ const NavBar: React.FC = () => {
                     שלום, {user.userName}
                   </Typography>
 
-                  {/* Only show notifications when user is logged in */}
+                  {/* Only show notifications when user is logged in and has ID */}
                   {user._id && <NotificationsCenter />}
 
                   <IconButton

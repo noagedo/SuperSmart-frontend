@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IconButton,
   Menu,
@@ -31,6 +31,23 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
   const [openNewDialog, setOpenNewDialog] = useState(false);
   const [newWishlistName, setNewWishlistName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+
+  // Check if product is in any wishlist
+  useEffect(() => {
+    if (wishlists.length > 0 && product) {
+      const exists = wishlists.some((wishlist) =>
+        wishlist.products.some((item: any) => {
+          // Handle both cases: when item is an object with _id or when item is the ID itself
+          if (typeof item === "string") {
+            return item === product._id;
+          }
+          return item._id === product._id;
+        })
+      );
+      setIsInWishlist(exists);
+    }
+  }, [wishlists, product]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -44,6 +61,7 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
     try {
       setIsSubmitting(true);
       await addProduct(wishlistId, product._id);
+      setIsInWishlist(true); // Set heart to red after adding
       handleClose();
     } catch (error) {
       console.error("Failed to add to wishlist:", error);
@@ -103,10 +121,14 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
           top: 8,
           left: 8,
           bgcolor: "white",
-          "&:hover": { bgcolor: "#f5f5f5", color: "primary.main" },
+          color: isInWishlist ? "error.main" : "inherit", // Red heart when in wishlist
+          "&:hover": {
+            bgcolor: "#f5f5f5",
+            color: isInWishlist ? "error.main" : "primary.main",
+          },
         }}
       >
-        <Heart size={18} />
+        <Heart size={18} fill={isInWishlist ? "currentColor" : "none"} />
       </IconButton>
 
       <Menu

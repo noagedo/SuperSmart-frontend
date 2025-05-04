@@ -24,6 +24,7 @@ import useUsers from "../hooks/useUsers";
 import notificationService, {
   PriceDropNotification,
 } from "../services/notification-service";
+import { getStoreName } from "../utils/storeUtils";
 
 const NotificationItem = styled(ListItemButton)(({ theme }) => ({
   borderRadius: "8px",
@@ -57,6 +58,69 @@ const NotificationsCenter: React.FC = () => {
 
   // Combine notifications from the hook and mock notifications
   const notifications = [...hookNotifications, ...mockNotifications];
+
+  // Filter notifications for current user's wishlists with multiple criteria
+  const filteredNotifications = React.useMemo(() => {
+    if (!user || !user._id) return [];
+
+    // Get user's wishlist IDs
+    const userWishlistIds = wishlists
+      .filter((w) => w.userId === user._id)
+      .map((w) => w._id);
+
+    // Calculate date 24 hours ago
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+    console.log(`User ${user._id} has ${userWishlistIds.length} wishlists`);
+    console.log(
+      `Total notifications before filtering: ${notifications.length}`
+    );
+
+    // Multi-level filtering:
+    return notifications.filter((notification) => {
+      // Check if notification is recent (within last 24 hours)
+      const isRecent = new Date(notification.changeDate) >= oneDayAgo;
+      if (!isRecent) {
+        return false;
+      }
+
+      // 1. Check explicit userId if present
+      if (notification.userId && notification.userId !== user._id) {
+        return false;
+      }
+
+      // 2. Check wishlistId ownership
+      if (
+        notification.wishlistId &&
+        !userWishlistIds.includes(notification.wishlistId)
+      ) {
+        return false;
+      }
+
+      // 3. We can also check the product - only show drops for products in user's wishlists
+      if (notification.productId) {
+        const productInUserWishlist = wishlists
+          .filter((w) => w.userId === user._id)
+          .some((w) => w.products.includes(notification.productId));
+
+        if (!productInUserWishlist) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [notifications, user, wishlists]);
+
+  // Add debugging to see filtering results
+  useEffect(() => {
+    if (user && user._id) {
+      console.log(
+        `Notifications filtered: ${notifications.length} → ${filteredNotifications.length}`
+      );
+    }
+  }, [filteredNotifications.length, notifications.length, user]);
 
   // Check for price changes on component mount with a forced refresh
   useEffect(() => {
@@ -155,16 +219,22 @@ const NotificationsCenter: React.FC = () => {
       if (allWishlistProductIds.length > 0) {
         checkSpecificProducts(allWishlistProductIds);
       } else {
-        // For testing: If no wishlist products, add mock data
+        // For testing: If no wishlist products, add mock data that are within 24 hours
         import("../services/price-history-service").then(
           ({ getMockPriceDrops }) => {
             const mockDrops = getMockPriceDrops();
+            // Make sure mock drops have recent dates (within last 24 hours)
+            const recentMockDrops = mockDrops.map((drop) => ({
+              ...drop,
+              changeDate: new Date(), // Set to current time to ensure they're recent
+            }));
+
             console.log(
               "Adding mock notifications for testing (no wishlist products found):",
-              mockDrops
+              recentMockDrops
             );
 
-            const newMockNotifications = mockDrops.map((drop) => ({
+            const newMockNotifications = recentMockDrops.map((drop) => ({
               ...drop,
               id:
                 new Date().getTime().toString() +
@@ -206,7 +276,7 @@ const NotificationsCenter: React.FC = () => {
           },
         }}
       >
-        <Badge badgeContent={notifications.length} color="error">
+        <Badge badgeContent={filteredNotifications.length} color="error">
           <NotificationsIcon />
         </Badge>
       </IconButton>
@@ -245,7 +315,7 @@ const NotificationsCenter: React.FC = () => {
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            {notifications.length > 0 && (
+            {filteredNotifications.length > 0 && (
               <Button
                 size="small"
                 onClick={() => {
@@ -261,14 +331,14 @@ const NotificationsCenter: React.FC = () => {
 
         <Divider />
 
-        {notifications.length === 0 ? (
+        {filteredNotifications.length === 0 ? (
           <MenuItem disabled>
             <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
               אין התראות חדשות
             </Typography>
           </MenuItem>
         ) : (
-          notifications.map((notification) => (
+          filteredNotifications.map((notification) => (
             <NotificationItem key={notification.id}>
               <ListItemAvatar>
                 <Avatar
@@ -306,6 +376,13 @@ const NotificationsCenter: React.FC = () => {
                       )}
                       %
                     </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      display="block"
+                    >
+                      בחנות: {getStoreName(notification.storeId)}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       ברשימה: {notification.wishlistName}
                     </Typography>
@@ -324,36 +401,6 @@ const NotificationsCenter: React.FC = () => {
             </NotificationItem>
           ))
         )}
-
-        {/* Debug indicator at the bottom of the menu */}
-        <Box
-          sx={{
-            mt: 2,
-            px: 2,
-            py: 1,
-            borderTop: "1px solid rgba(0,0,0,0.1)",
-            display: notifications.length === 0 ? "block" : "none",
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{ display: "block", textAlign: "center" }}
-          >
-            סטטוס חיבור:{" "}
-            {connectionStatus === "connected"
-              ? "מחובר"
-              : connectionStatus === "error"
-              ? "שגיאה"
-              : "מנותק"}
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{ display: "block", textAlign: "center" }}
-          >
-            מספר רשימות:{" "}
-            {user ? wishlists.filter((w) => w.userId === user._id).length : 0}
-          </Typography>
-        </Box>
       </Menu>
     </Box>
   );

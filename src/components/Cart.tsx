@@ -31,6 +31,7 @@ import {
 import { CartItem } from "../services/item-service";
 import cartService from "../services/cart-service";
 import useUsers from "../hooks/useUsers";
+import { getStoreName } from "../utils/storeUtils";
 
 const theme = createTheme({
   palette: {
@@ -140,14 +141,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
         ? Math.max(...latestPricesByStore)
         : 0,
     };
-  };
-
-  const getStoreName = (storeId: string) => {
-    const storeNames: Record<string, string> = {
-      "65a4e1e1e1e1e1e1e1e1e1e1": "חצי חינם",
-      "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",
-    };
-    return storeNames[storeId] || `חנות ${storeId.substring(0, 5)}`;
   };
 
   const calculateShopTotals = () => {

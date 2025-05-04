@@ -46,6 +46,15 @@ const analyzeReceipt = (receiptImage: FormData) => {
   return { request, cancel: () => controller.abort() };
 };
 
+// Add getItemById method to fetch a single item by its ID
+const getItemById = (id: string) => {
+  const controller = new AbortController();
+  const request = apiClient.get(`/items/${id}`, {
+    signal: controller.signal,
+  });
+  return { request, cancel: () => controller.abort() };
+};
+
 /**
  * Formats item price data for use with MUI LineChart component
  * @param item The item containing price history
@@ -81,4 +90,5 @@ const formatPriceDataForChart = (item: Item) => {
 export default Object.assign(itemService, {
   analyzeReceipt,
   formatPriceDataForChart,
+  getItemById, // Add the new method to the exported object
 });
