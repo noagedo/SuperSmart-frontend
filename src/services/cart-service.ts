@@ -53,6 +53,15 @@ const deleteCart = (cartId: string) => {
   });
   return { request, cancel: () => controller.abort() };
 };
+const addParticipant = (cartId: string, email: string) => {
+  const controller = new AbortController();
+  const request = apiClient.put(
+    `/carts/${cartId}/participants`,
+    { email },
+    { signal: controller.signal }
+  );
+  return { request, cancel: () => controller.abort() };
+};
 
 // Transforms the frontend cart items to the format expected by the backend
 const transformCartItems = (items: CartItem[]) => {
@@ -69,4 +78,5 @@ export default {
   updateCart,
   deleteCart,
   transformCartItems,
+  addParticipant,
 };

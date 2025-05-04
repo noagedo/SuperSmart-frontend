@@ -100,6 +100,9 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [clearCartDialogOpen, setClearCartDialogOpen] = useState(false);
   const [cartName, setCartName] = useState("");
+  const [savedCartId, setSavedCartId] = useState<string | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+const [shareEmail, setShareEmail] = useState("");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -169,14 +172,34 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
         participants: [],
         items: cartService.transformCartItems(items),
       });
-      await request;
+      const response = await request;
+      setSavedCartId(response.data._id || null);
       setSaveDialogOpen(false);
+
       setSnackbar({ open: true, message: "העגלה נשמרה בהצלחה", severity: "success" });
       setCartName("");
     } catch {
       setSnackbar({ open: true, message: "שגיאה בשמירת העגלה", severity: "error" });
     }
   };
+
+  const handleShareCart = async () => {
+    if (!shareEmail || !savedCartId) {
+      setSnackbar({ open: true, message: "יש להזין כתובת מייל תקינה", severity: "error" });
+      return;
+    }
+  
+    try {
+      const { request } = cartService.addParticipant(savedCartId, shareEmail);
+      await request;
+      setSnackbar({ open: true, message: "המשתמש שותף לעגלה בהצלחה", severity: "success" });
+      setShareDialogOpen(false);
+      setShareEmail("");
+    } catch {
+      setSnackbar({ open: true, message: "שגיאה בשיתוף העגלה", severity: "error" });
+    }
+  };
+  
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
@@ -327,31 +350,44 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
         </CardContent>
 
         {/* Action buttons with new Clear Cart button */}
-        <Box sx={{ p: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
-          <ActionButton 
-            fullWidth 
-            variant="contained" 
-            onClick={() => setShowShopComparison(!showShopComparison)}
-          >
-            {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בין רשתות"}
-          </ActionButton>
-          <ActionButton 
-            fullWidth 
-            variant="outlined" 
-            onClick={() => setSaveDialogOpen(true)}
-          >
-            שמירת עגלה
-          </ActionButton>
-          <ActionButton
-            fullWidth
-            variant="outlined"
-            color="error"
-            startIcon={<TrashIcon />}
-            onClick={() => setClearCartDialogOpen(true)}
-          >
-            ניקוי עגלה
-          </ActionButton>
-        </Box>
+<Box sx={{ p: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
+  <ActionButton 
+    fullWidth 
+    variant="contained" 
+    onClick={() => setShowShopComparison(!showShopComparison)}
+  >
+    {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בין רשתות"}
+  </ActionButton>
+  <ActionButton 
+    fullWidth 
+    variant="outlined" 
+    onClick={() => setSaveDialogOpen(true)}
+  >
+    שמירת עגלה
+  </ActionButton>
+
+  {savedCartId && (
+    <ActionButton
+      fullWidth
+      variant="outlined"
+      color="primary"
+      onClick={() => setShareDialogOpen(true)}
+    >
+      שיתוף עגלה
+    </ActionButton>
+  )}
+
+  <ActionButton
+    fullWidth
+    variant="outlined"
+    color="error"
+    startIcon={<TrashIcon />}
+    onClick={() => setClearCartDialogOpen(true)}
+  >
+    ניקוי עגלה
+  </ActionButton>
+</Box>
+
 
         {/* Save cart dialog */}
         <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
@@ -393,6 +429,26 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
             </Button>
           </DialogActions>
         </Dialog>
+
+       {/* Share cart dialog */}
+<Dialog open={shareDialogOpen} onClose={() => setShareDialogOpen(false)}>
+  <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>שיתוף עגלה</DialogTitle>
+  <DialogContent sx={{ p: 4 }}>
+    <TextField
+      fullWidth
+      label="כתובת אימייל של המשתמש"
+      value={shareEmail}
+      onChange={(e) => setShareEmail(e.target.value)}
+      placeholder="example@email.com"
+    />
+  </DialogContent>
+  <DialogActions sx={{ p: 3 }}>
+    <Button onClick={() => setShareDialogOpen(false)}>ביטול</Button>
+    <Button onClick={handleShareCart} variant="contained">
+      שתף
+    </Button>
+  </DialogActions>
+</Dialog>
 
         {/* Snackbar for notifications */}
         <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar}>

@@ -10,7 +10,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider,
   List,
   ListItem,
   ListItemText,
@@ -56,7 +55,8 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
   const { addItem, clearCart } = useCart();
 
   // Add states for carts
-  const [savedCarts, setSavedCarts] = useState<Cart[]>([]);
+  const [myCarts, setMyCarts] = useState<Cart[]>([]);
+  const [sharedCarts, setSharedCarts] = useState<Cart[]>([]);
   const [loadingCarts, setLoadingCarts] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
   const [selectedCart, setSelectedCart] = useState<Cart | null>(null);
@@ -181,42 +181,44 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
   // Fetch user's carts
   useEffect(() => {
     const fetchCarts = async () => {
-      if (!user || !user._id) {
-        console.log("No user ID available, can't fetch carts");
-        return;
-      }
-
+      if (!user || !user._id) return;
+  
       setLoadingCarts(true);
       setCartError(null);
-
+  
       try {
-        console.log(`Fetching carts for user ID: ${user._id}`);
         const { request } = cartService.getCartsByUser(user._id);
         const response = await request;
-
-        console.log("Carts fetched successfully:", response.data);
-        setSavedCarts(response.data);
+        const allCarts = response.data;
+  
+        const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
+        const shared = allCarts.filter(
+          (cart: Cart) =>
+            cart.ownerId !== user._id && cart.participants.includes(user._id!)
+        );
+  
+        setMyCarts(my);
+        setSharedCarts(shared);
       } catch (error) {
-        console.error("Error fetching carts:", error);
-        setCartError("Failed to load saved carts");
+        setCartError("שגיאה בטעינת עגלות");
       } finally {
         setLoadingCarts(false);
       }
     };
-
+  
     fetchCarts();
   }, [user?._id]);
+  
 
   // Handle deleting a cart
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     if (!confirm("האם אתה בטוח שברצונך למחוק את העגלה?")) return;
-
+  
     try {
       const { request } = cartService.deleteCart(cartId);
       await request;
-      // Update the carts list after deletion
-      setSavedCarts(savedCarts.filter((cart) => cart._id !== cartId));
+      setMyCarts(myCarts.filter((cart) => cart._id !== cartId));
     } catch (error) {
       console.error("Error deleting cart:", error);
       setCartError("Failed to delete cart");
@@ -282,6 +284,9 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
       setLoadingDetails(false);
     }
   };
+
+  
+  
 
   return (
     <Box
@@ -479,56 +484,176 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
         </Box>
       </Paper>
 
-      {/* Saved Carts Section */}
-      <Paper
-        elevation={3}
-        sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
-      >
-        <Box
+     
+ {/* Saved Carts Section */}
+<Paper
+  elevation={3}
+  sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
+>
+  <Box
+    sx={{
+      bgcolor: "#16a34a",
+      p: 3,
+      display: "flex",
+      alignItems: "center",
+      gap: 2,
+    }}
+  >
+    <ShoppingBag size={32} color="white" />
+    <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
+      העגלות השמורות שלי
+    </Typography>
+  </Box>
+
+  <Box sx={{ p: 4 }}>
+    {loadingCarts ? (
+      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+        <CircularProgress color="primary" />
+      </Box>
+    ) : cartError ? (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {cartError}
+      </Alert>
+    ) : myCarts.length === 0 && sharedCarts.length === 0 ? (
+      <Box sx={{ textAlign: "center", py: 4 }}>
+        <Typography variant="h6" color="text.secondary">
+          אין לך עגלות שמורות עדיין
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={() => navigate("/Products")}
+          startIcon={<ShoppingBag />}
           sx={{
+            mt: 2,
             bgcolor: "#16a34a",
-            p: 3,
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
+            "&:hover": { bgcolor: "#15803d" },
           }}
         >
-          <ShoppingBag size={32} color="white" />
-          <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
-            העגלות השמורות שלי
-          </Typography>
-        </Box>
-
-        <Box sx={{ p: 4 }}>
-          {loadingCarts ? (
-            <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-              <CircularProgress color="primary" />
-            </Box>
-          ) : cartError ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {cartError}
-            </Alert>
-          ) : savedCarts.length === 0 ? (
-            <Box sx={{ textAlign: "center", py: 4 }}>
-              <Typography variant="h6" color="text.secondary">
-                אין לך עגלות שמורות עדיין
-              </Typography>
-              <Button
-                variant="contained"
-                onClick={() => navigate("/Products")}
-                startIcon={<ShoppingBag />}
+          התחל קניות
+        </Button>
+      </Box>
+    ) : (
+      <>
+       {/* 🟢 העגלות שלי */}
+{myCarts.length > 0 && (
+  <>
+    <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
+      העגלות שלי
+    </Typography>
+    <Grid container spacing={3} sx={{ mb: 4 }}>
+      {myCarts.map((cart) => (
+        <Grid item xs={12} md={6} key={cart._id}>
+          <Card
+            sx={{
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              "&:hover": {
+                transform: "translateY(-4px)",
+                boxShadow: 4,
+              },
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+            }}
+            onClick={() => handleViewCartDetails(cart)}
+          >
+            <CardContent sx={{ flexGrow: 1 }}>
+              <Box
                 sx={{
-                  mt: 2,
-                  bgcolor: "#16a34a",
-                  "&:hover": { bgcolor: "#15803d" },
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
                 }}
               >
-                התחל קניות
-              </Button>
-            </Box>
-          ) : (
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 600, color: "#16a34a" }}
+                >
+                  {cart.name || "עגלה ללא שם"}
+                </Typography>
+                <Box>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      color: "#16a34a",
+                      borderColor: "#16a34a",
+                      "&:hover": {
+                        bgcolor: "rgba(22, 163, 74, 0.04)",
+                        borderColor: "#15803d",
+                      },
+                      mr: 1,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/edit-cart/${cart._id}`);
+                    }}
+                  >
+                    ערוך
+                  </Button>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={(e) => handleDeleteCart(cart._id!, e)}
+                    sx={{
+                      "&:hover": {
+                        bgcolor: "rgba(211, 47, 47, 0.1)",
+                      },
+                    }}
+                  >
+                    <Trash2 size={18} />
+                  </IconButton>
+                </Box>
+              </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 1 }}
+              >
+                נוצר: {formatDate(cart.createdAt)}
+              </Typography>
+              <Chip
+                label={`${cart.items?.length || 0} פריטים`}
+                size="small"
+                sx={{
+                  bgcolor: "rgba(22, 163, 74, 0.1)",
+                  color: "#16a34a",
+                  fontWeight: 600,
+                  mb: 2,
+                }}
+              />
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  mt: 2,
+                }}
+              >
+                <Button
+                  size="small"
+                  endIcon={<ArrowRight size={16} />}
+                  sx={{ color: "#16a34a" }}
+                >
+                  צפה בפרטים
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  </>
+)}
+
+        {/* 🟣 עגלות ששיתפו איתי */}
+        {sharedCarts.length > 0 && (
+          <>
+            <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
+              עגלות ששיתפו איתי
+            </Typography>
             <Grid container spacing={3}>
-              {savedCarts.map((cart) => (
+              {sharedCarts.map((cart) => (
                 <Grid item xs={12} md={6} key={cart._id}>
                   <Card
                     sx={{
@@ -559,18 +684,8 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
                         >
                           {cart.name || "עגלה ללא שם"}
                         </Typography>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={(e) => handleDeleteCart(cart._id!, e)}
-                          sx={{
-                            "&:hover": { bgcolor: "rgba(211, 47, 47, 0.1)" },
-                          }}
-                        >
-                          <Trash2 size={18} />
-                        </IconButton>
+                        {/* לא ניתן למחוק עגלות ששיתפו איתי */}
                       </Box>
-
                       <Typography
                         variant="body2"
                         color="text.secondary"
@@ -578,7 +693,6 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
                       >
                         נוצר: {formatDate(cart.createdAt)}
                       </Typography>
-
                       <Chip
                         label={`${cart.items?.length || 0} פריטים`}
                         size="small"
@@ -589,7 +703,6 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
                           mb: 2,
                         }}
                       />
-
                       <Box
                         sx={{
                           display: "flex",
@@ -610,9 +723,13 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
                 </Grid>
               ))}
             </Grid>
-          )}
-        </Box>
-      </Paper>
+          </>
+        )}
+      </>
+    )}
+  </Box>
+</Paper>
+
 
       {/* Cart Details Dialog */}
       <Dialog
