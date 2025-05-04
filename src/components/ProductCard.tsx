@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   Box,
   Typography,
@@ -6,14 +7,14 @@ import {
   createTheme,
   ThemeProvider,
   styled,
-  Stack,
   IconButton,
 } from "@mui/material";
 import { ShoppingCart, BarChart2 } from "lucide-react";
-import { useState } from "react";
 import { Item, StorePrice } from "../services/item-service";
 import PriceChart from "./PriceChart";
+import { useNavigate } from "react-router-dom";
 import WishButton from "./WishButton";
+
 
 const theme = createTheme({
   palette: {
@@ -81,6 +82,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const [showChart, setShowChart] = useState(false);
+  const navigate = useNavigate(); // Initialize the navigate function
 
   const getLatestPrice = (storePrice: StorePrice) => {
     const latestPrice = storePrice.prices.reduce((latest, current) => {
@@ -103,13 +105,30 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const lowestPrice = Math.min(...prices);
   const highestPrice = Math.max(...prices);
 
+  // Handler for navigating to the product details page
+  const handleCardClick = () => {
+    navigate(`/products/${product._id}`); // Ensure it's /products/:productId
+  };
+
+  // Prevent the card's click handler from being triggered when the button is clicked
+  const handleAddToCartClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent click from bubbling up to the card click handler
+    onAddToCart(product, { storeId: "", price: lowestPrice });
+  };
+
+  // Handle the graph button click and prevent the event from propagating to the card
+  const handleGraphButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent click from bubbling up to the card click handler
+    setShowChart(true);
+  };
+
   return (
     <ThemeProvider theme={theme}>
-      <ProductContainer elevation={2}>
+      <ProductContainer elevation={2} onClick={handleCardClick}>
         <ImageContainer>
           <GraphButton
             aria-label="הצג גרף מחירים"
-            onClick={() => setShowChart(true)}
+            onClick={handleGraphButtonClick} // Use the new handler
             size="small"
           >
             <BarChart2 size={18} />
@@ -174,9 +193,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             variant="contained"
             fullWidth
             startIcon={<ShoppingCart size={18} />}
-            onClick={() =>
-              onAddToCart(product, { storeId: "", price: lowestPrice })
-            }
+            onClick={handleAddToCartClick} // Ensure event propagation is stopped here
             sx={{
               bgcolor: "primary.main",
               color: "white",

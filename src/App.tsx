@@ -15,6 +15,7 @@ import NotificationDebug from "./components/NotificationDebug";
 import useUsers from "./hooks/useUsers";
 import theme from "./theme";
 import ProductList from "./components/ProductList";
+import ProductDetails from "./components/ProductDetail"; 
 
 const App: React.FC = () => {
   const { user } = useUsers();
@@ -22,7 +23,6 @@ const App: React.FC = () => {
   // Initialize socket and check for price changes on app load
   React.useEffect(() => {
     if (user && user._id) {
-      // Ensure socket is connected
       const initializeSocket = async () => {
         try {
           const notificationService = (
@@ -36,8 +36,6 @@ const App: React.FC = () => {
       };
 
       initializeSocket();
-
-      // Force check for recent price changes
       localStorage.removeItem("lastPriceCheckTimestamp");
       console.log(
         "App mounted, cleared lastPriceCheckTimestamp for fresh price checks"
@@ -54,13 +52,16 @@ const App: React.FC = () => {
           <Route path="/" element={<HomeBeforeSignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
           <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/Products" element={<ProductList />} />
+          
+          {/* Product routes */}
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/products/:productId" element={<ProductDetails />} /> {/* ✅ Added this line */}
+
+          {/* Auth-protected routes */}
           <Route
             path="/personal-area"
             element={user ? <PersonalArea user={user} /> : <SignIn />}
           />
-
-          {/* Add wishlist routes */}
           <Route
             path="/wishlists"
             element={user ? <WishlistsPage /> : <SignIn />}
@@ -70,7 +71,7 @@ const App: React.FC = () => {
             element={user ? <WishlistDetail /> : <SignIn />}
           />
 
-          {/* Debug routes - only in development */}
+          {/* Debug-only routes */}
           {process.env.NODE_ENV !== "production" && (
             <>
               <Route
