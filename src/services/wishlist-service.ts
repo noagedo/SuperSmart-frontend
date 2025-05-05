@@ -29,7 +29,8 @@ export const removeProductFromWishlist = (
 
 export const getWishlistsByUser = (userId: string) => {
   const controller = new AbortController();
-  const request = apiClient.get(`/wishlists?userId=${userId}`, {
+  const request = apiClient.get(`/wishlists`, {
+    params: { userId: userId }, // Explicitly pass userId as a parameter
     signal: controller.signal,
   });
   return { request, cancel: () => controller.abort() };

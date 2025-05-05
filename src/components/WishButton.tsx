@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IconButton,
   Menu,
@@ -31,20 +31,56 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
   const [openNewDialog, setOpenNewDialog] = useState(false);
   const [newWishlistName, setNewWishlistName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+
+  // Check if product is in any wishlist
+  useEffect(() => {
+    if (wishlists.length > 0 && product) {
+      const exists = wishlists.some((wishlist) =>
+        wishlist.products.some((item: any) => {
+          // Handle both cases: when item is an object with _id or when item is the ID itself
+          if (typeof item === "string") {
+            return item === product._id;
+          }
+          return item._id === product._id;
+        })
+      );
+      setIsInWishlist(exists);
+    }
+  }, [wishlists, product]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation(); // Prevent event from bubbling up to the ProductCard
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = () => {
+  // Update handleClose to match the Menu's onClose expected signature
+  const handleClose = (
+    event: {},
+    reason?: "backdropClick" | "escapeKeyDown"
+  ) => {
+    // Only try to stop propagation if event has stopPropagation method
+    if (event && typeof (event as any).stopPropagation === "function") {
+      (event as React.MouseEvent).stopPropagation();
+    }
     setAnchorEl(null);
   };
 
-  const handleAddToWishlist = async (wishlistId: string) => {
+  // Other manual close action without event from Menu
+  const closeMenu = () => {
+    setAnchorEl(null);
+  };
+
+  const handleAddToWishlist = async (
+    wishlistId: string,
+    event: React.MouseEvent
+  ) => {
+    event.stopPropagation(); // Prevent click from bubbling up
     try {
       setIsSubmitting(true);
       await addProduct(wishlistId, product._id);
-      handleClose();
+      setIsInWishlist(true); // Set heart to red after adding
+      closeMenu(); // Use the simple close function instead
     } catch (error) {
       console.error("Failed to add to wishlist:", error);
     } finally {
@@ -73,6 +109,11 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
     }
   };
 
+  const handleOpenNewDialog = (event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent click from bubbling up
+    setOpenNewDialog(true);
+  };
+
   if (!user) {
     // Return a button that links to sign in
     return (
@@ -80,6 +121,7 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
         component={Link}
         to="/sign-in"
         size="small"
+        onClick={(e) => e.stopPropagation()} // Prevent click from bubbling up
         sx={{
           position: "absolute",
           top: 8,
@@ -103,16 +145,21 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
           top: 8,
           left: 8,
           bgcolor: "white",
-          "&:hover": { bgcolor: "#f5f5f5", color: "primary.main" },
+          color: isInWishlist ? "error.main" : "inherit", // Red heart when in wishlist
+          "&:hover": {
+            bgcolor: "#f5f5f5",
+            color: isInWishlist ? "error.main" : "primary.main",
+          },
         }}
       >
-        <Heart size={18} />
+        <Heart size={18} fill={isInWishlist ? "currentColor" : "none"} />
       </IconButton>
 
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleClose}
+        onClick={(e) => e.stopPropagation()} // Prevent any click in the menu from bubbling
         PaperProps={{
           sx: { width: 220, maxHeight: 300, overflowY: "auto" },
         }}
@@ -131,7 +178,7 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
           wishlists.map((wishlist) => (
             <MenuItem
               key={wishlist._id}
-              onClick={() => handleAddToWishlist(wishlist._id)}
+              onClick={(e) => handleAddToWishlist(wishlist._id, e)}
               disabled={isSubmitting}
             >
               <ListItemIcon>
@@ -142,7 +189,7 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
           ))
         )}
 
-        <MenuItem onClick={() => setOpenNewDialog(true)}>
+        <MenuItem onClick={handleOpenNewDialog}>
           <ListItemIcon>
             <Plus size={18} />
           </ListItemIcon>
@@ -150,7 +197,11 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
         </MenuItem>
       </Menu>
 
-      <Dialog open={openNewDialog} onClose={() => setOpenNewDialog(false)}>
+      <Dialog
+        open={openNewDialog}
+        onClose={() => setOpenNewDialog(false)}
+        onClick={(e) => e.stopPropagation()} // Prevent dialog clicks from bubbling
+      >
         <DialogTitle>Create New Wishlist</DialogTitle>
         <DialogContent>
           <TextField
@@ -161,12 +212,23 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
             fullWidth
             value={newWishlistName}
             onChange={(e) => setNewWishlistName(e.target.value)}
+            onClick={(e) => e.stopPropagation()} // Prevent input field clicks from bubbling
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenNewDialog(false)}>Cancel</Button>
           <Button
-            onClick={handleCreateNewWishlist}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenNewDialog(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCreateNewWishlist();
+            }}
             color="primary"
             disabled={isSubmitting || !newWishlistName.trim()}
           >

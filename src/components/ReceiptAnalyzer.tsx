@@ -18,7 +18,15 @@ import {
   IconButton,
   Grid,
 } from "@mui/material";
-import { Upload, FileText, Check, ShoppingCart, X } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Check,
+  ShoppingCart,
+  X,
+  Info,
+  ExternalLink,
+} from "lucide-react";
 import itemService from "../services/item-service";
 
 const theme = createTheme({
@@ -82,6 +90,11 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
   const [selectedItems, setSelectedItems] = useState<{ [id: string]: boolean }>(
     {}
   );
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [productDetails, setProductDetails] = useState<{ [id: string]: any }>(
+    {}
+  );
+  const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
 
   // Reset selected items when analysis result changes
   useEffect(() => {
@@ -95,6 +108,17 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
         return acc;
       }, {} as { [id: string]: boolean });
       setSelectedItems(initialSelection);
+    }
+  }, [analysisResult]);
+
+  // טעינת פרטי המוצרים כאשר מתקבלות תוצאות ניתוח הקבלה
+  useEffect(() => {
+    if (
+      analysisResult &&
+      typeof analysisResult !== "string" &&
+      analysisResult.cartItems.length > 0
+    ) {
+      loadProductDetails(analysisResult.cartItems.map((item) => item._id));
     }
   }, [analysisResult]);
 
@@ -184,6 +208,63 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
 
   const countSelectedItems = () => {
     return Object.values(selectedItems).filter((selected) => selected).length;
+  };
+
+  const handleExpandItem = (id: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setExpandedItem(expandedItem === id ? null : id);
+  };
+
+  // טעינת פרטי המוצרים מה-DB לפי מזהה
+  const loadProductDetails = async (productIds: string[]) => {
+    if (!productIds.length) return;
+
+    setLoadingProducts(true);
+    try {
+      const detailsPromises = productIds.map((id) => fetchProductDetails(id));
+      const detailsResults = await Promise.allSettled(detailsPromises);
+
+      const newProductDetails: { [id: string]: any } = {};
+
+      detailsResults.forEach((result, index) => {
+        if (result.status === "fulfilled" && result.value) {
+          newProductDetails[productIds[index]] = result.value;
+        }
+      });
+
+      setProductDetails(newProductDetails);
+    } catch (error) {
+      console.error("Error loading product details:", error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const fetchProductDetails = async (id: string) => {
+    try {
+      const { request } = itemService.getItemById(id);
+      const response = await request;
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching details for product ${id}:`, error);
+      return null;
+    }
+  };
+
+  // הפונקציה להצגת שם המוצר - משתמשת בנתונים מה-DB אם זמינים
+  const getProductName = (item: any, index: number) => {
+    if (productDetails[item._id]?.name) {
+      return productDetails[item._id].name;
+    }
+    return item.name || `מוצר ${index + 1}`;
+  };
+
+  // הפונקציה להצגת תמונת המוצר - משתמשת בנתונים מה-DB אם זמינים
+  const getProductImage = (item: any) => {
+    if (productDetails[item._id]?.image) {
+      return productDetails[item._id].image;
+    }
+    return item.image;
   };
 
   return (
@@ -403,57 +484,167 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
           </Box>
 
           {analysisResult && typeof analysisResult !== "string" && (
-            <Grid container spacing={2}>
-              {analysisResult.cartItems.map((item, index) => (
-                <Grid item xs={12} sm={6} md={4} key={item._id}>
-                  <Paper
-                    elevation={selectedItems[item._id] ? 3 : 1}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      border: selectedItems[item._id]
-                        ? "2px solid #16a34a"
-                        : "1px solid rgba(0,0,0,0.12)",
-                      transition: "all 0.2s",
-                      cursor: "pointer",
-                      "&:hover": {
-                        borderColor: "#16a34a",
-                        transform: "translateY(-4px)",
-                      },
-                    }}
-                    onClick={() => handleToggleItem(item._id)}
-                  >
-                    <Box
-                      sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+            <>
+              {loadingProducts && (
+                <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
+                  <CircularProgress size={24} color="primary" />
+                  <Typography variant="body2" sx={{ ml: 2 }}>
+                    טוען פרטי מוצרים...
+                  </Typography>
+                </Box>
+              )}
+
+              <Grid container spacing={2}>
+                {analysisResult.cartItems.map((item, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={item._id}>
+                    <Paper
+                      elevation={selectedItems[item._id] ? 3 : 1}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        border: selectedItems[item._id]
+                          ? "2px solid #16a34a"
+                          : "1px solid rgba(0,0,0,0.12)",
+                        transition: "all 0.2s",
+                        cursor: "pointer",
+                        "&:hover": {
+                          borderColor: "#16a34a",
+                          transform: "translateY(-4px)",
+                        },
+                        position: "relative",
+                        overflow: "hidden",
+                      }}
+                      onClick={() => handleToggleItem(item._id)}
                     >
                       <Box
                         sx={{
                           display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
+                          flexDirection: "column",
+                          gap: 1,
                         }}
                       >
-                        <Checkbox
-                          checked={Boolean(selectedItems[item._id])}
-                          onChange={(e) => handleToggleItem(item._id, e)}
-                          onClick={(e) => e.stopPropagation()}
-                          color="primary"
-                        />
-                        <Typography variant="body2" color="text.secondary">
-                          כמות: {item.quantity}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <Checkbox
+                            checked={Boolean(selectedItems[item._id])}
+                            onChange={(e) => handleToggleItem(item._id, e)}
+                            onClick={(e) => e.stopPropagation()}
+                            color="primary"
+                          />
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              כמות: {item.quantity}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={(e) => handleExpandItem(item._id, e)}
+                              sx={{ padding: 0 }}
+                            >
+                              <Info size={16} />
+                            </IconButton>
+                          </Box>
+                        </Box>
+
+                        {/* Product Image */}
+                        {getProductImage(item) ? (
+                          <Box
+                            sx={{
+                              width: "100%",
+                              height: 120,
+                              display: "flex",
+                              justifyContent: "center",
+                              mb: 1,
+                            }}
+                          >
+                            <img
+                              src={getProductImage(item)}
+                              alt={getProductName(item, index)}
+                              style={{
+                                maxWidth: "100%",
+                                maxHeight: "100%",
+                                objectFit: "contain",
+                              }}
+                            />
+                          </Box>
+                        ) : (
+                          <Box
+                            sx={{
+                              width: "100%",
+                              height: 100,
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              mb: 1,
+                              bgcolor: "rgba(0,0,0,0.05)",
+                              borderRadius: 1,
+                            }}
+                          >
+                            {loadingProducts ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <Typography
+                                color="text.secondary"
+                                variant="caption"
+                              >
+                                אין תמונה זמינה
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+
+                        <Typography
+                          variant="subtitle1"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          {getProductName(item, index)}
                         </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          מזהה: {item._id}
+                        </Typography>
+
+                        {expandedItem === item._id && (
+                          <Box
+                            sx={{
+                              mt: 2,
+                              pt: 2,
+                              borderTop: "1px dashed rgba(0,0,0,0.1)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                            }}
+                          >
+                            <Typography
+                              variant="subtitle2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              פרטים נוספים
+                            </Typography>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={<ExternalLink size={14} />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/product/${item._id}`, "_blank");
+                              }}
+                              sx={{ alignSelf: "flex-start" }}
+                            >
+                              צפה בפרטי המוצר
+                            </Button>
+                          </Box>
+                        )}
                       </Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                        {item.name || `מוצר ${index + 1}`}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        מזהה: {item._id}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2, bgcolor: "#f8fafc" }}>

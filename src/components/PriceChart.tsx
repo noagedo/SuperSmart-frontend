@@ -1,22 +1,13 @@
 import { Modal, Box, Typography, Paper } from "@mui/material";
 import { LineChart } from "@mui/x-charts/LineChart";
 import itemService, { Item } from "../services/item-service";
+import { getStoreName } from "../utils/storeUtils";
 
 interface PriceChartProps {
   item: Item | null;
   open: boolean;
   onClose: () => void;
 }
-
-const getStoreName = (storeId: string): string => {
-  // This function should be expanded with actual store names
-  const storeNames: Record<string, string> = {
-    "65a4e1e1e1e1e1e1e1e1e1e1": "שופרסל",
-    "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",
-    // Add more stores as needed
-  };
-  return storeNames[storeId] || `חנות ${storeId.substring(0, 5)}`;
-};
 
 const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
   if (!item) return null;
@@ -27,7 +18,9 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
   const xLabels =
     item.storePrices.length > 0 && item.storePrices[0].prices.length > 0
       ? item.storePrices[0].prices.map((p) => {
-          const date = new Date(p.date);
+          const dateString = p.date || p.data || "";
+          if (!dateString) return "";
+          const date = new Date(dateString);
           return `${date.getDate()}/${date.getMonth() + 1}`;
         })
       : [];
@@ -77,7 +70,7 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               yAxis={[
                 {
                   label: "מחיר (₪)",
-                  
+
                   labelStyle: {
                     transform: "none",
                     textAnchor: "middle",
@@ -87,8 +80,7 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               height={300}
               slotProps={{
                 legend: {
-                  direction: "row",
-                  position: { vertical: "top", horizontal: "middle" },
+                  position: { vertical: "top", horizontal: "center" },
                 },
               }}
             />
