@@ -9,6 +9,7 @@ import SignIn from "./components/SignIn";
 import PersonalArea from "./components/PersonalArea";
 import WishlistsPage from "./components/WishlistsPage";
 import WishlistDetail from "./components/WishlistDetail";
+import EditCart from "./components/EditCart";
 
 import useUsers from "./hooks/useUsers";
 import theme from "./theme";
@@ -31,7 +32,10 @@ const App: React.FC = () => {
             path="/personal-area"
             element={user ? <PersonalArea user={user} /> : <SignIn />}
           />
-
+          <Route
+            path="/edit-cart/:id"
+            element={user ? <EditCart /> : <SignIn />}
+          />
           {/* Add wishlist routes */}
           <Route
             path="/wishlists"

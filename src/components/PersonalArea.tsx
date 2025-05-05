@@ -1,4 +1,4 @@
-import { FC, useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -19,6 +19,7 @@ import {
   Card,
   CardContent,
   Grid,
+  Tooltip,
 } from "@mui/material";
 import useUsers from "../hooks/useUsers";
 import { User } from "../services/user-service";
@@ -33,17 +34,18 @@ import {
   ShoppingBag,
   Trash2,
   ArrowRight,
+  Share2,
+  UserMinus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import useCart from "../hooks/useCart";
-import useItems from "../hooks/useItems"; // Add this import
+import useItems from "../hooks/useItems";
 
-// 🧩 Props
 interface PersonalAreaProps {
   user: User;
 }
 
-const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
+const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const { updateUser } = useUsers();
   const [editMode, setEditMode] = useState(false);
   const [userName, setUserName] = useState(user.userName);
@@ -61,6 +63,15 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
   const [cartError, setCartError] = useState<string | null>(null);
   const [selectedCart, setSelectedCart] = useState<Cart | null>(null);
   const [cartDetailsOpen, setCartDetailsOpen] = useState(false);
+
+  // Share dialog states
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [selectedCartForShare, setSelectedCartForShare] = useState<Cart | null>(null);
+
+  // Remove participant dialog states
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<string>("");
 
   // Add state for cart items with product details
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState<
@@ -95,8 +106,7 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
       let avatarUrl = user.profilePicture;
 
       if (profilePicture) {
-        const { request: uploadRequest } =
-          userService.uploadImage(profilePicture);
+        const { request: uploadRequest } = userService.uploadImage(profilePicture);
         const uploadResponse = await uploadRequest;
         avatarUrl = uploadResponse.data.url;
       }
@@ -208,7 +218,6 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
   
     fetchCarts();
   }, [user?._id]);
-  
 
   // Handle deleting a cart
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
@@ -285,8 +294,71 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
     }
   };
 
-  
-  
+  // Handle sharing a cart
+  const handleShareCart = async () => {
+    if (!shareEmail || !selectedCartForShare?._id) {
+      return;
+    }
+
+    try {
+      const { request } = cartService.addParticipant(selectedCartForShare._id, shareEmail);
+      await request;
+
+      // Update the cart in the local state
+      const updatedCart = {
+        ...selectedCartForShare,
+        participants: [...selectedCartForShare.participants, shareEmail],
+      };
+
+      setMyCarts(myCarts.map(cart => 
+        cart._id === selectedCartForShare._id ? updatedCart : cart
+      ));
+
+      setShareDialogOpen(false);
+      setShareEmail("");
+      setSelectedCartForShare(null);
+
+      // Show success message
+      setCartError("העגלה שותפה בהצלחה");
+      setTimeout(() => setCartError(null), 3000);
+    } catch (error) {
+      console.error("Error sharing cart:", error);
+      setCartError("שגיאה בשיתוף העגלה");
+    }
+  };
+
+  // Handle removing a participant
+  const handleRemoveParticipant = async () => {
+    if (!selectedCartForShare?._id || !selectedParticipant) {
+      return;
+    }
+
+    try {
+      const { request } = cartService.removeParticipant(selectedCartForShare._id, selectedParticipant);
+      await request;
+
+      // Update the cart in the local state
+      const updatedCart = {
+        ...selectedCartForShare,
+        participants: selectedCartForShare.participants.filter(p => p !== selectedParticipant),
+      };
+
+      setMyCarts(myCarts.map(cart => 
+        cart._id === selectedCartForShare._id ? updatedCart : cart
+      ));
+
+      setRemoveDialogOpen(false);
+      setSelectedParticipant("");
+      setSelectedCartForShare(null);
+
+      // Show success message
+      setCartError("המשתמש הוסר בהצלחה");
+      setTimeout(() => setCartError(null), 3000);
+    } catch (error) {
+      console.error("Error removing participant:", error);
+      setCartError("שגיאה בהסרת המשתמש");
+    }
+  };
 
   return (
     <Box
@@ -484,252 +556,306 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
         </Box>
       </Paper>
 
-     
- {/* Saved Carts Section */}
-<Paper
-  elevation={3}
-  sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
->
-  <Box
-    sx={{
-      bgcolor: "#16a34a",
-      p: 3,
-      display: "flex",
-      alignItems: "center",
-      gap: 2,
-    }}
-  >
-    <ShoppingBag size={32} color="white" />
-    <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
-      העגלות השמורות שלי
-    </Typography>
-  </Box>
-
-  <Box sx={{ p: 4 }}>
-    {loadingCarts ? (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-        <CircularProgress color="primary" />
-      </Box>
-    ) : cartError ? (
-      <Alert severity="error" sx={{ mb: 2 }}>
-        {cartError}
-      </Alert>
-    ) : myCarts.length === 0 && sharedCarts.length === 0 ? (
-      <Box sx={{ textAlign: "center", py: 4 }}>
-        <Typography variant="h6" color="text.secondary">
-          אין לך עגלות שמורות עדיין
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => navigate("/Products")}
-          startIcon={<ShoppingBag />}
+      {/* Saved Carts Section */}
+      <Paper
+        elevation={3}
+        sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
+      >
+        <Box
           sx={{
-            mt: 2,
             bgcolor: "#16a34a",
-            "&:hover": { bgcolor: "#15803d" },
+            p: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
           }}
         >
-          התחל קניות
-        </Button>
-      </Box>
-    ) : (
-      <>
-       {/* 🟢 העגלות שלי */}
-{myCarts.length > 0 && (
-  <>
-    <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
-      העגלות שלי
-    </Typography>
-    <Grid container spacing={3} sx={{ mb: 4 }}>
-      {myCarts.map((cart) => (
-        <Grid item xs={12} md={6} key={cart._id}>
-          <Card
-            sx={{
-              cursor: "pointer",
-              transition: "transform 0.2s, box-shadow 0.2s",
-              "&:hover": {
-                transform: "translateY(-4px)",
-                boxShadow: 4,
-              },
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-            }}
-            onClick={() => handleViewCartDetails(cart)}
-          >
-            <CardContent sx={{ flexGrow: 1 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 600, color: "#16a34a" }}
-                >
-                  {cart.name || "עגלה ללא שם"}
-                </Typography>
-                <Box>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    sx={{
-                      color: "#16a34a",
-                      borderColor: "#16a34a",
-                      "&:hover": {
-                        bgcolor: "rgba(22, 163, 74, 0.04)",
-                        borderColor: "#15803d",
-                      },
-                      mr: 1,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/edit-cart/${cart._id}`);
-                    }}
-                  >
-                    ערוך
-                  </Button>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={(e) => handleDeleteCart(cart._id!, e)}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "rgba(211, 47, 47, 0.1)",
-                      },
-                    }}
-                  >
-                    <Trash2 size={18} />
-                  </IconButton>
-                </Box>
-              </Box>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mb: 1 }}
-              >
-                נוצר: {formatDate(cart.createdAt)}
+          <ShoppingBag size={32} color="white" />
+          <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
+            העגלות השמורות שלי
+          </Typography>
+        </Box>
+
+        <Box sx={{ p: 4 }}>
+          {loadingCarts ? (
+            <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+              <CircularProgress color="primary" />
+            </Box>
+          ) : cartError ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {cartError}
+            </Alert>
+          ) : myCarts.length === 0 && sharedCarts.length === 0 ? (
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Typography variant="h6" color="text.secondary">
+                אין לך עגלות שמורות עדיין
               </Typography>
-              <Chip
-                label={`${cart.items?.length || 0} פריטים`}
-                size="small"
+              <Button
+                variant="contained"
+                onClick={() => navigate("/Products")}
+                startIcon={<ShoppingBag />}
                 sx={{
-                  bgcolor: "rgba(22, 163, 74, 0.1)",
-                  color: "#16a34a",
-                  fontWeight: 600,
-                  mb: 2,
-                }}
-              />
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "flex-end",
                   mt: 2,
+                  bgcolor: "#16a34a",
+                  "&:hover": { bgcolor: "#15803d" },
                 }}
               >
-                <Button
-                  size="small"
-                  endIcon={<ArrowRight size={16} />}
-                  sx={{ color: "#16a34a" }}
-                >
-                  צפה בפרטים
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      ))}
-    </Grid>
-  </>
-)}
-
-        {/* 🟣 עגלות ששיתפו איתי */}
-        {sharedCarts.length > 0 && (
-          <>
-            <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
-              עגלות ששיתפו איתי
-            </Typography>
-            <Grid container spacing={3}>
-              {sharedCarts.map((cart) => (
-                <Grid item xs={12} md={6} key={cart._id}>
-                  <Card
-                    sx={{
-                      cursor: "pointer",
-                      transition: "transform 0.2s, box-shadow 0.2s",
-                      "&:hover": {
-                        transform: "translateY(-4px)",
-                        boxShadow: 4,
-                      },
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                    }}
-                    onClick={() => handleViewCartDetails(cart)}
-                  >
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          mb: 2,
-                        }}
-                      >
-                        <Typography
-                          variant="h6"
-                          sx={{ fontWeight: 600, color: "#16a34a" }}
+                התחל קניות
+              </Button>
+            </Box>
+          ) : (
+            <>
+              {/* 🟢 העגלות שלי */}
+              {myCarts.length > 0 && (
+                <>
+                  <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
+                    העגלות שלי
+                  </Typography>
+                  <Grid container spacing={3} sx={{ mb: 4 }}>
+                    {myCarts.map((cart) => (
+                      <Grid item xs={12} md={6} key={cart._id}>
+                        <Card
+                          sx={{
+                            cursor: "pointer",
+                            transition: "transform 0.2s, box-shadow 0.2s",
+                            "&:hover": {
+                              transform: "translateY(-4px)",
+                              boxShadow: 4,
+                            },
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                          }}
+                          onClick={() => handleViewCartDetails(cart)}
                         >
-                          {cart.name || "עגלה ללא שם"}
-                        </Typography>
-                        {/* לא ניתן למחוק עגלות ששיתפו איתי */}
-                      </Box>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 1 }}
-                      >
-                        נוצר: {formatDate(cart.createdAt)}
-                      </Typography>
-                      <Chip
-                        label={`${cart.items?.length || 0} פריטים`}
-                        size="small"
-                        sx={{
-                          bgcolor: "rgba(22, 163, 74, 0.1)",
-                          color: "#16a34a",
-                          fontWeight: 600,
-                          mb: 2,
-                        }}
-                      />
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          mt: 2,
-                        }}
-                      >
-                        <Button
-                          size="small"
-                          endIcon={<ArrowRight size={16} />}
-                          sx={{ color: "#16a34a" }}
-                        >
-                          צפה בפרטים
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </>
-        )}
-      </>
-    )}
-  </Box>
-</Paper>
+                          <CardContent sx={{ flexGrow: 1 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 2,
+                              }}
+                            >
+                              <Typography
+                                variant="h6"
+                                sx={{ fontWeight: 600, color: "#16a34a" }}
+                              >
+                                {cart.name || "עגלה ללא שם"}
+                              </Typography>
+                              <Box>
+                                <Tooltip title="שתף עגלה">
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCartForShare(cart);
+                                      setShareDialogOpen(true);
+                                    }}
+                                    sx={{
+                                      color: "#16a34a",
+                                      mr: 1,
+                                    }}
+                                  >
+                                    <Share2 size={18} />
+                                  </IconButton>
+                                </Tooltip>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    color: "#16a34a",
+                                    borderColor: "#16a34a",
+                                    "&:hover": {
+                                      bgcolor: "rgba(22, 163, 74, 0.04)",
+                                      borderColor: "#15803d",
+                                    },
+                                    mr: 1,
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/edit-cart/${cart._id}`);
+                                  }}
+                                >
+                                  ערוך
+                                </Button>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={(e) => handleDeleteCart(cart._id!, e)}
+                                  sx={{
+                                    "&:hover": {
+                                      bgcolor: "rgba(211, 47, 47, 0.1)",
+                                    },
+                                  }}
+                                >
+                                  <Trash2 size={18} />
+                                </IconButton>
+                              </Box>
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mb: 1 }}
+                            >
+                              נוצר: {formatDate(cart.createdAt)}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                              <Chip
+                                label={`${cart.items?.length || 0} פריטים`}
+                                size="small"
+                                sx={{
+                                  bgcolor: "rgba(22, 163, 74, 0.1)",
+                                  color: "#16a34a",
+                                  fontWeight: 600,
+                                }}
+                              />
+                              {cart.participants.length > 0 && (
+                                <Chip
+                                  label={`${cart.participants.length} משתתפים`}
+                                  size="small"
+                                  sx={{
+                                    bgcolor: "rgba(22, 163, 74, 0.1)",
+                                    color: "#16a34a",
+                                    fontWeight: 600,
+                                  }}
+                                />
+                              )}
+                            </Box>
+                            {cart.participants.length > 0 && (
+                              <Box sx={{ mb: 2 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                  משתתפים:
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                  {cart.participants.map((participant) => (
+                                    <Chip
+                                      key={participant}
+                                      label={participant}
+                                      size="small"
+                                      onDelete={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedCartForShare(cart);
+                                        setSelectedParticipant(participant);
+                                        setRemoveDialogOpen(true);
+                                      }}
+                                      deleteIcon={<UserMinus size={14} />}
+                                      sx={{
+                                        bgcolor: "rgba(22, 163, 74, 0.05)",
+                                        borderColor: "rgba(22, 163, 74, 0.2)",
+                                        border: "1px solid",
+                                      }}
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+                            )}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                mt: 2,
+                              }}
+                            >
+                              <Button
+                                size="small"
+                                endIcon={<ArrowRight size={16} />}
+                                sx={{ color: "#16a34a" }}
+                              >
+                                צפה בפרטים
+                              </Button>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
 
+              {/* 🟣 עגלות ששיתפו איתי */}
+              {sharedCarts.length > 0 && (
+                <>
+                  <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
+                    עגלות ששיתפו איתי
+                  </Typography>
+                  <Grid container spacing={3}>
+                    {sharedCarts.map((cart) => (
+                      <Grid item xs={12} md={6} key={cart._id}>
+                        <Card
+                          sx={{
+                            cursor: "pointer",
+                            transition: "transform 0.2s, box-shadow 0.2s",
+                            "&:hover": {
+                              transform: "translateY(-4px)",
+                              boxShadow: 4,
+                            },
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                          }}
+                          onClick={() => handleViewCartDetails(cart)}
+                        >
+                          <CardContent sx={{ flexGrow: 1 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 2,
+                              }}
+                            >
+                              <Typography
+                                variant="h6"
+                                sx={{ fontWeight: 600, color: "#16a34a" }}
+                              >
+                                {cart.name || "עגלה ללא שם"}
+                              </Typography>
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mb: 1 }}
+                            >
+                              נוצר: {formatDate(cart.createdAt)}
+                            </Typography>
+                            <Chip
+                              label={`${cart.items?.length || 0} פריטים`}
+                              size="small"
+                              sx={{
+                                bgcolor: "rgba(22, 163, 74, 0.1)",
+                                color: "#16a34a",
+                                fontWeight: 600,
+                                mb: 2,
+                              }}
+                            />
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                mt: 2,
+                              }}
+                            >
+                              <Button
+                                
+                                size="small"
+                                endIcon={<ArrowRight size={16} />}
+                                sx={{ color: "#16a34a" }}
+                              >
+                                צפה בפרטים
+                              </Button>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
+            </>
+          )}
+        </Box>
+      </Paper>
 
       {/* Cart Details Dialog */}
       <Dialog
@@ -824,6 +950,84 @@ const PersonalArea: FC<PersonalAreaProps> = ({ user }) => {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Share Cart Dialog */}
+      <Dialog
+        open={shareDialogOpen}
+        onClose={() => {
+          setShareDialogOpen(false);
+          setSelectedCartForShare(null);
+          setShareEmail("");
+        }}
+      >
+        <DialogTitle sx={{ bgcolor: "primary.main", color: "white" }}>
+          שיתוף עגלה
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2, mt: 2 }}>
+          <TextField
+            fullWidth
+            label="כתובת אימייל של המשתמש"
+            value={shareEmail}
+            onChange={(e) => setShareEmail(e.target.value)}
+            placeholder="example@email.com"
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => {
+              setShareDialogOpen(false);
+              setSelectedCartForShare(null);
+              setShareEmail("");
+            }}
+          >
+            ביטול
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleShareCart}
+            disabled={!shareEmail}
+          >
+            שתף
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Remove Participant Dialog */}
+      <Dialog
+        open={removeDialogOpen}
+        onClose={() => {
+          setRemoveDialogOpen(false);
+          setSelectedCartForShare(null);
+          setSelectedParticipant("");
+        }}
+      >
+        <DialogTitle sx={{ bgcolor: "error.main", color: "white" }}>
+          הסרת משתתף
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2, mt: 2 }}>
+          <Typography>
+            האם אתה בטוח שברצונך להסיר את המשתמש {selectedParticipant} מהעגלה?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => {
+              setRemoveDialogOpen(false);
+              setSelectedCartForShare(null);
+              setSelectedParticipant("");
+            }}
+          >
+            ביטול
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleRemoveParticipant}
+          >
+            הסר משתתף
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Password Change Dialog */}
