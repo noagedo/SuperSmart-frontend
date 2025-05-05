@@ -38,12 +38,9 @@ const getCartById = (cartId: string) => {
   return { request, cancel: () => controller.abort() };
 };
 
-const updateCart = (cart: Cart) => {
-  const controller = new AbortController();
-  const request = apiClient.put<Cart>(`/carts/${cart._id}`, cart, {
-    signal: controller.signal,
-  });
-  return { request, cancel: () => controller.abort() };
+const updateCart = (id: string, cart: Partial<Cart>) => {
+  const request = apiClient.put(`/carts/${id}`, cart);
+  return { request };
 };
 
 const deleteCart = (cartId: string) => {
@@ -51,6 +48,25 @@ const deleteCart = (cartId: string) => {
   const request = apiClient.delete(`/carts/${cartId}`, {
     signal: controller.signal,
   });
+  return { request, cancel: () => controller.abort() };
+};
+const addParticipant = (cartId: string, email: string) => {
+  const controller = new AbortController();
+  const request = apiClient.put(
+    `/carts/${cartId}/participants`,
+    { email },
+    { signal: controller.signal }
+  );
+  return { request, cancel: () => controller.abort() };
+};
+
+const removeParticipant = (cartId: string, userIdToRemove: string) => {
+  const controller = new AbortController();
+  const request = apiClient.put(
+    `/carts/${cartId}/participants/remove`,
+    { userIdToRemove },
+    { signal: controller.signal }
+  );
   return { request, cancel: () => controller.abort() };
 };
 
@@ -69,4 +85,6 @@ export default {
   updateCart,
   deleteCart,
   transformCartItems,
+  addParticipant,
+  removeParticipant,
 };
