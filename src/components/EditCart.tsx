@@ -22,8 +22,23 @@ import {
   Skeleton,
   InputAdornment,
   Autocomplete,
+  Chip,
+  Divider,
+  Snackbar,
 } from '@mui/material';
-import { Save, ArrowLeft, Trash2, Plus, Minus, ImageOff, Search, ShoppingCart } from 'lucide-react';
+import { 
+  Save, 
+  ArrowLeft, 
+  Trash2, 
+  Plus, 
+  Minus, 
+  ImageOff, 
+  Search, 
+  ShoppingCart,
+  UserPlus,
+  UserMinus,
+  Users,
+} from 'lucide-react';
 import cartService, { Cart } from '../services/cart-service';
 import useUsers from '../hooks/useUsers';
 import useItems from '../hooks/useItems';
@@ -56,6 +71,21 @@ const EditCart = () => {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // New states for participants management
+  const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
+  const [newParticipantEmail, setNewParticipantEmail] = useState('');
+  const [removeParticipantDialogOpen, setRemoveParticipantDialogOpen] = useState(false);
+  const [participantToRemove, setParticipantToRemove] = useState<string>('');
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -146,19 +176,16 @@ const EditCart = () => {
     if (!cart || !cart._id || !selectedProduct) return;
 
     try {
-      // Check if product already exists in cart
       const existingItem = cart.items.find(item => item.productId === selectedProduct._id);
       
       let updatedItems;
       if (existingItem) {
-        // Update quantity if product exists
         updatedItems = cart.items.map(item =>
           item.productId === selectedProduct._id
             ? { ...item, quantity: (item.quantity || 1) + 1 }
             : item
         );
       } else {
-        // Add new product if it doesn't exist
         updatedItems = [...cart.items, {
           productId: selectedProduct._id,
           quantity: 1
@@ -178,6 +205,68 @@ const EditCart = () => {
     } catch (err) {
       setError('Failed to add product');
       console.error(err);
+    }
+  };
+
+  // Handle adding a new participant
+  const handleAddParticipant = async () => {
+    if (!cart?._id || !newParticipantEmail) return;
+
+    try {
+      const { request } = cartService.addParticipant(cart._id, newParticipantEmail);
+      await request;
+
+      setCart(prev => prev ? {
+        ...prev,
+        participants: [...prev.participants, newParticipantEmail]
+      } : null);
+
+      setParticipantDialogOpen(false);
+      setNewParticipantEmail('');
+      
+      setSnackbar({
+        open: true,
+        message: 'המשתתף נוסף בהצלחה',
+        severity: 'success'
+      });
+    } catch (err) {
+      console.error('Failed to add participant:', err);
+      setSnackbar({
+        open: true,
+        message: 'שגיאה בהוספת המשתתף',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Handle removing a participant
+  const handleRemoveParticipant = async () => {
+    if (!cart?._id || !participantToRemove) return;
+
+    try {
+      const { request } = cartService.removeParticipant(cart._id, participantToRemove);
+      await request;
+
+      setCart(prev => prev ? {
+        ...prev,
+        participants: prev.participants.filter(p => p !== participantToRemove)
+      } : null);
+
+      setRemoveParticipantDialogOpen(false);
+      setParticipantToRemove('');
+      
+      setSnackbar({
+        open: true,
+        message: 'המשתתף הוסר בהצלחה',
+        severity: 'success'
+      });
+    } catch (err) {
+      console.error('Failed to remove participant:', err);
+      setSnackbar({
+        open: true,
+        message: 'שגיאה בהסרת המשתתף',
+        severity: 'error'
+      });
     }
   };
 
@@ -260,6 +349,18 @@ const EditCart = () => {
             </Typography>
             <Button
               variant="contained"
+              onClick={() => setParticipantDialogOpen(true)}
+              startIcon={<UserPlus />}
+              sx={{
+                bgcolor: 'primary.main',
+                mr: 1,
+                '&:hover': { bgcolor: 'primary.dark' }
+              }}
+            >
+              הוסף משתתף
+            </Button>
+            <Button
+              variant="contained"
               onClick={() => setSearchDialogOpen(true)}
               startIcon={<Plus />}
               sx={{
@@ -271,23 +372,65 @@ const EditCart = () => {
             </Button>
           </Box>
 
-          <TextField
-            fullWidth
-            label="שם העגלה"
-            value={cartName}
-            onChange={(e) => setCartName(e.target.value)}
-            sx={{ 
-              mb: 4,
-              '& .MuiOutlinedInput-root': {
-                '&.Mui-focused fieldset': {
-                  borderColor: 'primary.main',
+          <Box sx={{ mb: 4 }}>
+            <TextField
+              fullWidth
+              label="שם העגלה"
+              value={cartName}
+              onChange={(e) => setCartName(e.target.value)}
+              sx={{ 
+                mb: 3,
+                '& .MuiOutlinedInput-root': {
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                  },
                 },
-              },
-              '& .MuiInputLabel-root.Mui-focused': {
-                color: 'primary.main',
-              }
-            }}
-          />
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: 'primary.main',
+                }
+              }}
+            />
+
+            {cart?.participants && cart.participants.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle1" sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  color: 'primary.main',
+                  mb: 2
+                }}>
+                  <Users size={20} />
+                  משתתפים בעגלה
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {cart.participants.map((participant) => (
+                    <Chip
+                      key={participant}
+                      label={participant}
+                      onDelete={() => {
+                        setParticipantToRemove(participant);
+                        setRemoveParticipantDialogOpen(true);
+                      }}
+                      deleteIcon={<UserMinus size={16} />}
+                      sx={{
+                        bgcolor: 'rgba(22, 163, 74, 0.1)',
+                        color: 'primary.main',
+                        '& .MuiChip-deleteIcon': {
+                          color: 'primary.main',
+                          '&:hover': {
+                            color: 'error.main',
+                          },
+                        },
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </Box>
+
+          <Divider sx={{ my: 4 }} />
 
           <Grid container spacing={3}>
             {cart.items.map((item) => {
@@ -452,7 +595,6 @@ const EditCart = () => {
           </Box>
         </Paper>
 
-        {/* Delete Confirmation Dialog */}
         <Dialog
           open={deleteDialogOpen}
           onClose={() => setDeleteDialogOpen(false)}
@@ -483,7 +625,6 @@ const EditCart = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Product Search Dialog */}
         <Dialog
           open={searchDialogOpen}
           onClose={() => {
@@ -564,6 +705,98 @@ const EditCart = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <Dialog
+          open={participantDialogOpen}
+          onClose={() => {
+            setParticipantDialogOpen(false);
+            setNewParticipantEmail('');
+          }}
+        >
+          <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
+            הוספת משתתף לעגלה
+          </DialogTitle>
+          <DialogContent sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="כתובת אימייל"
+              value={newParticipantEmail}
+              onChange={(e) => setNewParticipantEmail(e.target.value)}
+              type="email"
+              sx={{ mt: 1 }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button 
+              onClick={() => {
+                setParticipantDialogOpen(false);
+                setNewParticipantEmail('');
+              }}
+            >
+              ביטול
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleAddParticipant}
+              disabled={!newParticipantEmail}
+              sx={{
+                bgcolor: 'primary.main',
+                '&:hover': { bgcolor: 'primary.dark' }
+              }}
+            >
+              הוסף
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={removeParticipantDialogOpen}
+          onClose={() => {
+            setRemoveParticipantDialogOpen(false);
+            setParticipantToRemove('');
+          }}
+        >
+          <DialogTitle sx={{ bgcolor: 'error.main', color: 'white' }}>
+            הסרת משתתף מהעגלה
+          </DialogTitle>
+          <DialogContent sx={{ mt: 2 }}>
+            <Typography>
+              האם אתה בטוח שברצונך להסיר את המשתתף {participantToRemove} מהעגלה?
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button 
+              onClick={() => {
+                setRemoveParticipantDialogOpen(false);
+                setParticipantToRemove('');
+              }}
+            >
+              ביטול
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleRemoveParticipant}
+            >
+              הסר משתתף
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={3000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   );

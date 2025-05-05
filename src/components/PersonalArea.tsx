@@ -20,6 +20,7 @@ import {
   CardContent,
   Grid,
   Tooltip,
+  Snackbar,
 } from "@mui/material";
 import useUsers from "../hooks/useUsers";
 import { User } from "../services/user-service";
@@ -99,6 +100,17 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add new state for Snackbar
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const handleSave = async () => {
     setUpdateError(null);
@@ -319,11 +331,18 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       setSelectedCartForShare(null);
 
       // Show success message
-      setCartError("העגלה שותפה בהצלחה");
-      setTimeout(() => setCartError(null), 3000);
+      setSnackbar({
+        open: true,
+        message: "העגלה שותפה בהצלחה",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error sharing cart:", error);
-      setCartError("שגיאה בשיתוף העגלה");
+      setSnackbar({
+        open: true,
+        message: "שגיאה בשיתוף העגלה",
+        severity: "error",
+      });
     }
   };
 
@@ -352,12 +371,24 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       setSelectedCartForShare(null);
 
       // Show success message
-      setCartError("המשתמש הוסר בהצלחה");
-      setTimeout(() => setCartError(null), 3000);
+      setSnackbar({
+        open: true,
+        message: "המשתתף הוסר בהצלחה",
+        severity: "success",
+      });
     } catch (error) {
       console.error("Error removing participant:", error);
-      setCartError("שגיאה בהסרת המשתמש");
+      setSnackbar({
+        open: true,
+        message: "שגיאה בהסרת המשתתף",
+        severity: "error",
+      });
     }
+  };
+
+  // Handle closing the snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -811,6 +842,25 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                               >
                                 {cart.name || "עגלה ללא שם"}
                               </Typography>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                sx={{
+                                  color: "#16a34a",
+                                  borderColor: "#16a34a",
+                                  "&:hover": {
+                                    bgcolor: "rgba(22, 163, 74, 0.04)",
+                                    borderColor: "#15803d",
+                                  },
+                                  mr: 1,
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/edit-cart/${cart._id}`);
+                                }}
+                              >
+                                ערוך
+                              </Button>
                             </Box>
                             <Typography
                               variant="body2"
@@ -837,7 +887,6 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                               }}
                             >
                               <Button
-                                
                                 size="small"
                                 endIcon={<ArrowRight size={16} />}
                                 sx={{ color: "#16a34a" }}
@@ -906,7 +955,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                               objectFit: "cover",
                               mr: 2,
                               boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                              border: "1px solid rgba(22, 163, 74, 0.2)",
+                              border: "1px solid rgba(22,163,74,0.2)",
                             }}
                           />
                         )}
@@ -1106,6 +1155,29 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Add Snackbar component at the end */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          sx={{ 
+            width: "100%",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+            borderRadius: 2,
+            "& .MuiAlert-icon": {
+              fontSize: "1.5rem",
+            },
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
