@@ -24,6 +24,7 @@ import useWishlists from "../hooks/useWishlists";
 import useItems from "../hooks/useItems";
 import { Link } from "react-router-dom";
 
+import { BarChart2 } from "lucide-react";
 const WishlistsPage: React.FC = () => {
   const {
     wishlists,
@@ -135,7 +136,32 @@ const WishlistsPage: React.FC = () => {
             הרשימות שלי
           </Typography>
         </Box>
-
+{/* Price Drop Notification Alert */}
+<Paper 
+  elevation={1}
+  sx={{ 
+    mb: 3, 
+    borderRadius: 2,
+    bgcolor: "#f0fdf4",
+    border: "1px solid #dcfce7"
+  }}
+>
+  <Box sx={{ p: 2 }}>
+    <Alert 
+      severity="info" 
+      icon={<BarChart2 size={24} color="#16a34a" />}
+      sx={{ 
+        bgcolor: "transparent", 
+        color: "#16a34a", 
+        "& .MuiAlert-message": { fontWeight: 500 },
+        border: "none",
+        boxShadow: "none"
+      }}
+    >
+      עבור פריטים שברשימת המועדפים תקבלו התראות כאשר המחיר יורד
+    </Alert>
+  </Box>
+</Paper>
         <Box sx={{ p: 4 }}>
           <Box
             sx={{
@@ -182,7 +208,7 @@ const WishlistsPage: React.FC = () => {
                 אין לך רשימות שמורות עדיין
               </Typography>
               <Typography variant="body2" color="text.secondary" paragraph>
-                צור את הרשימה הראשונה שלך כדי להתחיל לשמור מוצרים שאתה אוהב
+                 צור את הרשימה הראשונה שלך כדי להתחיל לשמור מוצרים שאתה אוהב
               </Typography>
               <Button
                 variant="contained"

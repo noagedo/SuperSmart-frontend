@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 
 import {
@@ -16,8 +15,18 @@ import {
   Button,
   Drawer,
   IconButton,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Fab,
 } from "@mui/material";
-import { ShoppingBag, Search, X } from "lucide-react";
+import {
+  ShoppingBag,
+  Search,
+  X,
+  FileText,
+  ClipboardList,
+} from "lucide-react";
 import { ProductCard } from "./ProductCard";
 import { Cart } from "./Cart";
 import { Item } from "../services/item-service";
@@ -84,6 +93,7 @@ function ProductList() {
   const [cartOpen, setCartOpen] = useState(false);
   const [visibleProducts, setVisibleProducts] = useState(20);
   const loadMoreIncrement = 10;
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
 
   const categories = useMemo(
     () =>
@@ -148,25 +158,15 @@ function ProductList() {
                 price: firstPrice.price ?? 0,
               },
               image: productToAdd.image,
-
             });
-            setCartOpen(true); // Open the cart only once, after adding all items
-          } else if (firstStorePrice) {
-            console.warn(
-              `Product with ID ${newItem._id} in store ${firstStorePrice.storeId} has no prices.`
-            );
-            //  Consider adding a user-friendly message here.
-          } else {
-            console.warn(`Product with ID ${newItem._id} has no store prices.`);
           }
-        } else {
-          console.warn(
-            `Product with ID ${newItem._id} not found in product list.`
-          );
+          // ...existing code...
         }
       });
+
       if (newItems.length > 0) {
-        setCartOpen(true); //make sure to open cart
+        setCartOpen(true); // Open the cart
+        setReceiptDialogOpen(false); // Close the receipt dialog after adding items
       }
     }
   };
@@ -253,6 +253,27 @@ function ProductList() {
                     ),
                   }}
                 />
+
+                {/* Add Button for Receipt Analyzer */}
+                <Button
+                  variant="outlined"
+                  startIcon={<FileText size={20} />}
+                  onClick={() => setReceiptDialogOpen(true)}
+                  sx={{
+                    color: theme.palette.primary.main,
+                    borderColor: theme.palette.primary.main,
+                    whiteSpace: "nowrap",
+                    px: 2,
+                    "&:hover": {
+                      backgroundColor: "rgba(22, 163, 74, 0.04)",
+                      borderColor: theme.palette.primary.dark,
+                    },
+                    minWidth: { xs: "100%", md: "auto" },
+                  }}
+                >
+                  AI סריקת קבלה עם
+                </Button>
+
                 <IconButton onClick={toggleCart} sx={{ position: "relative" }}>
                   <Badge badgeContent={totalItems} color="primary">
                     <ShoppingBag size={28} />
@@ -279,10 +300,10 @@ function ProductList() {
               </CategorySelect>
             </Box>
 
-            <Box sx={{ mt: 4 }}>
+            {/* Remove existing ReceiptAnalyzer from here */}
+            {/* <Box sx={{ mt: 4 }}>
               <ReceiptAnalyzer onAddToCart={handleAddToCartFromReceipt} />
-            </Box>
-
+            </Box> */}
 
             {isLoading ? (
               <Box
@@ -343,22 +364,20 @@ function ProductList() {
           </Container>
         </Box>
 
-
-        <Drawer 
-          anchor="right" 
-          open={cartOpen} 
-          onClose={toggleCart} 
-          variant="persistent" 
-          sx={{ 
-            "& .MuiDrawer-paper": { 
-              width: 600, 
-              boxSizing: "border-box", 
-              bgcolor: "#f8fafc", 
-              borderLeft: `1px solid ${theme.palette.divider}` 
-            } 
+        <Drawer
+          anchor="right"
+          open={cartOpen}
+          onClose={toggleCart}
+          variant="persistent"
+          sx={{
+            "& .MuiDrawer-paper": {
+              width: 600,
+              boxSizing: "border-box",
+              bgcolor: "#f8fafc",
+              borderLeft: `1px solid ${theme.palette.divider}`,
+            },
           }}
         >
-
           <Box
             sx={{
               p: 3,
@@ -375,8 +394,6 @@ function ProductList() {
                 mb: 3,
               }}
             >
-
-
               <Typography variant="h5" sx={{ fontWeight: 600 }}>
                 עגלת קניות
               </Typography>
@@ -392,10 +409,59 @@ function ProductList() {
             />
           </Box>
         </Drawer>
+
+        {/* Receipt Analyzer Dialog */}
+        <Dialog
+          open={receiptDialogOpen}
+          onClose={() => setReceiptDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+          sx={{ "& .MuiDialog-paper": { borderRadius: 3 } }}
+        >
+          <DialogTitle
+            sx={{
+              bgcolor: "#16a34a",
+              color: "white",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              p: 2,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <ClipboardList size={24} />
+              <Typography variant="h6">סריקת קבלה באמצעות AI</Typography>
+            </Box>
+            <IconButton
+              onClick={() => setReceiptDialogOpen(false)}
+              sx={{ color: "white" }}
+            >
+              <X size={24} />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            <ReceiptAnalyzer onAddToCart={handleAddToCartFromReceipt} />
+          </DialogContent>
+        </Dialog>
+
+        {/* Floating Action Button for mobile */}
+        <Fab
+          color="primary"
+          aria-label="סריקת קבלה"
+          onClick={() => setReceiptDialogOpen(true)}
+          sx={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            display: { xs: "flex", md: "none" },
+            zIndex: 1000,
+          }}
+        >
+          <FileText size={24} />
+        </Fab>
       </Box>
     </ThemeProvider>
   );
-
 }
 
 export default ProductList;
