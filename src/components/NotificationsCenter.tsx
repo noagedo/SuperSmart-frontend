@@ -48,7 +48,7 @@ const NotificationsCenter: React.FC = () => {
   const [mockNotifications, setMockNotifications] = useState<
     PriceDropNotification[]
   >([]);
-  const { wishlists } = useWishlists();
+  const { wishlist } = useWishlists(); // Get the single wishlist
   const { user } = useUsers();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -59,20 +59,18 @@ const NotificationsCenter: React.FC = () => {
   // Combine notifications from the hook and mock notifications
   const notifications = [...hookNotifications, ...mockNotifications];
 
-  // Filter notifications for current user's wishlists with multiple criteria
+  // Filter notifications for current user's wishlist with multiple criteria
   const filteredNotifications = React.useMemo(() => {
     if (!user || !user._id) return [];
 
-    // Get user's wishlist IDs
-    const userWishlistIds = wishlists
-      .filter((w) => w.userId === user._id)
-      .map((w) => w._id);
+    // Get user's wishlist ID
+    const userWishlistId = wishlist ? wishlist._id : null;
 
     // Calculate date 24 hours ago
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
-    console.log(`User ${user._id} has ${userWishlistIds.length} wishlists`);
+    console.log(`User ${user._id} has wishlist with ID: ${userWishlistId}`);
     console.log(
       `Total notifications before filtering: ${notifications.length}`
     );
@@ -93,17 +91,16 @@ const NotificationsCenter: React.FC = () => {
       // 2. Check wishlistId ownership
       if (
         notification.wishlistId &&
-        !userWishlistIds.includes(notification.wishlistId)
+        (!userWishlistId || notification.wishlistId !== userWishlistId)
       ) {
         return false;
       }
 
-      // 3. We can also check the product - only show drops for products in user's wishlists
-      if (notification.productId) {
-        const productInUserWishlist = wishlists
-          .filter((w) => w.userId === user._id)
-          .some((w) => w.products.includes(notification.productId));
-
+      // 3. We can also check the product - only show drops for products in user's wishlist
+      if (notification.productId && wishlist) {
+        const productInUserWishlist = wishlist.products.includes(
+          notification.productId
+        );
         if (!productInUserWishlist) {
           return false;
         }
@@ -111,7 +108,7 @@ const NotificationsCenter: React.FC = () => {
 
       return true;
     });
-  }, [notifications, user, wishlists]);
+  }, [notifications, user, wishlist]);
 
   // Add debugging to see filtering results
   useEffect(() => {
@@ -206,13 +203,12 @@ const NotificationsCenter: React.FC = () => {
     // Force refresh by removing the timestamp
     localStorage.removeItem("lastPriceCheckTimestamp");
 
-    if (user && user._id) {
-      // Check for recent price drops in current user's wishlist products only
-      const userWishlists = wishlists.filter((w) => w.userId === user._id);
-      const allWishlistProductIds = userWishlists.flatMap((w) => w.products);
+    if (user && user._id && wishlist) {
+      // Check for recent price drops in current user's wishlist products
+      const allWishlistProductIds = wishlist.products;
 
       console.log(
-        `Manually checking ${allWishlistProductIds.length} products from ${userWishlists.length} user wishlists`
+        `Manually checking ${allWishlistProductIds.length} products from user's wishlist`
       );
 
       // If user has wishlist products, check them specifically

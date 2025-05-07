@@ -41,10 +41,23 @@ import {
 import { useNavigate } from "react-router-dom";
 import useCart from "../hooks/useCart";
 import useItems from "../hooks/useItems";
+import { styled } from "@mui/material";
 
 interface PersonalAreaProps {
   user: User;
 }
+
+const SectionHeader = styled(Box)(({ theme }) => ({
+  background: "linear-gradient(90deg, #16a34a 0%, #22c55e 100%)",
+  color: "white",
+  padding: theme.spacing(2, 3),
+  borderRadius: theme.spacing(1),
+  marginBottom: theme.spacing(3),
+  boxShadow: "0 4px 12px rgba(22, 163, 74, 0.15)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+}));
 
 const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const { updateUser } = useUsers();
@@ -68,7 +81,9 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   // Share dialog states
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
-  const [selectedCartForShare, setSelectedCartForShare] = useState<Cart | null>(null);
+  const [selectedCartForShare, setSelectedCartForShare] = useState<Cart | null>(
+    null
+  );
 
   // Remove participant dialog states
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
@@ -118,7 +133,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       let avatarUrl = user.profilePicture;
 
       if (profilePicture) {
-        const { request: uploadRequest } = userService.uploadImage(profilePicture);
+        const { request: uploadRequest } =
+          userService.uploadImage(profilePicture);
         const uploadResponse = await uploadRequest;
         avatarUrl = uploadResponse.data.url;
       }
@@ -204,21 +220,21 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   useEffect(() => {
     const fetchCarts = async () => {
       if (!user || !user._id) return;
-  
+
       setLoadingCarts(true);
       setCartError(null);
-  
+
       try {
         const { request } = cartService.getCartsByUser(user._id);
         const response = await request;
         const allCarts = response.data;
-  
+
         const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
         const shared = allCarts.filter(
           (cart: Cart) =>
             cart.ownerId !== user._id && cart.participants.includes(user._id!)
         );
-  
+
         setMyCarts(my);
         setSharedCarts(shared);
       } catch (error) {
@@ -227,7 +243,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         setLoadingCarts(false);
       }
     };
-  
+
     fetchCarts();
   }, [user?._id]);
 
@@ -235,7 +251,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     if (!confirm("האם אתה בטוח שברצונך למחוק את העגלה?")) return;
-  
+
     try {
       const { request } = cartService.deleteCart(cartId);
       await request;
@@ -313,7 +329,10 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     }
 
     try {
-      const { request } = cartService.addParticipant(selectedCartForShare._id, shareEmail);
+      const { request } = cartService.addParticipant(
+        selectedCartForShare._id,
+        shareEmail
+      );
       await request;
 
       // Update the cart in the local state
@@ -322,9 +341,11 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         participants: [...selectedCartForShare.participants, shareEmail],
       };
 
-      setMyCarts(myCarts.map(cart => 
-        cart._id === selectedCartForShare._id ? updatedCart : cart
-      ));
+      setMyCarts(
+        myCarts.map((cart) =>
+          cart._id === selectedCartForShare._id ? updatedCart : cart
+        )
+      );
 
       setShareDialogOpen(false);
       setShareEmail("");
@@ -353,18 +374,25 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     }
 
     try {
-      const { request } = cartService.removeParticipant(selectedCartForShare._id, selectedParticipant);
+      const { request } = cartService.removeParticipant(
+        selectedCartForShare._id,
+        selectedParticipant
+      );
       await request;
 
       // Update the cart in the local state
       const updatedCart = {
         ...selectedCartForShare,
-        participants: selectedCartForShare.participants.filter(p => p !== selectedParticipant),
+        participants: selectedCartForShare.participants.filter(
+          (p) => p !== selectedParticipant
+        ),
       };
 
-      setMyCarts(myCarts.map(cart => 
-        cart._id === selectedCartForShare._id ? updatedCart : cart
-      ));
+      setMyCarts(
+        myCarts.map((cart) =>
+          cart._id === selectedCartForShare._id ? updatedCart : cart
+        )
+      );
 
       setRemoveDialogOpen(false);
       setSelectedParticipant("");
@@ -639,9 +667,14 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
               {/* 🟢 העגלות שלי */}
               {myCarts.length > 0 && (
                 <>
-                  <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
-                    העגלות שלי
-                  </Typography>
+                  <SectionHeader>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 700, color: "white" }}
+                    >
+                      העגלות שלי
+                    </Typography>
+                  </SectionHeader>
                   <Grid container spacing={3} sx={{ mb: 4 }}>
                     {myCarts.map((cart) => (
                       <Grid item xs={12} md={6} key={cart._id}>
@@ -713,7 +746,9 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                                 <IconButton
                                   size="small"
                                   color="error"
-                                  onClick={(e) => handleDeleteCart(cart._id!, e)}
+                                  onClick={(e) =>
+                                    handleDeleteCart(cart._id!, e)
+                                  }
                                   sx={{
                                     "&:hover": {
                                       bgcolor: "rgba(211, 47, 47, 0.1)",
@@ -731,7 +766,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                             >
                               נוצר: {formatDate(cart.createdAt)}
                             </Typography>
-                            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                            <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                               <Chip
                                 label={`${cart.items?.length || 0} פריטים`}
                                 size="small"
@@ -755,10 +790,20 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                             </Box>
                             {cart.participants.length > 0 && (
                               <Box sx={{ mb: 2 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mb: 1 }}
+                                >
                                   משתתפים:
                                 </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    gap: 1,
+                                  }}
+                                >
                                   {cart.participants.map((participant) => (
                                     <Chip
                                       key={participant}
@@ -807,9 +852,14 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
               {/* 🟣 עגלות ששיתפו איתי */}
               {sharedCarts.length > 0 && (
                 <>
-                  <Typography variant="h6" sx={{ mb: 2, color: "#16a34a" }}>
-                    עגלות ששיתפו איתי
-                  </Typography>
+                  <SectionHeader>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 700, color: "white" }}
+                    >
+                      עגלות ששיתפו איתי
+                    </Typography>
+                  </SectionHeader>
                   <Grid container spacing={3}>
                     {sharedCarts.map((cart) => (
                       <Grid item xs={12} md={6} key={cart._id}>
@@ -1163,10 +1213,10 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ 
+          sx={{
             width: "100%",
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
             borderRadius: 2,

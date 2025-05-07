@@ -1,20 +1,19 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import App from './App';
-import theme from './theme';
-import { GoogleOAuthProvider } from '@react-oauth/google'; 
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import "./index.css";
+import ThemeProvider from "./Theme.tsx"; // Use default import
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
+// Replace the placeholder with your actual Google Client ID
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID";
 
-createRoot(document.getElementById('root')!).render(
-  <GoogleOAuthProvider clientId="282222794573-ck2v9clpo95rrb2pd3r49k3l1vncsd30.apps.googleusercontent.com">
-    <StrictMode>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <ThemeProvider>
         <App />
       </ThemeProvider>
-    </StrictMode>,
-  </GoogleOAuthProvider>
- 
+    </GoogleOAuthProvider>
+  </React.StrictMode>
 );

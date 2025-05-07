@@ -1,6 +1,4 @@
 import React from "react";
-import { ThemeProvider } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
 import NavBar from "./components/NavBar";
 import HomeBeforeSignIn from "./components/Home";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
@@ -12,12 +10,9 @@ import WishlistDetail from "./components/WishlistDetail";
 import EditCart from "./components/EditCart";
 import PriceCheckDebug from "./components/PriceCheckDebug";
 import NotificationDebug from "./components/NotificationDebug";
-
-
 import useUsers from "./hooks/useUsers";
-import theme from "./theme";
 import ProductList from "./components/ProductList";
-import ProductDetails from "./components/ProductDetail"; 
+import ProductDetails from "./components/ProductDetail";
 
 const App: React.FC = () => {
   const { user } = useUsers();
@@ -46,55 +41,52 @@ const App: React.FC = () => {
   }, [user]);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <NavBar />
-        <Routes>
-          <Route path="/" element={<HomeBeforeSignIn />} />
-          <Route path="/sign-up" element={<SignUp />} />
-          <Route path="/sign-in" element={<SignIn />} />
-          
-          {/* Product routes */}
-          <Route path="/products" element={<ProductList />} />
-          <Route path="/products/:productId" element={<ProductDetails />} /> {/* ✅ Added this line */}
+    <Router>
+      <NavBar />
+      <Routes>
+        <Route path="/" element={<HomeBeforeSignIn />} />
+        <Route path="/sign-up" element={<SignUp />} />
+        <Route path="/sign-in" element={<SignIn />} />
 
-          {/* Auth-protected routes */}
-          <Route
-            path="/personal-area"
-            element={user ? <PersonalArea user={user} /> : <SignIn />}
-          />
+        {/* Product routes */}
+        <Route path="/products" element={<ProductList />} />
+        <Route path="/products/:productId" element={<ProductDetails />} />
 
-          <Route
-            path="/edit-cart/:id"
-            element={user ? <EditCart /> : <SignIn />}
-          />
-          {/* Add wishlist routes */}
-          <Route
-            path="/wishlists"
-            element={user ? <WishlistsPage /> : <SignIn />}
-          />
-          <Route
-            path="/wishlists/:id"
-            element={user ? <WishlistDetail /> : <SignIn />}
-          />
+        {/* Auth-protected routes */}
+        <Route
+          path="/personal-area"
+          element={user ? <PersonalArea user={user} /> : <SignIn />}
+        />
 
-          {/* Debug-only routes */}
-          {process.env.NODE_ENV !== "production" && (
-            <>
-              <Route
-                path="/debug"
-                element={user ? <PriceCheckDebug /> : <SignIn />}
-              />
-              <Route
-                path="/notification-debug"
-                element={user ? <NotificationDebug /> : <SignIn />}
-              />
-            </>
-          )}
-        </Routes>
-      </Router>
-    </ThemeProvider>
+        <Route
+          path="/edit-cart/:id"
+          element={user ? <EditCart /> : <SignIn />}
+        />
+        {/* Add wishlist routes */}
+        <Route
+          path="/wishlists"
+          element={user ? <WishlistsPage /> : <SignIn />}
+        />
+        <Route
+          path="/wishlists/:id"
+          element={user ? <WishlistDetail /> : <SignIn />}
+        />
+
+        {/* Debug-only routes */}
+        {process.env.NODE_ENV !== "production" && (
+          <>
+            <Route
+              path="/debug"
+              element={user ? <PriceCheckDebug /> : <SignIn />}
+            />
+            <Route
+              path="/notification-debug"
+              element={user ? <NotificationDebug /> : <SignIn />}
+            />
+          </>
+        )}
+      </Routes>
+    </Router>
   );
 };
 

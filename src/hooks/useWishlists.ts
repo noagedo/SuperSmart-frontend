@@ -2,68 +2,64 @@ import { useState, useEffect } from "react";
 import wishlistService, {
   addProductToWishlist,
   removeProductFromWishlist,
-  getWishlistsByUser,
+  getUserWishlist,
 } from "../services/wishlist-service";
 import { Wishlist } from "../types/wishlist";
 import useUsers from "./useUsers";
 
-interface UseWishlistsResult {
-  wishlists: Wishlist[];
+interface UseWishlistResult {
+  wishlist: Wishlist | null;
   isLoading: boolean;
   error: string | null;
-  createWishlist: (name: string) => Promise<void>;
-  deleteWishlist: (id: string) => Promise<void>;
+  getOrCreateWishlist: () => Promise<void>;
   updateWishlist: (wishlist: Wishlist) => Promise<void>;
-  addProduct: (wishlistId: string, productId: string) => Promise<void>;
-  removeProduct: (wishlistId: string, productId: string) => Promise<void>;
+  addProduct: (productId: string) => Promise<void>;
+  removeProduct: (productId: string) => Promise<void>;
+  isProductInWishlist: (productId: string) => boolean;
 }
 
-const useWishlists = (): UseWishlistsResult => {
-  const [wishlists, setWishlists] = useState<Wishlist[]>([]);
+const useWishlists = (): UseWishlistResult => {
+  const [wishlist, setWishlist] = useState<Wishlist | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useUsers();
 
   useEffect(() => {
-    const fetchWishlists = async () => {
+    const fetchWishlist = async () => {
       if (!user || !user._id) {
-        setWishlists([]);
+        setWishlist(null);
         setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        const { request, cancel } = getWishlistsByUser(user._id);
+        const { request, cancel } = getUserWishlist(user._id);
         const response = await request;
-        setWishlists(response.data);
+        setWishlist(response.data);
         setError(null);
       } catch (err) {
-        setError("Failed to fetch wishlists");
+        setError("Failed to fetch wishlist");
         console.error(err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchWishlists();
+    fetchWishlist();
   }, [user]);
 
-  const createWishlist = async (name: string) => {
+  const getOrCreateWishlist = async () => {
     if (!user || !user._id) return;
 
     try {
       setIsLoading(true);
-      const { request } = wishlistService.add({
-        name,
-        userId: user._id,
-        products: [],
-      });
+      const { request } = getUserWishlist(user._id);
       const response = await request;
-      setWishlists([...wishlists, response.data]);
+      setWishlist(response.data);
       setError(null);
     } catch (err) {
-      setError("Failed to create wishlist");
+      setError("Failed to get or create wishlist");
       console.error(err);
       throw err;
     } finally {
@@ -71,30 +67,12 @@ const useWishlists = (): UseWishlistsResult => {
     }
   };
 
-  const deleteWishlist = async (id: string) => {
+  const updateWishlist = async (wishlistData: Wishlist) => {
     try {
       setIsLoading(true);
-      const { request } = wishlistService.delete(id);
-      await request;
-      setWishlists(wishlists.filter((wishlist) => wishlist._id !== id));
-      setError(null);
-    } catch (err) {
-      setError("Failed to delete wishlist");
-      console.error(err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updateWishlist = async (wishlist: Wishlist) => {
-    try {
-      setIsLoading(true);
-      const { request } = wishlistService.update(wishlist);
+      const { request } = wishlistService.update(wishlistData);
       const response = await request;
-      setWishlists(
-        wishlists.map((w) => (w._id === wishlist._id ? response.data : w))
-      );
+      setWishlist(response.data);
       setError(null);
     } catch (err) {
       setError("Failed to update wishlist");
@@ -105,32 +83,84 @@ const useWishlists = (): UseWishlistsResult => {
     }
   };
 
-  const addProduct = async (wishlistId: string, productId: string) => {
+  const addProduct = async (productId: string) => {
     try {
       setIsLoading(true);
-      const { request } = addProductToWishlist(wishlistId, productId);
-      const response = await request;
-      setWishlists(
-        wishlists.map((w) => (w._id === wishlistId ? response.data : w))
-      );
-      setError(null);
+
+      console.log(`Starting to add product ${productId} to wishlist`);
+
+      // אם אין עדיין wishlist, נסה לקבל או ליצור אחת
+      if (!wishlist || !wishlist._id) {
+        console.log("No wishlist exists, getting or creating one");
+
+        if (!user || !user._id) {
+          console.error("Cannot add product - no user logged in");
+          throw new Error("User must be logged in");
+        }
+
+        // קבלת או יצירת רשימה
+        try {
+          const { request } = getUserWishlist(user._id);
+          console.log(`Fetching/creating wishlist for user ${user._id}`);
+
+          const response = await request;
+          console.log("Wishlist response:", response);
+
+          if (response && response.data) {
+            // עדכון המצב עם הרשימה שהתקבלה
+            setWishlist(response.data);
+
+            // עכשיו הוסף את המוצר לרשימה החדשה
+            if (response.data._id) {
+              console.log(
+                `Adding product ${productId} to wishlist ${response.data._id}`
+              );
+              const { request: addRequest } = addProductToWishlist(
+                response.data._id,
+                productId
+              );
+              const addResponse = await addRequest;
+              setWishlist(addResponse.data);
+              setError(null);
+              return addResponse.data;
+            }
+          }
+        } catch (err) {
+          console.error("Error getting/creating wishlist:", err);
+          throw err;
+        }
+      } else {
+        // יש לנו wishlist, פשוט הוסף את המוצר
+        console.log(
+          `Adding product ${productId} to existing wishlist ${wishlist._id}`
+        );
+        const { request } = addProductToWishlist(wishlist._id, productId);
+        const response = await request;
+        setWishlist(response.data);
+        setError(null);
+        return response.data;
+      }
     } catch (err) {
-      setError("Failed to add product to wishlist");
-      console.error(err);
+      console.error("Failed to add product to wishlist:", err);
+      setError(
+        `Failed to add product: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
       throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const removeProduct = async (wishlistId: string, productId: string) => {
+  const removeProduct = async (productId: string) => {
+    if (!wishlist || !wishlist._id) return;
+
     try {
       setIsLoading(true);
-      const { request } = removeProductFromWishlist(wishlistId, productId);
+      const { request } = removeProductFromWishlist(wishlist._id, productId);
       const response = await request;
-      setWishlists(
-        wishlists.map((w) => (w._id === wishlistId ? response.data : w))
-      );
+      setWishlist(response.data);
       setError(null);
     } catch (err) {
       setError("Failed to remove product from wishlist");
@@ -141,15 +171,20 @@ const useWishlists = (): UseWishlistsResult => {
     }
   };
 
+  const isProductInWishlist = (productId: string): boolean => {
+    if (!wishlist) return false;
+    return wishlist.products.includes(productId);
+  };
+
   return {
-    wishlists,
+    wishlist,
     isLoading,
     error,
-    createWishlist,
-    deleteWishlist,
+    getOrCreateWishlist,
     updateWishlist,
     addProduct,
     removeProduct,
+    isProductInWishlist,
   };
 };
 
