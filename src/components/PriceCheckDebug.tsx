@@ -20,7 +20,7 @@ const PriceCheckDebug: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { checkPriceChanges, checkSpecificProducts, checkRecentChanges } =
     useNotifications();
-  const { wishlists } = useWishlists(); // Add this hook usage
+  const { wishlist } = useWishlists(); // Add this hook usage
 
   const handleResetTimestamp = () => {
     localStorage.removeItem("lastPriceCheckTimestamp");
@@ -97,7 +97,9 @@ const PriceCheckDebug: React.FC = () => {
       message: "Checking price changes for all wishlist products...",
     });
 
-    const allProductIds = wishlists.flatMap((w) => w.products);
+    const allProductIds = Array.isArray(wishlist)
+      ? wishlist.map((w) => w.products).flat()
+      : [];
     if (allProductIds.length === 0) {
       setResponse({ message: "No products in wishlists to check" });
       return;
@@ -105,7 +107,7 @@ const PriceCheckDebug: React.FC = () => {
 
     checkSpecificProducts(allProductIds);
     setResponse({
-      message: `Checking prices for ${allProductIds.length} products across ${wishlists.length} wishlists`,
+      message: `Checking prices for ${allProductIds.length} products across ${Array.isArray(wishlist) ? wishlist.length : 0} wishlists`,
     });
   };
 
