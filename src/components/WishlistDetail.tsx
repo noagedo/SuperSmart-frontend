@@ -3,13 +3,11 @@ import {
   Box,
   Typography,
   Button,
-  Container,
   CircularProgress,
   Alert,
   Paper,
   Grid,
   IconButton,
-  Breadcrumbs,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -26,24 +24,22 @@ import {
   Store,
   Heart,
 } from "lucide-react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useWishlists from "../hooks/useWishlists";
 import useItems from "../hooks/useItems";
-import wishlistService from "../services/wishlist-service";
 import useCart from "../hooks/useCart";
 import { Item } from "../services/item-service";
 import PriceChart from "./PriceChart";
 import { getStoreName } from "../utils/storeUtils";
 
+// Note: Since we now have only one wishlist, this component should
+// just show details of that single wishlist without needing an ID parameter
+
 const WishlistDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { wishlists, isLoading, error, removeProduct, deleteWishlist } =
-    useWishlists();
+  const { wishlist, isLoading, error, removeProduct } = useWishlists();
   const { items } = useItems();
   const { addItem: addItemToCart } = useCart();
-  const [wishlist, setWishlist] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [wishlistProducts, setWishlistProducts] = useState<Item[]>([]);
   const [showChartForProduct, setShowChartForProduct] = useState<string | null>(
     null
@@ -53,71 +49,23 @@ const WishlistDetail: React.FC = () => {
   >(null);
 
   useEffect(() => {
-    const loadWishlist = async () => {
-      if (!id) return;
-
-      try {
-        setLoading(true);
-        // First try to find it in the existing wishlists
-        const existingWishlist = wishlists.find((w) => w._id === id);
-
-        if (existingWishlist) {
-          setWishlist(existingWishlist);
-        } else {
-          // If not found, fetch it directly
-          const { request } = wishlistService.get(id);
-          const response = await request;
-          setWishlist(response.data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch wishlist", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadWishlist();
-  }, [id, wishlists]);
-
-  useEffect(() => {
     if (wishlist && items) {
       const products = wishlist.products
         .map((productId: string) =>
           items.find((item) => item._id === productId)
         )
-        .filter(Boolean); // Remove undefined items
+        .filter((item): item is Item => item !== undefined); // Explicit type guard
       setWishlistProducts(products);
     }
   }, [wishlist, items]);
 
   const handleRemoveProduct = async (productId: string) => {
-    if (!id) return;
-
     try {
-      await removeProduct(id, productId);
+      await removeProduct(productId);
       // Update local state to reflect the change
       setWishlistProducts(wishlistProducts.filter((p) => p._id !== productId));
-      if (wishlist) {
-        setWishlist({
-          ...wishlist,
-          products: wishlist.products.filter(
-            (pid: string) => pid !== productId
-          ),
-        });
-      }
     } catch (err) {
       console.error("Failed to remove product", err);
-    }
-  };
-
-  const handleDeleteWishlist = async () => {
-    if (!id) return;
-
-    try {
-      await deleteWishlist(id);
-      navigate("/wishlists");
-    } catch (err) {
-      console.error("Failed to delete wishlist", err);
     }
   };
 
@@ -202,7 +150,7 @@ const WishlistDetail: React.FC = () => {
     return validStorePrices.sort((a, b) => a.price - b.price);
   };
 
-  if (loading || isLoading) {
+  if (isLoading) {
     return (
       <Box
         sx={{
@@ -247,7 +195,7 @@ const WishlistDetail: React.FC = () => {
           >
             <Heart size={32} color="white" />
             <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
-              פרטי רשימה
+              פרטי רשימת המועדפים
             </Typography>
           </Box>
           <Box sx={{ p: 4 }}>
@@ -288,11 +236,14 @@ const WishlistDetail: React.FC = () => {
           >
             <Heart size={32} color="white" />
             <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
-              פרטי רשימה
+              פרטי רשימת המועדפים
             </Typography>
           </Box>
           <Box sx={{ p: 4 }}>
-            <Alert severity="error">הרשימה לא נמצאה</Alert>
+            <Alert severity="info">
+              אין לך רשימת מועדפים עדיין. הוסף מוצרים למועדפים כדי לראות אותם
+              כאן.
+            </Alert>
           </Box>
         </Paper>
       </Box>
@@ -318,23 +269,20 @@ const WishlistDetail: React.FC = () => {
           mb: 4,
         }}
       >
-        {/* Breadcrumbs */}
+        {/* Breadcrumbs - now just a back button */}
         <Box sx={{ p: 2, bgcolor: "#f9fafb" }}>
-          <Breadcrumbs>
-            <Link
-              to="/wishlists"
-              style={{
-                textDecoration: "none",
-                color: "#16a34a",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <ArrowLeft size={16} style={{ marginRight: 4 }} />
-              כל הרשימות
-            </Link>
-            <Typography color="text.primary">{wishlist.name}</Typography>
-          </Breadcrumbs>
+          <Link
+            to="/"
+            style={{
+              textDecoration: "none",
+              color: "#16a34a",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <ArrowLeft size={16} style={{ marginRight: 4 }} />
+            חזרה לדף הבית
+          </Link>
         </Box>
 
         {/* Header */}
@@ -351,7 +299,7 @@ const WishlistDetail: React.FC = () => {
             <Heart size={32} color="white" />
             <Box>
               <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
-                {wishlist.name}
+                המועדפים שלי
               </Typography>
               <Typography variant="body2" sx={{ color: "white", opacity: 0.9 }}>
                 {wishlist.products.length}{" "}
@@ -359,20 +307,6 @@ const WishlistDetail: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<Trash2 size={16} />}
-            onClick={handleDeleteWishlist}
-            sx={{
-              bgcolor: "rgba(255, 255, 255, 0.2)",
-              color: "white",
-              "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
-            }}
-          >
-            מחק רשימה
-          </Button>
         </Box>
 
         {/* Products */}

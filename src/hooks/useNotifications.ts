@@ -10,11 +10,11 @@ const useNotifications = () => {
     []
   );
   const { user } = useUsers();
-  const { wishlists } = useWishlists();
+  const { wishlist } = useWishlists(); // Correctly get the single wishlist
   const checkIntervalRef = useRef<number | null>(null);
   const hasCheckedRecently = useRef<boolean>(false);
 
-  // Helper function to filter notifications by time and user's wishlists
+  // Helper function to filter notifications by time and user's wishlist
   const filterRecentNotifications = useCallback(
     (notifs: PriceDropNotification[]): PriceDropNotification[] => {
       if (!user || !user._id) return [];
@@ -23,9 +23,8 @@ const useNotifications = () => {
       const oneDayAgo = new Date();
       oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
-      // Get all user's wishlist IDs
-      const userWishlists = wishlists.filter((w) => w.userId === user._id);
-      const userWishlistIds = userWishlists.map((w) => w._id);
+      // Get user's wishlist ID if available
+      const userWishlistId = wishlist ? wishlist._id : null;
 
       // Filter by both time and wishlist ownership
       return notifs.filter((notif) => {
@@ -34,12 +33,13 @@ const useNotifications = () => {
 
         // Check if belongs to user's wishlist
         const isUsersWishlist =
-          !notif.wishlistId || userWishlistIds.includes(notif.wishlistId);
+          !notif.wishlistId ||
+          (userWishlistId && notif.wishlistId === userWishlistId);
 
         return isRecent && isUsersWishlist;
       });
     },
-    [user, wishlists]
+    [user, wishlist]
   );
 
   // Setup notification listener for real-time updates
@@ -66,21 +66,18 @@ const useNotifications = () => {
       }
 
       // 2. Filter by wishlist ownership
-      // Get all wishlists belonging to current user
-      const userWishlists = wishlists.filter((w) => w.userId === user._id);
-      const userWishlistIds = userWishlists.map((w) => w._id);
+      if (!user || !user._id) return;
 
       // Only accept notification if:
       // - It doesn't have a wishlistId (general notification) OR
-      // - The wishlistId belongs to the current user
+      // - The wishlistId belongs to the current user's wishlist
       if (
         notification.wishlistId &&
-        !userWishlistIds.includes(notification.wishlistId)
+        (!wishlist || notification.wishlistId !== wishlist._id)
       ) {
         console.log(
-          `Ignoring notification - wishlist ${notification.wishlistId} doesn't belong to user ${user._id}`
+          `Ignoring notification - wishlist ${notification.wishlistId} doesn't belong to user's wishlist: ${wishlist?._id}`
         );
-        console.log(`User's wishlists: ${userWishlistIds.join(", ")}`);
         return;
       }
 
@@ -117,7 +114,7 @@ const useNotifications = () => {
       }
       notificationService.disconnect();
     };
-  }, [user, wishlists]);
+  }, [user, wishlist]);
 
   // Create a stable checkRecentChanges function with useCallback
   const checkRecentChanges = useCallback(() => {
@@ -183,10 +180,12 @@ const useNotifications = () => {
             };
 
             // Get user's wishlist IDs for filtering
-            const userWishlists = wishlists.filter(
-              (w) => w.userId === user?._id
+            const userWishlists = [wishlist].filter(
+              (w) => w && w.userId === user?._id
             );
-            const userWishlistIds = userWishlists.map((w) => w._id);
+            const userWishlistIds = userWishlists
+              .map((w) => w?._id)
+              .filter((id) => id !== null && id !== undefined);
 
             const priceChanges = parsePriceChanges(response.data);
             // Filter changes to only include user's wishlists
@@ -226,7 +225,7 @@ const useNotifications = () => {
       .catch((error) => {
         console.error("Failed to check recent price changes:", error);
       });
-  }, [user, wishlists]);
+  }, [user, wishlist]);
 
   // Subscribe to updates when user is available
   useEffect(() => {
@@ -278,30 +277,20 @@ const useNotifications = () => {
     };
   }, [user, checkRecentChanges]);
 
-  // Check for price changes when wishlists change
+  // Check for price changes when wishlist changes
   useEffect(() => {
-    if (user && user._id && wishlists.length > 0) {
-      // Get current user's wishlists
-      const userWishlists = wishlists.filter((w) => w.userId === user._id);
-
-      if (userWishlists.length === 0) {
-        console.log("No wishlists found for current user");
-        return;
-      }
-
+    if (user && user._id && wishlist) {
       console.log(
-        `Found ${userWishlists.length} wishlists for user ${user._id}`
+        `Checking ${wishlist.products.length} products in user's wishlist`
       );
 
-      // Extract all product IDs from user wishlists only
-      const allProductIds = userWishlists.flatMap((w) => w.products);
+      // Extract all product IDs from user wishlist
+      const allProductIds = wishlist.products;
 
       // Create a map of product ID to wishlist name for notification display
       const productWishlistMap: { [key: string]: string } = {};
-      userWishlists.forEach((wishlist) => {
-        wishlist.products.forEach((productId) => {
-          productWishlistMap[productId] = wishlist.name;
-        });
+      allProductIds.forEach((productId) => {
+        productWishlistMap[productId] = "המועדפים שלי";
       });
 
       // Store the map in localStorage for reference
@@ -312,16 +301,14 @@ const useNotifications = () => {
 
       // Check at once
       if (allProductIds.length > 0) {
-        console.log(
-          `Checking ${allProductIds.length} products from ${userWishlists.length} wishlists`
-        );
+        console.log(`Checking ${allProductIds.length} products from wishlist`);
         checkSpecificProducts(allProductIds);
       }
 
       // Cleanup old notifications when wishlist changes
       cleanOldNotifications();
     }
-  }, [user, wishlists]);
+  }, [user, wishlist]);
 
   // Function to clean old notifications (older than 24 hours)
   const cleanOldNotifications = useCallback(() => {
@@ -421,26 +408,25 @@ const useNotifications = () => {
       });
   };
 
-  // Filter to make sure we only process products from current user's wishlists
+  // Filter to make sure we only process products from current user's wishlist
   const checkSpecificProducts = (productIds: string[]) => {
     if (!productIds.length || !user || !user._id) return;
 
-    // Get all products that are in the user's wishlists
-    const userWishlists = wishlists.filter((w) => w.userId === user._id);
-    const userProductIds = userWishlists.flatMap((w) => w.products);
+    // Get all products that are in the user's wishlist
+    const userProductIds = wishlist ? wishlist.products : [];
 
-    // Only check products that are in the user's wishlists
+    // Only check products that are in the user's wishlist
     const filteredProductIds = productIds.filter((id) =>
       userProductIds.includes(id)
     );
 
     if (filteredProductIds.length === 0) {
-      console.log("No products to check in user wishlists");
+      console.log("No products to check in user wishlist");
       return;
     }
 
     console.log(
-      `Checking ${filteredProductIds.length} products from user's wishlists`
+      `Checking ${filteredProductIds.length} products from user's wishlist`
     );
 
     notificationService

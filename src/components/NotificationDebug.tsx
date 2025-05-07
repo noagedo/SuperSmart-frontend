@@ -21,7 +21,7 @@ import useUsers from "../hooks/useUsers";
 
 const NotificationDebug: React.FC = () => {
   const { user } = useUsers();
-  const { wishlists } = useWishlists();
+  const { wishlist } = useWishlists();
   const { notifications, checkRecentChanges } = useNotifications();
   const [socketStatus, setSocketStatus] = useState<
     "connected" | "disconnected"
@@ -127,7 +127,7 @@ const NotificationDebug: React.FC = () => {
         <Typography variant="body2">
           User ID: {user?._id || "Not logged in"}
         </Typography>
-        <Typography variant="body2">Wishlists: {wishlists.length}</Typography>
+        <Typography variant="body2">Wishlists: {wishlist.items?.length || 0}</Typography>
         <Typography variant="body2">
           Active Notifications: {notifications.length}
         </Typography>
