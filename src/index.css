@@ -1,0 +1,33 @@
+/* ...existing code... */
+
+body {
+  direction: rtl;
+  text-align: right;
+}
+
+.MuiButtonBase-root,
+.MuiTypography-root,
+.MuiInputBase-root,
+.MuiFormLabel-root,
+.MuiTableCell-root,
+.MuiInputLabel-root,
+.MuiMenuItem-root,
+.MuiFormControl-root,
+.MuiAlert-root,
+.MuiDialog-paper,
+.MuiDialogTitle-root,
+.MuiDialogContent-root,
+.MuiButton-root,
+.MuiListItemText-root,
+.MuiListItem-root {
+  text-align: right;
+}
+
+/* Override Material UI direction for specific components */
+.MuiFormControl-root,
+.MuiTextField-root,
+.MuiAutocomplete-root {
+  direction: rtl;
+}
+
+/* ...existing code... */
