@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { getStoreName } from "../utils/storeUtils";
 import {
   Container,
   Box,
@@ -20,25 +21,65 @@ import {
   Box as BoxIcon,
   BarChart2,
   Tag,
+  TrendingUp, // Or any other relevant icon
 } from "lucide-react";
 import useItems from "../hooks/useItems";
 import ProductCard from "./ProductCard";
 import useCart from "../hooks/useCart";
 import WishButton from "./WishButton";
 import PriceChart from "./PriceChart";
-import { Item } from "../services/item-service";
+import { Item, StorePrice } from "../services/item-service";
+import itemService from "../services/item-service"; 
+import { gql } from "@apollo/client";
 
+const GET_STORE_BY_ID = gql`
+  query GetStoreById($storeId: ID!) {
+    store(id: $storeId) {
+      name
+    }
+  }
+`;
+interface StoreData {
+  store?: {
+    name?: string;
+  };
+}
 const ProductDetails = () => {
-  const { productId } = useParams();
+  const { productId: productIdParam } = useParams();
   const navigate = useNavigate();
   const { items, isLoading } = useItems();
   const { addItem: addItemToCart } = useCart();
   const [showChart, setShowChart] = React.useState(false);
+  const [prediction, setPrediction] = useState<string | null>(null); // State for the prediction
+  const [predictionLoading, setPredictionLoading] = useState<boolean>(false); // Loading state for prediction
+  const [predictionError, setPredictionError] = useState<string | null>(null); // Error state for prediction
+  const [cheapestStoreId, setCheapestStoreId] = useState<string | null>(null);
+  const productId = productIdParam as string | undefined;
 
   const product = useMemo(
     () => items.find((item) => item._id === productId),
     [items, productId]
   );
+
+  useEffect(() => {
+    if (product && product.storePrices.length > 0) {
+      const cheapest = product.storePrices.reduce((min, current) => {
+        const minPrice = Math.min(...(min.prices?.map(p => p.price) || []));
+        const currentPrice = Math.min(...(current.prices?.map(p => p.price) || []));
+        return currentPrice < minPrice ? current : min;
+      });
+      setCheapestStoreId(cheapest.storeId);
+    } else {
+      setCheapestStoreId(null);
+    }
+  }, [product]);
+
+  const cheapestStoreName = useMemo(() => {
+    if (cheapestStoreId && product?.storePrices) {
+      return getStoreName(cheapestStoreId);
+    }
+    return null;
+  }, [cheapestStoreId, product?.storePrices]);
 
   const cheaperProducts = useMemo(() => {
     if (!product) return [];
@@ -95,6 +136,35 @@ const ProductDetails = () => {
       selectedStorePrice: storePrice,
       image: product.image,
     });
+  };
+
+  const handlePredictPrice = async () => {
+    if (!product || product.storePrices.length === 0 || !cheapestStoreId || !productId) {
+      setPrediction("אין מספיק נתונים לחיזוי.");
+      return;
+    }
+
+    setPredictionLoading(true);
+    setPrediction(null);
+    setPredictionError(null);
+
+    try {
+      const { request } = itemService.predictPriceChange(
+        productId,
+        cheapestStoreId
+      );
+      const response = await request;
+      if (response.data?.prediction) {
+        setPrediction(response.data.prediction);
+      } else {
+        setPrediction("לא ניתן לקבל תחזית מחיר.");
+      }
+    } catch (error: any) {
+      console.error("שגיאה בקבלת תחזית מחיר:", error);
+      setPredictionError(error.message || "נכשל לקבל תחזית מחיר.");
+    } finally {
+      setPredictionLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -337,44 +407,86 @@ const ProductDetails = () => {
                   </Typography>
                 </Box>
 
-                <Box sx={{ mt: 4 }}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    startIcon={<ShoppingCart size={20} />}
-                    onClick={handleAddToCart}
-                    sx={{
-                      bgcolor: "#16a34a",
-                      py: 1.5,
-                      px: 4,
-                      borderRadius: 2,
-                      "&:hover": { bgcolor: "#15803d" },
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                    }}
-                  >
-                    הוסף לעגלה
-                  </Button>
+                <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={<ShoppingCart size={20} />}
+                      onClick={handleAddToCart}
+                      sx={{
+                        bgcolor: "#16a34a",
+                        py: 1.5,
+                        px: 4,
+                        borderRadius: 2,
+                        "&:hover": { bgcolor: "#15803d" },
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      הוסף לעגלה
+                    </Button>
 
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    onClick={() => setShowChart(true)}
-                    sx={{
-                      ml: 2,
-                      py: 1.5,
-                      px: 4,
-                      borderRadius: 2,
-                      borderColor: "#16a34a",
-                      color: "#16a34a",
-                      "&:hover": {
-                        borderColor: "#15803d",
-                        bgcolor: "rgba(22, 163, 74, 0.04)",
-                      },
-                    }}
-                  >
-                    השוואת מחירים
-                  </Button>
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      onClick={() => setShowChart(true)}
+                      sx={{
+                        py: 1.5,
+                        px: 4,
+                        borderRadius: 2,
+                        borderColor: "#16a34a",
+                        color: "#16a34a",
+                        "&:hover": {
+                          borderColor: "#15803d",
+                          bgcolor: "rgba(22, 163, 74, 0.04)",
+                        },
+                      }}
+                    >
+                      השוואת מחירים
+                    </Button>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={<TrendingUp size={20} />}
+                      onClick={handlePredictPrice}
+                      disabled={predictionLoading || !cheapestStoreId}
+                      sx={{
+                        bgcolor: "#0d6efd", // Example blue color
+                        color: "white",
+                        py: 1.5,
+                        px: 4,
+                        borderRadius: 2,
+                        "&:hover": { bgcolor: "#0b5ed7" },
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      {predictionLoading ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        "תחזית מחיר"
+                      )}
+                    </Button>
+                    {cheapestStoreName && (
+                    <Typography variant="caption" color="textSecondary">
+                    (עבור {cheapestStoreName})
+                    </Typography>
+         )}
+                  </Box>
                 </Box>
+
+                {prediction && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    {prediction}
+                  </Alert>
+                )}
+                {predictionError && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {predictionError}
+                  </Alert>
+                )}
               </Paper>
             </Grid>
           </Grid>

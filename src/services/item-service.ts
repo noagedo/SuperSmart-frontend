@@ -11,6 +11,7 @@ export interface Price {
 
 export interface StorePrice {
   storeId: string;
+  storeName?: string; // Add the storeName property here (optional)
   prices: Price[];
 }
 
@@ -27,6 +28,10 @@ export interface Item {
 export interface CartItem extends Item {
   quantity: number;
   selectedStorePrice: { storeId: string; price: number };
+}
+
+export interface PricePredictionResponse {
+  prediction: string; // Adjust the type based on your backend's response
 }
 
 const itemService = {
@@ -52,6 +57,19 @@ const getItemById = (id: string) => {
   const request = apiClient.get(`/items/${id}`, {
     signal: controller.signal,
   });
+  return { request, cancel: () => controller.abort() };
+};
+
+const predictPriceChange = (productId: string, storeId: string) => {
+  const controller = new AbortController();
+  console.log("Predicting price change for productId:", productId, "and storeId:", storeId); // Log parameters
+  const request = apiClient.post<PricePredictionResponse>(
+    `/items/${productId}/predict`,
+    { storeId }, // Send storeId in the request body as JSON
+    {
+      signal: controller.signal,
+    }
+  );
   return { request, cancel: () => controller.abort() };
 };
 
@@ -91,4 +109,5 @@ export default Object.assign(itemService, {
   analyzeReceipt,
   formatPriceDataForChart,
   getItemById, // Add the new method to the exported object
+  predictPriceChange, // Add the predictPriceChange method
 });
