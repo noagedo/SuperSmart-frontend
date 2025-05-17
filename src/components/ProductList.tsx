@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-
 import {
   Container,
   Grid,
@@ -19,6 +18,8 @@ import {
   DialogContent,
   DialogTitle,
   Fab,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   ShoppingBag,
@@ -33,8 +34,7 @@ import { Item } from "../services/item-service";
 import useItems from "../hooks/useItems";
 import useUsers from "../hooks/useUsers";
 import useCart from "../hooks/useCart";
-
-import ReceiptAnalyzer from "../components/ReceiptAnalyzer"; // Import ReceiptAnalyzer
+import ReceiptAnalyzer from "../components/ReceiptAnalyzer";
 
 const theme = createTheme({
   palette: {
@@ -83,10 +83,9 @@ function ProductList() {
   const { user } = useUsers();
   const {
     cart,
-    addItem: addItemToCart, // Rename to avoid confusion
+    addItem: addItemToCart,
     updateQuantity,
     removeItem,
-    save, // We'll still import this but won't use it
   } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -94,6 +93,8 @@ function ProductList() {
   const [visibleProducts, setVisibleProducts] = useState(20);
   const loadMoreIncrement = 10;
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const muiTheme = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const categories = useMemo(
     () =>
@@ -135,7 +136,6 @@ function ProductList() {
       newItems.forEach((newItem) => {
         const productToAdd = items.find((item) => item._id === newItem._id);
         if (productToAdd) {
-          // Find the first store price.  You'll likely want better logic here.
           const firstStorePrice =
             productToAdd.storePrices && productToAdd.storePrices.length > 0
               ? productToAdd.storePrices[0]
@@ -160,13 +160,12 @@ function ProductList() {
               image: productToAdd.image,
             });
           }
-          // ...existing code...
         }
       });
 
       if (newItems.length > 0) {
-        setCartOpen(true); // Open the cart
-        setReceiptDialogOpen(false); // Close the receipt dialog after adding items
+        setCartOpen(true);
+        setReceiptDialogOpen(false);
       }
     }
   };
@@ -184,15 +183,9 @@ function ProductList() {
       selectedStorePrice: storePrice,
       image: product.image,
     });
-    setCartOpen(true);
-  };
-
-  const handleUpdateQuantity = (id: string, quantity: number) => {
-    updateQuantity(id, quantity);
-  };
-
-  const handleRemoveItem = (id: string) => {
-    removeItem(id);
+    if (isMobile) {
+      setCartOpen(true);
+    }
   };
 
   if (error) {
@@ -216,19 +209,21 @@ function ProductList() {
       >
         <Box
           sx={{
-            flex: cartOpen ? "0 0 calc(100% - 600px)" : "1",
+            flex: cartOpen && !isMobile ? "0 0 calc(100% - 600px)" : "1",
             transition: "flex 0.3s ease-in-out",
             overflow: "hidden",
+            width: "100%",
           }}
         >
           <Container maxWidth="xl">
             <Paper
               elevation={2}
               sx={{
-                p: 4,
+                p: { xs: 2, md: 4 },
                 mb: 4,
                 borderRadius: 3,
-                background: "linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)",
+                background:
+                  "linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)",
                 boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
               }}
             >
@@ -236,8 +231,8 @@ function ProductList() {
                 sx={{
                   display: "flex",
                   flexDirection: { xs: "column", md: "row" },
-                  alignItems: { xs: "stretch", md: "center" },
-                  gap: 3,
+                  alignItems: "stretch",
+                  gap: 2,
                 }}
               >
                 <SearchInput
@@ -248,13 +243,15 @@ function ProductList() {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Search size={20} color={theme.palette.primary.main} />
+                        <Search
+                          size={20}
+                          color={theme.palette.primary.main}
+                        />
                       </InputAdornment>
                     ),
                   }}
                 />
 
-                {/* Add Button for Receipt Analyzer */}
                 <Button
                   variant="outlined"
                   startIcon={<FileText size={20} />}
@@ -263,18 +260,22 @@ function ProductList() {
                     color: theme.palette.primary.main,
                     borderColor: theme.palette.primary.main,
                     whiteSpace: "nowrap",
-                    px: 2,
+                    minWidth: { xs: "100%", md: "auto" },
                     "&:hover": {
                       backgroundColor: "rgba(22, 163, 74, 0.04)",
                       borderColor: theme.palette.primary.dark,
                     },
-                    minWidth: { xs: "100%", md: "auto" },
                   }}
                 >
                   AI סריקת קבלה עם
                 </Button>
 
-                <IconButton onClick={toggleCart} sx={{ position: "relative" }}>
+                <IconButton
+                  onClick={toggleCart}
+                  sx={{
+                    alignSelf: { xs: "flex-end", md: "center" },
+                  }}
+                >
                   <Badge badgeContent={totalItems} color="primary">
                     <ShoppingBag size={28} />
                   </Badge>
@@ -300,11 +301,6 @@ function ProductList() {
               </CategorySelect>
             </Box>
 
-            {/* Remove existing ReceiptAnalyzer from here */}
-            {/* <Box sx={{ mt: 4 }}>
-              <ReceiptAnalyzer onAddToCart={handleAddToCartFromReceipt} />
-            </Box> */}
-
             {isLoading ? (
               <Box
                 sx={{
@@ -323,9 +319,16 @@ function ProductList() {
               </Box>
             ) : (
               <>
-                <Grid container spacing={3}>
+                <Grid container spacing={2}>
                   {visibleFilteredProducts.map((product) => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={product._id}>
+                    <Grid
+                      item
+                      xs={12}
+                      sm={6}
+                      md={cartOpen ? 6 : 4}
+                      lg={cartOpen ? 4 : 3}
+                      key={product._id}
+                    >
                       <ProductCard
                         product={product}
                         onAddToCart={handleAddToCart}
@@ -336,7 +339,12 @@ function ProductList() {
 
                 {filteredProducts.length > visibleProducts && (
                   <Box
-                    sx={{ display: "flex", justifyContent: "center", mt: 4 }}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      mt: 4,
+                      mb: { xs: 8, md: 4 },
+                    }}
                   >
                     <Button
                       variant="contained"
@@ -365,16 +373,19 @@ function ProductList() {
         </Box>
 
         <Drawer
-          anchor="right"
+          anchor={isMobile ? "bottom" : "right"}
           open={cartOpen}
           onClose={toggleCart}
-          variant="persistent"
+          variant={isMobile ? "temporary" : "persistent"}
           sx={{
             "& .MuiDrawer-paper": {
-              width: 600,
+              width: isMobile ? "100%" : 600,
+              height: isMobile ? "90vh" : "100%",
               boxSizing: "border-box",
               bgcolor: "#f8fafc",
               borderLeft: `1px solid ${theme.palette.divider}`,
+              borderTopLeftRadius: isMobile ? 16 : 0,
+              borderTopRightRadius: isMobile ? 16 : 0,
             },
           }}
         >
@@ -404,19 +415,24 @@ function ProductList() {
 
             <Cart
               items={cart?.items || []}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveItem}
+              onUpdateQuantity={updateQuantity}
+              onRemoveItem={removeItem}
             />
           </Box>
         </Drawer>
 
-        {/* Receipt Analyzer Dialog */}
         <Dialog
           open={receiptDialogOpen}
           onClose={() => setReceiptDialogOpen(false)}
           maxWidth="md"
           fullWidth
-          sx={{ "& .MuiDialog-paper": { borderRadius: 3 } }}
+          sx={{
+            "& .MuiDialog-paper": {
+              borderRadius: 3,
+              margin: { xs: 2, md: 4 },
+              maxHeight: { xs: "90vh", md: "80vh" },
+            },
+          }}
         >
           <DialogTitle
             sx={{
@@ -444,7 +460,6 @@ function ProductList() {
           </DialogContent>
         </Dialog>
 
-        {/* Floating Action Button for mobile */}
         <Fab
           color="primary"
           aria-label="סריקת קבלה"
