@@ -23,10 +23,14 @@ import {
   Snackbar,
   Alert,
   Paper,
+  useMediaQuery,
+  useTheme,
+
 } from "@mui/material";
 import {
   ShoppingCart as CartIcon,
   Delete as TrashIcon,
+
 } from "@mui/icons-material";
 import { CartItem } from "../services/item-service";
 import cartService from "../services/cart-service";
@@ -52,9 +56,9 @@ const StyledCard = styled(Card)(({ theme }) => ({
 
 const CartItemContainer = styled(Paper)(({ theme }) => ({
   display: "flex",
-  alignItems: "center",
-  gap: theme.spacing(3),
-  padding: theme.spacing(3),
+  flexDirection: "column",
+  gap: theme.spacing(2),
+  padding: theme.spacing(2),
   marginBottom: theme.spacing(2),
   borderRadius: theme.spacing(2),
   backgroundColor: "#ffffff",
@@ -64,6 +68,11 @@ const CartItemContainer = styled(Paper)(({ theme }) => ({
     transform: "translateY(-4px)",
     boxShadow: "0 12px 24px rgba(22, 163, 74, 0.08)",
     borderColor: "rgba(22, 163, 74, 0.2)",
+  },
+  [theme.breakpoints.up("md")]: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: theme.spacing(3),
   },
 }));
 
@@ -91,6 +100,10 @@ const ActionButton = styled(Button)(({ theme }) => ({
     transform: "translateY(-2px)",
     boxShadow: "0 4px 12px rgba(22, 163, 74, 0.15)",
   },
+  width: "100%",
+  [theme.breakpoints.up("md")]: {
+    width: "auto",
+  },
 }));
 
 interface CartProps {
@@ -106,20 +119,20 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const [cartName, setCartName] = useState("");
   const [savedCartId, setSavedCartId] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-const [shareEmail, setShareEmail] = useState("");
+  const [shareEmail, setShareEmail] = useState("");
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success" as "success" | "error",
   });
   const { user } = useUsers();
+  const muiTheme = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const calculatePriceRange = (storePrices: CartItem["storePrices"] = []) => {
-    // Get only the most recent price from each store
     const latestPricesByStore = storePrices
       .filter((sp) => sp && Array.isArray(sp.prices) && sp.prices.length > 0)
       .map((storePrice) => {
-        // Find the latest price for this store
         const latestPrice = storePrice.prices.reduce((latest, current) => {
           const latestDate = new Date(
             latest.date || latest.data || "1970-01-01"
@@ -130,7 +143,6 @@ const [shareEmail, setShareEmail] = useState("");
           return currentDate > latestDate ? current : latest;
         });
 
-        // Convert price to number if it's a string
         return typeof latestPrice.price === "string"
           ? parseFloat(latestPrice.price)
           : latestPrice.price;
@@ -161,13 +173,11 @@ const [shareEmail, setShareEmail] = useState("");
           hasAllItems = false;
           return;
         }
-        // Find the latest price for this store
         const latest = sp.prices.reduce((a, b) => {
           const dateA = new Date(a.date || a.data || "1970-01-01");
           const dateB = new Date(b.date || b.data || "1970-01-01");
           return dateB > dateA ? b : a;
         });
-        // Convert price to number if it's a string
         const latestPrice =
           typeof latest.price === "string"
             ? parseFloat(latest.price)
@@ -206,10 +216,11 @@ const [shareEmail, setShareEmail] = useState("");
       setSavedCartId(response.data._id || null);
       setSaveDialogOpen(false);
 
-
-      setSnackbar({ open: true, message: "העגלה נשמרה בהצלחה", severity: "success" });
-
-     
+      setSnackbar({
+        open: true,
+        message: "העגלה נשמרה בהצלחה",
+        severity: "success",
+      });
 
       setCartName("");
     } catch {
@@ -223,35 +234,40 @@ const [shareEmail, setShareEmail] = useState("");
 
   const handleShareCart = async () => {
     if (!shareEmail || !savedCartId) {
-      setSnackbar({ open: true, message: "יש להזין כתובת מייל תקינה", severity: "error" });
+      setSnackbar({
+        open: true,
+        message: "יש להזין כתובת מייל תקינה",
+        severity: "error",
+      });
       return;
     }
-  
+
     try {
       const { request } = cartService.addParticipant(savedCartId, shareEmail);
       await request;
-      setSnackbar({ open: true, message: "המשתמש שותף לעגלה בהצלחה", severity: "success" });
+      setSnackbar({
+        open: true,
+        message: "המשתמש שותף לעגלה בהצלחה",
+        severity: "success",
+      });
       setShareDialogOpen(false);
       setShareEmail("");
     } catch {
-      setSnackbar({ open: true, message: "שגיאה בשיתוף העגלה", severity: "error" });
+      setSnackbar({
+        open: true,
+        message: "שגיאה בשיתוף העגלה",
+        severity: "error",
+      });
     }
   };
-  
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  // Fixed handleClearCart function
   const handleClearCart = () => {
-    // Remove all items from cart
     items.forEach((item) => onRemoveItem(item._id));
-
-    // Close the dialog
     setClearCartDialogOpen(false);
-
-    // Show success message
     setSnackbar({
       open: true,
       message: "העגלה נוקתה בהצלחה",
@@ -296,7 +312,7 @@ const [shareEmail, setShareEmail] = useState("");
         <Box
           sx={{
             bgcolor: "primary.main",
-            p: 4,
+            p: 3,
             color: "white",
             background: "linear-gradient(45deg, #16a34a 30%, #22c55e 90%)",
           }}
@@ -308,8 +324,8 @@ const [shareEmail, setShareEmail] = useState("");
 
         <CardContent
           sx={{
-            p: 4,
-            maxHeight: "60vh", // גלילה בתוך תוכן העגלה
+            p: { xs: 2, md: 4 },
+            maxHeight: "60vh",
             overflowY: "auto",
           }}
         >
@@ -335,7 +351,10 @@ const [shareEmail, setShareEmail] = useState("");
                           index === 0
                             ? "2px solid rgba(22, 163, 74, 0.3)"
                             : "1px solid rgba(0, 0, 0, 0.1)",
-                        "&:hover": { transform: "translateX(-8px)" },
+                        flexDirection: isMobile ? "column" : "row",
+                        alignItems: isMobile ? "flex-start" : "center",
+                        gap: isMobile ? 2 : 0,
+                        padding: 2,
                       }}
                     >
                       <ListItemText
@@ -347,7 +366,13 @@ const [shareEmail, setShareEmail] = useState("");
                         secondary={index === 0 ? "המחיר הנמוך ביותר" : null}
                       />
                       <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          width: isMobile ? "100%" : "auto",
+                          justifyContent: isMobile ? "space-between" : "flex-end",
+                        }}
                       >
                         {index === 0 && (
                           <Chip
@@ -369,63 +394,82 @@ const [shareEmail, setShareEmail] = useState("");
             <Box>
               {items.map((item) => (
                 <CartItemContainer key={item._id}>
-                  <CardMedia
-                    component="img"
-                    image={
-                      item.image || "https://placehold.co/100x100?text=No+Image"
-                    }
-                    alt={item.name}
+                  <Box
                     sx={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: 2,
-                      objectFit: "cover",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                      display: "flex",
+                      gap: 2,
+                      width: "100%",
+                      flexDirection: isMobile ? "column" : "row",
                     }}
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = "https://placehold.co/100x100?text=No+Image";
-                    }}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                      {item.name}
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{ color: "text.secondary", mb: 2 }}
-                    >
-                      {(() => {
-                        const { lowestPrice, highestPrice } =
-                          calculatePriceRange(item.storePrices);
-                        return `טווח מחירים: ₪${lowestPrice.toFixed(
-                          2
-                        )} - ₪${highestPrice.toFixed(2)}`;
-                      })()}
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <StyledSelect
-                        value={item.quantity}
-                        onChange={(e) =>
-                          onUpdateQuantity(item._id, Number(e.target.value))
-                        }
-                        size="small"
+                  >
+                    <CardMedia
+                      component="img"
+                      image={
+                        item.image ||
+                        "https://placehold.co/100x100?text=No+Image"
+                      }
+                      alt={item.name}
+                      sx={{
+                        width: isMobile ? "100%" : 100,
+                        height: isMobile ? 200 : 100,
+                        borderRadius: 2,
+                        objectFit: "cover",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                      }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = "https://placehold.co/100x100?text=No+Image";
+                      }}
+                    />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                        {item.name}
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{ color: "text.secondary", mb: 2 }}
                       >
-                        {[1, 2, 3, 4, 5].map((num) => (
-                          <MenuItem key={num} value={num}>
-                            {num} יח׳
-                          </MenuItem>
-                        ))}
-                      </StyledSelect>
-                      <ActionButton
-                        onClick={() => onRemoveItem(item._id)}
-                        color="error"
-                        startIcon={<TrashIcon />}
-                        variant="outlined"
+                        {(() => {
+                          const { lowestPrice, highestPrice } =
+                            calculatePriceRange(item.storePrices);
+                          return `טווח מחירים: ₪${lowestPrice.toFixed(
+                            2
+                          )} - ₪${highestPrice.toFixed(2)}`;
+                        })()}
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 2,
+                          flexDirection: isMobile ? "column" : "row",
+                          alignItems: isMobile ? "stretch" : "center",
+                        }}
                       >
-                        הסר מהעגלה
-                      </ActionButton>
+                        <StyledSelect
+                          value={item.quantity}
+                          onChange={(e) =>
+                            onUpdateQuantity(item._id, Number(e.target.value))
+                          }
+                          size="small"
+                          fullWidth={isMobile}
+                        >
+                          {[1, 2, 3, 4, 5].map((num) => (
+                            <MenuItem key={num} value={num}>
+                              {num} יח׳
+                            </MenuItem>
+                          ))}
+                        </StyledSelect>
+                        <ActionButton
+                          onClick={() => onRemoveItem(item._id)}
+                          color="error"
+                          startIcon={<TrashIcon />}
+                          variant="outlined"
+                          fullWidth={isMobile}
+                        >
+                          הסר מהעגלה
+                        </ActionButton>
+                      </Box>
                     </Box>
                   </Box>
                 </CartItemContainer>
@@ -434,46 +478,45 @@ const [shareEmail, setShareEmail] = useState("");
           )}
         </CardContent>
 
-        {/* Action buttons with new Clear Cart button */}
-<Box sx={{ p: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
-  <ActionButton 
-    fullWidth 
-    variant="contained" 
-    onClick={() => setShowShopComparison(!showShopComparison)}
-  >
-    {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בין רשתות"}
-  </ActionButton>
-  <ActionButton 
-    fullWidth 
-    variant="outlined" 
-    onClick={() => setSaveDialogOpen(true)}
-  >
-    שמירת עגלה
-  </ActionButton>
+        <Box
+          sx={{
+            p: 3,
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            gap: 2,
+          }}
+        >
+          <ActionButton
+            variant="contained"
+            onClick={() => setShowShopComparison(!showShopComparison)}
+          >
+            {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בין רשתות"}
+          </ActionButton>
+          <ActionButton variant="outlined" onClick={() => setSaveDialogOpen(true)}>
+            שמירת עגלה
+          </ActionButton>
 
-  {savedCartId && (
-    <ActionButton
-      fullWidth
-      variant="outlined"
-      color="primary"
-      onClick={() => setShareDialogOpen(true)}
-    >
-      שיתוף עגלה
-    </ActionButton>
-  )}
+          {savedCartId && (
+            <ActionButton
+              variant="outlined"
+              color="primary"
+              onClick={() => setShareDialogOpen(true)}
+            >
+              שיתוף עגלה
+            </ActionButton>
+          )}
 
-  <ActionButton
-    fullWidth
-    variant="outlined"
-    color="error"
-    startIcon={<TrashIcon />}
-    onClick={() => setClearCartDialogOpen(true)}
-  >
-    ניקוי עגלה
-  </ActionButton>
-</Box>
+          <ActionButton
+            variant="outlined"
+            color="error"
+            startIcon={<TrashIcon />}
+            onClick={() => setClearCartDialogOpen(true)}
+          >
+            ניקוי עגלה
+          </ActionButton>
+        </Box>
 
-        {/* Save cart dialog */}
+        {/* Dialogs */}
         <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
           <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>
             שמירת עגלה
@@ -484,9 +527,7 @@ const [shareEmail, setShareEmail] = useState("");
               label="שם העגלה"
               value={cartName}
               onChange={(e) => setCartName(e.target.value)}
-              placeholder={`העגלה שלי ${new Date().toLocaleDateString(
-                "he-IL"
-              )}`}
+              placeholder={`העגלה שלי ${new Date().toLocaleDateString("he-IL")}`}
             />
           </DialogContent>
           <DialogActions sx={{ p: 3 }}>
@@ -497,7 +538,6 @@ const [shareEmail, setShareEmail] = useState("");
           </DialogActions>
         </Dialog>
 
-        {/* Clear cart confirmation dialog */}
         <Dialog
           open={clearCartDialogOpen}
           onClose={() => setClearCartDialogOpen(false)}
@@ -523,33 +563,45 @@ const [shareEmail, setShareEmail] = useState("");
           </DialogActions>
         </Dialog>
 
-       {/* Share cart dialog */}
-<Dialog open={shareDialogOpen} onClose={() => setShareDialogOpen(false)}>
-  <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>שיתוף עגלה</DialogTitle>
-  <DialogContent sx={{ p: 4 }}>
-    <TextField
-      fullWidth
-      label="כתובת אימייל של המשתמש"
-      value={shareEmail}
-      onChange={(e) => setShareEmail(e.target.value)}
-      placeholder="example@email.com"
-    />
-  </DialogContent>
-  <DialogActions sx={{ p: 3 }}>
-    <Button onClick={() => setShareDialogOpen(false)}>ביטול</Button>
-    <Button onClick={handleShareCart} variant="contained">
-      שתף
-    </Button>
-  </DialogActions>
-</Dialog>
+        <Dialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+        >
+          <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>
+            שיתוף עגלה
+          </DialogTitle>
+          <DialogContent sx={{ p: 4 }}>
+            <TextField
+              fullWidth
+              label="כתובת אימייל של המשתמש"
+              value={shareEmail}
+              onChange={(e) => setShareEmail(e.target.value)}
+              placeholder="example@email.com"
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setShareDialogOpen(false)}>ביטול</Button>
+            <Button onClick={handleShareCart} variant="contained">
+              שתף
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-        {/* Snackbar for notifications */}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={6000}
           onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
         >
-          <Alert severity={snackbar.severity} onClose={handleCloseSnackbar}>
+          <Alert
+            severity={snackbar.severity}
+            onClose={handleCloseSnackbar}
+            sx={{
+              width: "100%",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+              borderRadius: 2,
+            }}
+          >
             {snackbar.message}
           </Alert>
         </Snackbar>

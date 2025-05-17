@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useUsers from "../hooks/useUsers";
 import {
   AppBar,
@@ -12,12 +12,19 @@ import {
   createTheme,
   ThemeProvider,
   styled,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemButton,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from "@mui/icons-material/Home";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { Apple, Heart } from "lucide-react";
+import { Apple, Heart, Menu } from "lucide-react";
 import Loading from "./Loading";
 import NotificationsCenter from "./NotificationsCenter";
 
@@ -70,9 +77,13 @@ const NavBar: React.FC = () => {
   const { user, signOut } = useUsers();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const muiTheme = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
 
   const handleNavigation = (path: string) => {
     setLoading(true);
+    setMobileMenuOpen(false);
     setTimeout(() => {
       navigate(path);
       setLoading(false);
@@ -90,6 +101,111 @@ const NavBar: React.FC = () => {
       setLoading(false);
     }, 1000);
   };
+
+  const renderNavItems = () => (
+    <>
+      <NavButton
+        startIcon={<HomeIcon />}
+        onClick={() => handleNavigation(user ? "/Products" : "/")}
+      >
+        דף הבית
+      </NavButton>
+      {user && (
+        <NavButton
+          onClick={() => navigate("/wishlists")}
+          startIcon={<Heart size={18} />}
+        >
+          רשימות מועדפים
+        </NavButton>
+      )}
+    </>
+  );
+
+  const renderAuthButtons = () => (
+    <>
+      {user ? (
+        <>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              color: "text.primary",
+              fontWeight: 500,
+              display: { xs: "none", sm: "block" },
+            }}
+          >
+            שלום, {user.userName}
+          </Typography>
+
+          {user._id && <NotificationsCenter />}
+
+          <IconButton
+            onClick={() => handleNavigation("/personal-area")}
+            disabled={loading}
+            sx={{
+              color: theme.palette.primary.main,
+              transition: "all 0.2s ease-in-out",
+              "&:hover": {
+                backgroundColor: theme.palette.primary.light,
+                color: "white",
+                transform: "scale(1.1)",
+              },
+            }}
+          >
+            <AccountCircleIcon />
+          </IconButton>
+
+          <IconButton
+            onClick={handleLogout}
+            disabled={loading}
+            sx={{
+              color: theme.palette.primary.main,
+              transition: "all 0.2s ease-in-out",
+              "&:hover": {
+                backgroundColor: theme.palette.primary.light,
+                color: "white",
+                transform: "scale(1.1)",
+              },
+            }}
+          >
+            <LogoutIcon />
+          </IconButton>
+        </>
+      ) : (
+        <>
+          <ActionButton
+            variant="outlined"
+            onClick={() => handleNavigation("/sign-in")}
+            sx={{
+              borderColor: theme.palette.primary.main,
+              color: theme.palette.primary.main,
+              "&:hover": {
+                backgroundColor: theme.palette.primary.light,
+                borderColor: theme.palette.primary.light,
+                color: "white",
+                transform: "scale(1.02)",
+              },
+            }}
+          >
+            התחברות
+          </ActionButton>
+          <ActionButton
+            variant="contained"
+            onClick={() => handleNavigation("/sign-up")}
+            sx={{
+              backgroundColor: theme.palette.primary.main,
+              color: "white",
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+                transform: "scale(1.02)",
+              },
+            }}
+          >
+            הרשמה
+          </ActionButton>
+        </>
+      )}
+    </>
+  );
 
   return (
     <ThemeProvider theme={theme}>
@@ -119,25 +235,9 @@ const NavBar: React.FC = () => {
                 </Typography>
               </LogoContainer>
 
-              {/* Navigation Links */}
-              <Box sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
-                <NavButton
-                  startIcon={<HomeIcon />}
-                  onClick={() => handleNavigation(user ? "/Products" : "/")}
-                >
-                  דף הבית
-                </NavButton>
-              </Box>
-
-              {user && (
-                <Box sx={{ display: { xs: "none", md: "flex" }, ml: 4 }}>
-                  <NavButton
-                    onClick={() => navigate("/wishlists")}
-                    startIcon={<Heart size={18} />}
-                  >
-                    רשימות מועדפים
-                  </NavButton>
-                </Box>
+              {/* Desktop Navigation */}
+              {!isMobile && (
+                <Box sx={{ display: "flex", ml: 4 }}>{renderNavItems()}</Box>
               )}
             </Box>
 
@@ -148,92 +248,130 @@ const NavBar: React.FC = () => {
                 gap: 2,
               }}
             >
-              {user ? (
-                <>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{
-                      color: "text.primary",
-                      fontWeight: 500,
-                      display: { xs: "none", sm: "block" },
-                    }}
-                  >
-                    שלום, {user.userName}
-                  </Typography>
-
-                  {/* Only show notifications when user is logged in and has ID */}
-                  {user._id && <NotificationsCenter />}
-
-                  <IconButton
-                    onClick={() => handleNavigation("/personal-area")}
-                    disabled={loading}
-                    sx={{
-                      color: theme.palette.primary.main,
-                      transition: "all 0.2s ease-in-out",
-                      "&:hover": {
-                        backgroundColor: theme.palette.primary.light,
-                        color: "white",
-                        transform: "scale(1.1)",
-                      },
-                    }}
-                  >
-                    <AccountCircleIcon />
-                  </IconButton>
-
-                  <IconButton
-                    onClick={handleLogout}
-                    disabled={loading}
-                    sx={{
-                      color: theme.palette.primary.main,
-                      transition: "all 0.2s ease-in-out",
-                      "&:hover": {
-                        backgroundColor: theme.palette.primary.light,
-                        color: "white",
-                        transform: "scale(1.1)",
-                      },
-                    }}
-                  >
-                    <LogoutIcon />
-                  </IconButton>
-                </>
+              {!isMobile ? (
+                renderAuthButtons()
               ) : (
                 <>
-                  <ActionButton
-                    variant="outlined"
-                    onClick={() => handleNavigation("/sign-in")}
-                    sx={{
-                      borderColor: theme.palette.primary.main,
-                      color: theme.palette.primary.main,
-                      "&:hover": {
-                        backgroundColor: theme.palette.primary.light,
-                        borderColor: theme.palette.primary.light,
-                        color: "white",
-                        transform: "scale(1.02)",
-                      },
-                    }}
+                  {user && user._id && <NotificationsCenter />}
+                  <IconButton
+                    onClick={() => setMobileMenuOpen(true)}
+                    sx={{ color: theme.palette.primary.main }}
                   >
-                    התחברות
-                  </ActionButton>
-                  <ActionButton
-                    variant="contained"
-                    onClick={() => handleNavigation("/sign-up")}
-                    sx={{
-                      backgroundColor: theme.palette.primary.main,
-                      color: "white",
-                      "&:hover": {
-                        backgroundColor: theme.palette.primary.dark,
-                        transform: "scale(1.02)",
-                      },
-                    }}
-                  >
-                    הרשמה
-                  </ActionButton>
+                    <Menu />
+                  </IconButton>
                 </>
               )}
             </Box>
           </Toolbar>
         </Container>
       </StyledAppBar>
+
+      {/* Mobile Menu Drawer */}
+      <Drawer
+        anchor="right"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        PaperProps={{
+          sx: {
+            width: "80%",
+            maxWidth: "300px",
+            bgcolor: "white",
+            p: 2,
+          },
+        }}
+      >
+        <Box sx={{ mb: 4, textAlign: "center" }}>
+          <LogoContainer
+            onClick={() => {
+              handleNavigation("/Products");
+              setMobileMenuOpen(false);
+            }}
+            sx={{ justifyContent: "center", mb: 2 }}
+          >
+            <Apple size={32} color={theme.palette.primary.main} />
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                color: theme.palette.primary.main,
+                mr: 1,
+              }}
+            >
+              SuperSmart
+            </Typography>
+          </LogoContainer>
+          {user && (
+            <Typography variant="subtitle1" sx={{ color: "text.secondary" }}>
+              שלום, {user.userName}
+            </Typography>
+          )}
+        </Box>
+
+        <List>
+  <ListItem disablePadding>
+    <ListItemButton onClick={() => handleNavigation(user ? "/Products" : "/")}>
+      <ListItemIcon>
+        <HomeIcon color="primary" />
+      </ListItemIcon>
+      <ListItemText primary="דף הבית" />
+    </ListItemButton>
+  </ListItem>
+
+  {user && (
+    <>
+      <ListItem disablePadding>
+        <ListItemButton onClick={() => handleNavigation("/wishlists")}>
+          <ListItemIcon>
+            <Heart color="#16a34a" size={24} />
+          </ListItemIcon>
+          <ListItemText primary="רשימות מועדפים" />
+        </ListItemButton>
+      </ListItem>
+
+      <ListItem disablePadding>
+        <ListItemButton onClick={() => handleNavigation("/personal-area")}>
+          <ListItemIcon>
+            <AccountCircleIcon color="primary" />
+          </ListItemIcon>
+          <ListItemText primary="אזור אישי" />
+        </ListItemButton>
+      </ListItem>
+    </>
+  )}
+</List>
+
+        <Box sx={{ mt: "auto", p: 2 }}>
+          {user ? (
+            <Button
+              fullWidth
+              variant="contained"
+              color="primary"
+              onClick={handleLogout}
+              startIcon={<LogoutIcon />}
+            >
+              התנתק
+            </Button>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => handleNavigation("/sign-in")}
+              >
+                התחברות
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => handleNavigation("/sign-up")}
+              >
+                הרשמה
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </Drawer>
+
       {loading && <Loading />}
     </ThemeProvider>
   );
