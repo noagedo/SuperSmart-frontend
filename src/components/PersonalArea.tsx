@@ -42,6 +42,7 @@ import { useNavigate } from "react-router-dom";
 import useCart from "../hooks/useCart";
 import useItems from "../hooks/useItems";
 import { styled } from "@mui/material";
+import CartChat from "./CartChat";
 
 interface PersonalAreaProps {
   user: User;
@@ -1033,10 +1034,20 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                     ))
                   ) : (
                     <ListItem>
-                      <ListItemText primary="אין פריטים בעגלה זו" />
+                      <ListItemText primary="אין לך עגלות שמורות עדיין" />
                     </ListItem>
                   )}
                 </List>
+              )}
+              
+              {/* Cart Chat Section */}
+              {selectedCart && selectedCart._id && (
+                <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0,0,0,0.12)" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                    שיחות על העגלה:
+                  </Typography>
+                  <CartChat cartId={selectedCart._id} userName={user.userName} isOpen={cartDetailsOpen} />
+                </Box>
               )}
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
