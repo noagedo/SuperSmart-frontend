@@ -13,10 +13,11 @@ export interface PriceDropNotification {
   wishlistId: string;
   wishlistName: string;
   userId?: string; // Add userId field for client-side filtering
+  cartId?: string; // Ensure cartId field is included for cart-specific notifications
 }
 
 class NotificationService {
-  private socket: Socket | null = null;
+  public socket: Socket | null = null; // Changed to public for debugging
   private onPriceDropCallback:
     | ((notification: PriceDropNotification) => void)
     | null = null;
@@ -103,66 +104,45 @@ class NotificationService {
     if (!this.socket) return;
 
     this.socket.on("price-drop", (data) => {
-      console.log("Received price-drop event:", data);
+      console.log("Received price-drop event:", data); // <-- ודא שאתה רואה כאן cartId
 
-      // If we have a callback and the notification is for the current user
+      // Create a properly formatted notification
+      const notification: PriceDropNotification = {
+        id:
+          new Date().getTime().toString() +
+          Math.random().toString(36).substring(2, 9),
+        ...data,
+        changeDate: new Date(data.changeDate || new Date()),
+        wishlistId: data.wishlistId || "", // Ensure these fields always exist
+        wishlistName: data.wishlistName || "רשימת מועדפים",
+      };
+
+      console.log("Processed notification:", notification);
+
       if (this.onPriceDropCallback) {
-        // Get current user ID
-        const userId = this.currentUserId || localStorage.getItem("userId");
-
-        if (!userId) {
-          console.log("No user ID available, ignoring notification");
-          return;
-        }
-
-        // Strict filtering - ignore notifications without proper user context
-        // Check both wishlistUserId and userId fields
-        if (data.wishlistUserId && data.wishlistUserId !== userId) {
-          console.log(
-            `Ignoring notification - wishlist belongs to different user (${data.wishlistUserId} vs ${userId})`
-          );
-          return;
-        }
-
-        if (data.userId && data.userId !== userId) {
-          console.log(
-            `Ignoring notification - belongs to different user (${data.userId} vs ${userId})`
-          );
-          return;
-        }
-
-        // Filter by time - only accept notifications from the last 24 hours
-        const oneDayAgo = new Date();
-        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-
-        const notificationDate = new Date(
-          data.changeDate || data.date || new Date()
-        );
-        if (notificationDate < oneDayAgo) {
-          console.log(
-            `Ignoring notification - too old: ${notificationDate.toISOString()}`
-          );
-          return;
-        }
-
-        // Add user ID to the notification for client-side filtering
-        const notification: PriceDropNotification = {
-          id:
-            new Date().getTime().toString() +
-            Math.random().toString(36).substring(2, 9),
-          ...data,
-          changeDate: notificationDate,
-          userId: userId, // Add current user ID to ensure filtering works even if server doesn't provide it
-        };
-
         this.onPriceDropCallback(notification);
       }
     });
   }
 
   public checkPriceChanges(lastCheckedTimestamp?: Date) {
-    // Format the timestamp as ISO string or use empty string if undefined
-    const timestamp = lastCheckedTimestamp?.toISOString() || "";
+    // Ensure the timestamp is never in the future by using either:
+    // 1. The provided timestamp if it's in the past
+    // 2. A timestamp from 24 hours ago if the provided one is in the future or invalid
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setHours(yesterday.getHours() - 24);
+
+    let validTimestamp: Date;
+
+    if (lastCheckedTimestamp && lastCheckedTimestamp < now) {
+      validTimestamp = lastCheckedTimestamp;
+    } else {
+      validTimestamp = yesterday;
+    }
+
+    // Format as ISO string
+    const timestamp = validTimestamp.toISOString();
 
     // Get the current user ID from localStorage
     const userId = localStorage.getItem("userId");
@@ -177,21 +157,28 @@ class NotificationService {
       `Checking price changes since ${timestamp} for user: ${userId}`
     );
 
-    // Add userId parameter to only get this user's wishlist products
-    return apiClient.get("/items/wishlist-price-changes", {
-      params: {
-        lastCheckedTimestamp: timestamp,
-        onlyWishlistItems: true,
-        userId: userId, // Add user ID parameter
-      },
-    });
+    return apiClient
+      .get("/items/wishlist-price-changes", {
+        params: {
+          lastCheckedTimestamp: timestamp,
+          onlyWishlistItems: true,
+          userId: userId,
+        },
+      })
+      .catch((error) => {
+        console.error(
+          "Error checking price changes:",
+          error.response?.data || error.message
+        );
+        return { data: [] }; // Return empty data on error
+      });
   }
 
   // Method to check specifically for last 24 hours
   public checkRecentPriceChanges() {
-    // Calculate timestamp for 24 hours ago
+    // Always use a timestamp that's exactly 24 hours ago from the current time
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(yesterday.getHours() - 24);
 
     // Get the current user ID from localStorage
     const userId = localStorage.getItem("userId");
@@ -203,16 +190,24 @@ class NotificationService {
     }
 
     console.log(`Checking price changes in last 24 hours for user: ${userId}`);
+    console.log(`Using fixed timestamp: ${yesterday.toISOString()}`);
 
     // Always use 24 hours as the timeframe and make sure we only get this user's wishlist products
-    return apiClient.get("/items/wishlist-price-changes", {
-      params: {
-        lastCheckedTimestamp: yesterday.toISOString(),
-        onlyWishlistItems: true,
-        userId: userId,
-        enforce24HourLimit: true, // Add parameter to ensure server enforces 24 hour limit
-      },
-    });
+    return apiClient
+      .get("/items/wishlist-price-changes", {
+        params: {
+          lastCheckedTimestamp: yesterday.toISOString(),
+          onlyWishlistItems: true,
+          userId: userId,
+        },
+      })
+      .catch((error) => {
+        console.error(
+          "Error checking price changes:",
+          error.response?.data || error.message
+        );
+        return { data: [] }; // Return empty data on error
+      });
   }
 
   // Check for specific products from wishlists
@@ -256,6 +251,12 @@ class NotificationService {
       if (userId) {
         setTimeout(() => {
           this.subscribeToWishlistUpdates(userId);
+
+          // Rejoin cart rooms
+          const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
+          cartIds.forEach((cartId: string) => {
+            this.joinCartRoom(cartId);
+          });
         }, 1000);
       }
 
@@ -271,6 +272,74 @@ class NotificationService {
       this.socket.disconnect();
       this.socket = null;
     }
+  }
+
+  // Add these methods to join and leave cart rooms with better logging
+  public joinCartRoom(cartId: string) {
+    if (!this.socket || !cartId) {
+      console.error(
+        "Cannot join cart room: socket is not connected or cartId is empty"
+      );
+      return;
+    }
+    console.log(`Joining cart room: cart-${cartId}`);
+    this.socket.emit("join-cart", cartId);
+
+    // Store cart ID in localStorage for reconnection
+    const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
+    if (!cartIds.includes(cartId)) {
+      cartIds.push(cartId);
+      localStorage.setItem("userCarts", JSON.stringify(cartIds));
+    }
+  }
+
+  public leaveCartRoom(cartId: string) {
+    if (!this.socket || !cartId) {
+      console.error(
+        "Cannot leave cart room: socket is not connected or cartId is empty"
+      );
+      return;
+    }
+    console.log(`Leaving cart room: cart-${cartId}`);
+    this.socket.emit("leave-cart", cartId);
+
+    // Remove cart ID from localStorage
+    const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
+    const updatedCartIds = cartIds.filter((id: string) => id !== cartId);
+    localStorage.setItem("userCarts", JSON.stringify(updatedCartIds));
+  }
+
+  // Test method for sending cart notifications directly
+  public sendTestCartNotification(
+    cartId: string,
+    productId: string,
+    productName: string,
+    oldPrice: number,
+    newPrice: number
+  ) {
+    if (!this.socket) {
+      console.error("Cannot send test notification: socket is not connected");
+      return false;
+    }
+
+    const testData = {
+      cartId,
+      productId,
+      productName,
+      oldPrice,
+      newPrice,
+      storeId: "1", // Using dummy storeId
+      changeDate: new Date(),
+    };
+
+    console.log("Sending test cart notification:", testData);
+    this.socket.emit("testCartNotification", testData);
+    return true;
+  }
+
+  // Add this method to fetch cart price drops via API
+  public getCartPriceDrops() {
+    return apiClient.get("/carts/price-drops");
   }
 }
 

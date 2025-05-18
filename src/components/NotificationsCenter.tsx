@@ -14,6 +14,11 @@ import {
   ListItemButton,
   styled,
   Tooltip,
+  Paper,
+  List,
+  ListItem,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import CloseIcon from "@mui/icons-material/Close";
@@ -25,6 +30,7 @@ import notificationService, {
   PriceDropNotification,
 } from "../services/notification-service";
 import { getStoreName } from "../utils/storeUtils";
+import { ShoppingBag, Trash2 } from "lucide-react";
 
 const NotificationItem = styled(ListItemButton)(({ theme }) => ({
   borderRadius: "8px",
@@ -44,7 +50,6 @@ const NotificationsCenter: React.FC = () => {
     checkSpecificProducts,
     notifications: hookNotifications,
   } = useNotifications();
-  // Properly type the notifications state with PriceDropNotification type
   const [mockNotifications, setMockNotifications] = useState<
     PriceDropNotification[]
   >([]);
@@ -55,9 +60,16 @@ const NotificationsCenter: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<
     "connected" | "disconnected" | "error"
   >("disconnected");
+  const [activeTab, setActiveTab] = useState(0);
 
   // Combine notifications from the hook and mock notifications
   const notifications = [...hookNotifications, ...mockNotifications];
+
+  // Filter notifications by type
+  const wishlistNotifications = notifications.filter(
+    (n) => n.wishlistId && !n.cartId
+  );
+  const cartNotifications = notifications.filter((n) => n.cartId);
 
   // Filter notifications for current user's wishlist with multiple criteria
   const filteredNotifications = React.useMemo(() => {
@@ -109,6 +121,19 @@ const NotificationsCenter: React.FC = () => {
       return true;
     });
   }, [notifications, user, wishlist]);
+
+  // הצג התראות עגלות מה-24 שעות האחרונות בלבד
+  const cartTabNotifications = React.useMemo(() => {
+    const oneDayAgo = new Date();
+    oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+    return notifications.filter(
+      (n) => n.cartId && new Date(n.changeDate) >= oneDayAgo
+    );
+  }, [notifications]);
+
+  // Set badge count to include both types of notifications
+  const totalNotificationCount =
+    filteredNotifications.length + cartTabNotifications.length;
 
   // Add debugging to see filtering results
   useEffect(() => {
@@ -272,7 +297,7 @@ const NotificationsCenter: React.FC = () => {
           },
         }}
       >
-        <Badge badgeContent={filteredNotifications.length} color="error">
+        <Badge badgeContent={totalNotificationCount} color="error">
           <NotificationsIcon />
         </Badge>
       </IconButton>
@@ -300,7 +325,7 @@ const NotificationsCenter: React.FC = () => {
             alignItems: "center",
           }}
         >
-          <Typography variant="h6">התראות מחירים מרשימות מועדפים</Typography>
+          <Typography variant="h6">התראות מחירים</Typography>
           <Box sx={{ display: "flex", gap: 1 }}>
             <Tooltip title="רענן התראות">
               <IconButton
@@ -311,7 +336,8 @@ const NotificationsCenter: React.FC = () => {
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            {filteredNotifications.length > 0 && (
+            {(filteredNotifications.length > 0 ||
+              cartNotifications.length > 0) && (
               <Button
                 size="small"
                 onClick={() => {
@@ -327,75 +353,190 @@ const NotificationsCenter: React.FC = () => {
 
         <Divider />
 
-        {filteredNotifications.length === 0 ? (
-          <MenuItem disabled>
-            <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-              אין התראות חדשות
-            </Typography>
-          </MenuItem>
-        ) : (
-          filteredNotifications.map((notification) => (
-            <NotificationItem key={notification.id}>
-              <ListItemAvatar>
-                <Avatar
-                  src={notification.image}
-                  alt={notification.productName}
-                  variant="rounded"
-                />
-              </ListItemAvatar>
-              <ListItemText
-                primary={notification.productName}
-                secondary={
-                  <Box sx={{ direction: "rtl" }}>
-                    <Typography variant="body2" display="block">
-                      מחיר חדש: {formatPrice(notification.newPrice)}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      display="block"
-                      sx={{
-                        textDecoration: "line-through",
-                        color: "text.secondary",
-                      }}
-                    >
-                      מחיר קודם: {formatPrice(notification.oldPrice)}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="primary.main"
-                      sx={{ fontWeight: "bold" }}
-                    >
-                      חסכון:{" "}
-                      {calculateDiscount(
-                        notification.oldPrice,
-                        notification.newPrice
-                      )}
-                      %
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      display="block"
-                    >
-                      בחנות: {getStoreName(notification.storeId)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      ברשימה: {notification.wishlistName}
-                    </Typography>
-                  </Box>
-                }
-              />
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  dismissNotification(notification.id);
-                }}
+        {/* Add tabs for different notification types */}
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          variant="fullWidth"
+          sx={{ mb: 1 }}
+        >
+          <Tab
+            label={
+              <Badge
+                badgeContent={filteredNotifications.length}
+                color="error"
+                sx={{ pr: 1 }}
               >
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            </NotificationItem>
-          ))
+                <Typography variant="body2">מועדפים</Typography>
+              </Badge>
+            }
+          />
+          <Tab
+            label={
+              <Badge
+                badgeContent={cartTabNotifications.length}
+                color="error"
+                sx={{ pr: 1 }}
+              >
+                <Typography variant="body2">עגלות</Typography>
+              </Badge>
+            }
+          />
+        </Tabs>
+
+        {/* Wishlist notifications tab panel */}
+        {activeTab === 0 && (
+          <>
+            {filteredNotifications.length === 0 ? (
+              <MenuItem disabled>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ py: 2 }}
+                >
+                  אין התראות חדשות במועדפים
+                </Typography>
+              </MenuItem>
+            ) : (
+              filteredNotifications.map((notification) => (
+                <NotificationItem key={notification.id}>
+                  {/* Existing notification item content */}
+                  <ListItemAvatar>
+                    <Avatar
+                      src={notification.image}
+                      alt={notification.productName}
+                      variant="rounded"
+                    />
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={notification.productName}
+                    secondary={
+                      <Box sx={{ direction: "rtl" }}>
+                        <Typography variant="body2" display="block">
+                          מחיר חדש: {formatPrice(notification.newPrice)}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          display="block"
+                          sx={{
+                            textDecoration: "line-through",
+                            color: "text.secondary",
+                          }}
+                        >
+                          מחיר קודם: {formatPrice(notification.oldPrice)}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="primary.main"
+                          sx={{ fontWeight: "bold" }}
+                        >
+                          חסכון:{" "}
+                          {calculateDiscount(
+                            notification.oldPrice,
+                            notification.newPrice
+                          )}
+                          %
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          display="block"
+                        >
+                          בחנות: {getStoreName(notification.storeId)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          ברשימה: {notification.wishlistName}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dismissNotification(notification.id);
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </NotificationItem>
+              ))
+            )}
+          </>
+        )}
+
+        {/* Cart notifications tab panel */}
+        {activeTab === 1 && (
+          <>
+            {cartTabNotifications.length === 0 ? (
+              <MenuItem disabled>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ py: 2 }}
+                >
+                  אין התראות חדשות בעגלות
+                </Typography>
+              </MenuItem>
+            ) : (
+              cartTabNotifications.map((notification) => (
+                <NotificationItem
+                  key={notification.id}
+                  sx={{ bgcolor: "rgba(25, 118, 210, 0.08)" }}
+                >
+                  <ListItemAvatar>
+                    <Avatar sx={{ bgcolor: "primary.main" }}>
+                      <ShoppingBag size={20} color="white" />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={notification.productName}
+                    secondary={
+                      <Box sx={{ direction: "rtl" }}>
+                        <Typography variant="body2" display="block">
+                          מחיר חדש: {formatPrice(notification.newPrice)}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          display="block"
+                          sx={{
+                            textDecoration: "line-through",
+                            color: "text.secondary",
+                          }}
+                        >
+                          מחיר קודם: {formatPrice(notification.oldPrice)}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          color="primary.main"
+                          sx={{ fontWeight: "bold" }}
+                        >
+                          חסכון:{" "}
+                          {calculateDiscount(
+                            notification.oldPrice,
+                            notification.newPrice
+                          )}
+                          %
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          בעגלה: {notification.cartId}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dismissNotification(notification.id);
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </NotificationItem>
+              ))
+            )}
+          </>
         )}
       </Menu>
     </Box>

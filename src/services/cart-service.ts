@@ -12,6 +12,7 @@ export interface Cart {
   items: { productId: string; quantity: number }[];
   createdAt?: Date;
   updatedAt?: Date;
+  notifications?: boolean; // Add notifications field
 }
 
 const createCart = (cart: Omit<Cart, "_id">) => {
