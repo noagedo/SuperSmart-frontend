@@ -4,6 +4,7 @@ import notificationService, {
 } from "../services/notification-service";
 import useUsers from "./useUsers";
 import useWishlists from "./useWishlists";
+import cartService from "../services/cart-service"; // Import cartService
 
 const useNotifications = () => {
   const [notifications, setNotifications] = useState<PriceDropNotification[]>(
@@ -42,83 +43,172 @@ const useNotifications = () => {
     [user, wishlist]
   );
 
-  // Setup notification listener for real-time updates
+  // Setup notification listener for real-time updates (wishlist + cart)
   useEffect(() => {
-    console.log("Setting up notification listener");
+    console.log("Setting up unified notification listener");
 
-    notificationService.onPriceDrop((notification) => {
-      console.log("Received price drop notification:", notification);
-
-      // Only process notifications if user is logged in
+    const handlePriceDrop = (notification: PriceDropNotification) => {
       if (!user || !user._id) {
         console.log("Ignoring notification - no user logged in");
         return;
       }
 
-      // Multiple filtering criteria to ensure we only show relevant notifications
-
-      // 1. Filter by userId if it exists in the notification
-      if (notification.userId && notification.userId !== user._id) {
-        console.log(
-          `Ignoring notification - user mismatch: ${notification.userId} vs ${user._id}`
-        );
-        return;
-      }
-
-      // 2. Filter by wishlist ownership
-      if (!user || !user._id) return;
-
-      // Only accept notification if:
-      // - It doesn't have a wishlistId (general notification) OR
-      // - The wishlistId belongs to the current user's wishlist
-      if (
-        notification.wishlistId &&
-        (!wishlist || notification.wishlistId !== wishlist._id)
-      ) {
-        console.log(
-          `Ignoring notification - wishlist ${notification.wishlistId} doesn't belong to user's wishlist: ${wishlist?._id}`
-        );
-        return;
-      }
-
-      // 3. Filter by time - only accept notifications from the last 24 hours
-      const oneDayAgo = new Date();
-      oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-
-      if (new Date(notification.changeDate) < oneDayAgo) {
-        console.log(
-          `Ignoring notification - too old: ${notification.changeDate}`
-        );
-        return;
-      }
-
-      // At this point, we've verified the notification belongs to this user
       setNotifications((prev) => {
-        // Avoid duplicates
-        const isDuplicate = prev.some(
-          (n) =>
-            n.productId === notification.productId &&
-            n.storeId === notification.storeId &&
-            Math.abs(n.newPrice - notification.newPrice) < 0.01
-        );
+        // Wishlist notification (wishlistId) or cart notification (cartId)
+        const isDuplicate = notification.cartId
+          ? prev.some(
+              (n) =>
+                n.productId === notification.productId &&
+                n.cartId === notification.cartId &&
+                Math.abs(n.newPrice - notification.newPrice) < 0.01
+            )
+          : prev.some(
+              (n) =>
+                n.productId === notification.productId &&
+                n.storeId === notification.storeId &&
+                Math.abs(n.newPrice - notification.newPrice) < 0.01 &&
+                n.wishlistId === notification.wishlistId
+            );
 
         if (isDuplicate) return prev;
         return [...prev, notification];
       });
-    });
+    };
 
-    // Cleanup
+    notificationService.onPriceDrop(handlePriceDrop);
+
     return () => {
       if (checkIntervalRef.current) {
         window.clearInterval(checkIntervalRef.current);
       }
       notificationService.disconnect();
     };
-  }, [user, wishlist]);
+  }, [user]);
+
+  // Add this new effect to subscribe to cart updates with improved reconnection
+  useEffect(() => {
+    if (!user || !user._id) return;
+
+    // Get cart IDs from localStorage or fetch them
+    const fetchAndSubscribeToCarts = async () => {
+      try {
+        console.log("Fetching carts for user", user._id);
+        const { request } = cartService.getCartsByUser(user._id!);
+        const response = await request;
+        const carts = response.data;
+
+        console.log(`Fetched ${carts.length} carts for user`);
+
+        // Join all cart rooms with notification enabled
+        carts.forEach((cart) => {
+          if (cart._id) {
+            // Only subscribe if notifications are enabled for this cart
+            if (cart.notifications !== false) {
+              console.log(
+                `Joining cart room for cart: ${cart._id} (notifications enabled)`
+              );
+              notificationService.joinCartRoom(cart._id);
+            } else {
+              console.log(
+                `Skipping cart room for cart: ${cart._id} (notifications disabled)`
+              );
+            }
+          }
+        });
+
+        // Store cart IDs in localStorage for reconnection
+        localStorage.setItem(
+          "userCarts",
+          JSON.stringify(
+            carts
+              .filter((c) => c.notifications !== false && c._id) // Ensure _id exists
+              .map((c) => c._id)
+          )
+        );
+      } catch (error) {
+        console.error("Failed to fetch and subscribe to carts:", error);
+      }
+    };
+
+    fetchAndSubscribeToCarts();
+
+    return () => {
+      // Clean up cart subscriptions if needed
+      const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
+      cartIds.forEach((cartId: string) => {
+        if (cartId) {
+          // Ensure cartId is not undefined
+          notificationService.leaveCartRoom(cartId);
+        }
+      });
+    };
+  }, [user]);
+
+  // Fetch cart price drops via API on mount (for persistence after refresh)
+  useEffect(() => {
+    const fetchCartPriceDrops = async () => {
+      try {
+        if (!user || !user._id) return;
+        // שלוף את כל העגלות של המשתמש
+        const { request } = cartService.getCartsByUser(user._id);
+        const responseCarts = await request;
+        const carts = responseCarts.data || [];
+
+        // צור מפה productId -> cartId (יכול להיות מוצר בכמה עגלות)
+        const productToCartIds: Record<string, string[]> = {};
+        carts.forEach((cart) => {
+          if (cart.items && cart._id) {
+            cart.items.forEach((item) => {
+              if (!productToCartIds[item.productId]) {
+                productToCartIds[item.productId] = [];
+              }
+              if (cart._id) {
+                productToCartIds[item.productId].push(cart._id);
+              }
+            });
+          }
+        });
+
+        // שלוף price drops מה-API
+        const response = await notificationService.getCartPriceDrops();
+        const cartDrops = Array.isArray(response.data)
+          ? response.data.flatMap((drop: any) => {
+              // לכל מוצר, הוסף התראה עבור כל עגלה שהוא נמצא בה
+              const cartIds = productToCartIds[drop.productId] || [];
+              if (cartIds.length === 0) return [];
+              return cartIds.map((cartId) => ({
+                ...drop,
+                cartId,
+                id:
+                  new Date().getTime().toString() +
+                  Math.random().toString(36).substring(2, 9),
+              }));
+            })
+          : [];
+        // הימנע מכפילויות
+        setNotifications((prev) => [
+          ...prev,
+          ...cartDrops.filter(
+            (newNotif) =>
+              !prev.some(
+                (n) =>
+                  n.productId === newNotif.productId &&
+                  n.cartId === newNotif.cartId &&
+                  Math.abs(n.newPrice - newNotif.newPrice) < 0.01
+              )
+          ),
+        ]);
+      } catch (error) {
+        console.error("Failed to fetch cart price drops:", error);
+      }
+    };
+
+    fetchCartPriceDrops();
+  }, [user]);
 
   // Create a stable checkRecentChanges function with useCallback
   const checkRecentChanges = useCallback(() => {
-    if (!user || !user._id) return;
+    if (!user || !user._id || !wishlist || !wishlist.products.length) return;
 
     console.log("Checking recent price changes (last 24 hours)");
 

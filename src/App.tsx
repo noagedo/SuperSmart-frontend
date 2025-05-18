@@ -27,13 +27,15 @@ const App: React.FC = () => {
           ).default;
           notificationService.reconnect();
           console.log("Socket initialized on app startup");
+
+          // Clear any potentially problematic timestamps in localStorage
+          localStorage.removeItem("lastPriceCheckTimestamp");
         } catch (error) {
           console.error("Failed to initialize socket:", error);
         }
       };
 
       initializeSocket();
-      localStorage.removeItem("lastPriceCheckTimestamp");
       console.log(
         "App mounted, cleared lastPriceCheckTimestamp for fresh price checks"
       );

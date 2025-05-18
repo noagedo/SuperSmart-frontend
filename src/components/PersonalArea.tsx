@@ -37,12 +37,16 @@ import {
   ArrowRight,
   Share2,
   UserMinus,
+  BellOff,
+  Bell,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import useCart from "../hooks/useCart";
 import useItems from "../hooks/useItems";
 import { styled } from "@mui/material";
 import CartChat from "./CartChat";
+import useNotifications from "../hooks/useNotifications";
+import notificationService from "../services/notification-service"; // Ensure this is the correct path
 
 interface PersonalAreaProps {
   user: User;
@@ -127,6 +131,11 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     message: "",
     severity: "success",
   });
+
+  const { notifications, dismissNotification } = useNotifications();
+
+  // Filter notifications for carts
+  const cartNotifications = notifications.filter((n) => n.cartId);
 
   const handleSave = async () => {
     setUpdateError(null);
@@ -247,6 +256,24 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
     fetchCarts();
   }, [user?._id]);
+
+  // Add this useEffect to ensure we're subscribed to cart notifications
+  useEffect(() => {
+    if (myCarts.length > 0 && user) {
+      console.log("Subscribing to cart notifications for user carts");
+      myCarts.forEach((cart) => {
+        if (cart._id) {
+          notificationService.joinCartRoom(cart._id);
+        }
+      });
+
+      // Update localStorage with latest cart IDs
+      localStorage.setItem(
+        "userCarts",
+        JSON.stringify(myCarts.map((c) => c._id))
+      );
+    }
+  }, [myCarts, user]);
 
   // Handle deleting a cart
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
@@ -418,6 +445,34 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   // Handle closing the snackbar
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleToggleNotifications = async (cart: Cart) => {
+    try {
+      const updatedCart = { ...cart, notifications: !cart.notifications };
+      const { request } = cartService.updateCart(cart._id!, updatedCart);
+      const response = await request;
+
+      // Update the cart in the local state
+      setMyCarts((prevCarts) =>
+        prevCarts.map((c) => (c._id === cart._id ? response.data : c))
+      );
+
+      setSnackbar({
+        open: true,
+        message: `התרעות ${
+          response.data.notifications ? "הופעלו" : "כובו"
+        } בהצלחה`,
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Error toggling notifications:", error);
+      setSnackbar({
+        open: true,
+        message: "שגיאה בעדכון התרעות",
+        severity: "error",
+      });
+    }
   };
 
   return (
@@ -842,6 +897,45 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                                 צפה בפרטים
                               </Button>
                             </Box>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                mt: 2,
+                              }}
+                            >
+                              <Tooltip
+                                title={
+                                  cart.notifications
+                                    ? "כבה התראות"
+                                    : "הפעל התראות"
+                                }
+                              >
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleNotifications(cart);
+                                  }}
+                                  sx={{
+                                    color: cart.notifications
+                                      ? "#16a34a"
+                                      : "text.secondary",
+                                    "&:hover": {
+                                      bgcolor: cart.notifications
+                                        ? "rgba(22, 163, 74, 0.04)"
+                                        : "rgba(0, 0, 0, 0.04)",
+                                    },
+                                  }}
+                                >
+                                  {cart.notifications ? (
+                                    <Bell size={18} />
+                                  ) : (
+                                    <BellOff size={18} />
+                                  )}
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </CardContent>
                         </Card>
                       </Grid>
@@ -957,6 +1051,56 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         </Box>
       </Paper>
 
+      {/* Cart Notifications Section */}
+      {cartNotifications.length > 0 && (
+        <Paper
+          elevation={3}
+          sx={{
+            maxWidth: 800,
+            mx: "auto",
+            borderRadius: 3,
+            overflow: "hidden",
+            mt: 4,
+          }}
+        >
+          <Box
+            sx={{
+              bgcolor: "#16a34a",
+              p: 3,
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <ShoppingBag size={32} color="white" />
+            <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
+              התראות על ירידת מחירים בעגלות
+            </Typography>
+          </Box>
+
+          <List>
+            {cartNotifications.map((notification) => (
+              <ListItem key={notification.id} divider>
+                <ListItemText
+                  primary={`המוצר ${
+                    notification.productName
+                  } ירד במחיר מ-₪${notification.oldPrice.toFixed(
+                    2
+                  )} ל-₪${notification.newPrice.toFixed(2)}`}
+                  secondary={`עגלה: ${notification.cartId}`}
+                />
+                <IconButton
+                  edge="end"
+                  onClick={() => dismissNotification(notification.id)}
+                >
+                  <Trash2 size={18} />
+                </IconButton>
+              </ListItem>
+            ))}
+          </List>
+        </Paper>
+      )}
+
       {/* Cart Details Dialog */}
       <Dialog
         open={cartDetailsOpen}
@@ -1039,14 +1183,23 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                   )}
                 </List>
               )}
-              
+
               {/* Cart Chat Section */}
               {selectedCart && selectedCart._id && (
-                <Box sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0,0,0,0.12)" }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                <Box
+                  sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0,0,0,0.12)" }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, mb: 2 }}
+                  >
                     שיחות על העגלה:
                   </Typography>
-                  <CartChat cartId={selectedCart._id} userName={user.userName} isOpen={cartDetailsOpen} />
+                  <CartChat
+                    cartId={selectedCart._id}
+                    userName={user.userName}
+                    isOpen={cartDetailsOpen}
+                  />
                 </Box>
               )}
             </DialogContent>
