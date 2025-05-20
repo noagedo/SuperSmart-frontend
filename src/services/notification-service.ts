@@ -339,7 +339,12 @@ class NotificationService {
 
   // Add this method to fetch cart price drops via API
   public getCartPriceDrops() {
-    return apiClient.get("/carts/price-drops");
+    // Get token from localStorage
+    const token = localStorage.getItem("token");
+    // Pass Authorization header if token exists
+    return apiClient.get("/carts/price-drops", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
   }
 }
 

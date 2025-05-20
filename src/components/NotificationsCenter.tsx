@@ -31,6 +31,8 @@ import notificationService, {
 } from "../services/notification-service";
 import { getStoreName } from "../utils/storeUtils";
 import { ShoppingBag, Trash2 } from "lucide-react";
+import useItems from "../hooks/useItems";
+import cartService from "../services/cart-service";
 
 const NotificationItem = styled(ListItemButton)(({ theme }) => ({
   borderRadius: "8px",
@@ -55,6 +57,8 @@ const NotificationsCenter: React.FC = () => {
   >([]);
   const { wishlist } = useWishlists(); // Get the single wishlist
   const { user } = useUsers();
+  const { items: allProducts } = useItems();
+  const [cartNames, setCartNames] = useState<Record<string, string>>({});
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<
@@ -66,6 +70,7 @@ const NotificationsCenter: React.FC = () => {
   const notifications = [...hookNotifications, ...mockNotifications];
 
   // Filter notifications by type
+  // FIX: Exclude cart notifications from wishlist tab
   const wishlistNotifications = notifications.filter(
     (n) => n.wishlistId && !n.cartId
   );
@@ -89,6 +94,9 @@ const NotificationsCenter: React.FC = () => {
 
     // Multi-level filtering:
     return notifications.filter((notification) => {
+      // Exclude cart notifications from wishlist tab!
+      if (notification.cartId) return false;
+
       // Check if notification is recent (within last 24 hours)
       const isRecent = new Date(notification.changeDate) >= oneDayAgo;
       if (!isRecent) {
@@ -126,9 +134,17 @@ const NotificationsCenter: React.FC = () => {
   const cartTabNotifications = React.useMemo(() => {
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-    return notifications.filter(
+    const filtered = notifications.filter(
       (n) => n.cartId && new Date(n.changeDate) >= oneDayAgo
     );
+    // Log cart notifications for debugging
+    console.log("🛒 [NotificationsCenter] Cart tab notifications:", filtered);
+    if (filtered.length === 0) {
+      console.warn(
+        "🛒 [DEBUG] No cart notifications to display in NotificationsCenter. If you expect cart notifications, check useNotifications state and backend."
+      );
+    }
+    return filtered;
   }, [notifications]);
 
   // Set badge count to include both types of notifications
@@ -198,6 +214,26 @@ const NotificationsCenter: React.FC = () => {
       socket.off("connect_error", onError);
     };
   }, []);
+
+  // Fetch cart names for mapping cartId -> cartName
+  useEffect(() => {
+    const fetchCartNames = async () => {
+      if (!user || !user._id) return;
+      try {
+        const { request } = cartService.getCartsByUser(user._id);
+        const response = await request;
+        const carts = response.data || [];
+        const names: Record<string, string> = {};
+        carts.forEach((cart: any) => {
+          if (cart._id) names[cart._id] = cart.name || "עגלה ללא שם";
+        });
+        setCartNames(names);
+      } catch (e) {
+        setCartNames({});
+      }
+    };
+    fetchCartNames();
+  }, [user]);
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -479,62 +515,98 @@ const NotificationsCenter: React.FC = () => {
                 </Typography>
               </MenuItem>
             ) : (
-              cartTabNotifications.map((notification) => (
-                <NotificationItem
-                  key={notification.id}
-                  sx={{ bgcolor: "rgba(25, 118, 210, 0.08)" }}
-                >
-                  <ListItemAvatar>
-                    <Avatar sx={{ bgcolor: "primary.main" }}>
-                      <ShoppingBag size={20} color="white" />
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={notification.productName}
-                    secondary={
-                      <Box sx={{ direction: "rtl" }}>
-                        <Typography variant="body2" display="block">
-                          מחיר חדש: {formatPrice(notification.newPrice)}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          display="block"
-                          sx={{
-                            textDecoration: "line-through",
-                            color: "text.secondary",
-                          }}
+              cartTabNotifications
+                // סנן התראות סכימה של cart-level עם מוצר אחד בלבד
+                .filter(
+                  (notification) =>
+                    !(
+                      notification.productName &&
+                      notification.productName.startsWith(
+                        "ירידת מחיר ב-1 מוצרים"
+                      )
+                    )
+                )
+                .map((notification) => {
+                  // מצא את המוצר המלא
+                  const product = allProducts?.find(
+                    (p) => p._id === notification.productId
+                  );
+                  // חשב אחוז ירידת מחיר
+                  const discount =
+                    notification.oldPrice && notification.newPrice
+                      ? Math.round(
+                          ((notification.oldPrice - notification.newPrice) /
+                            notification.oldPrice) *
+                            100
+                        )
+                      : null;
+                  // שם העגלה
+                  const cartName = notification.cartId
+                    ? cartNames[notification.cartId] || notification.cartId
+                    : "";
+
+                  return (
+                    <NotificationItem
+                      key={notification.id}
+                      sx={{ bgcolor: "rgba(25, 118, 210, 0.08)" }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar
+                          src={product?.image || notification.image}
+                          alt={notification.productName}
+                          sx={{ bgcolor: "primary.main" }}
+                          variant="rounded"
                         >
-                          מחיר קודם: {formatPrice(notification.oldPrice)}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="primary.main"
-                          sx={{ fontWeight: "bold" }}
-                        >
-                          חסכון:{" "}
-                          {calculateDiscount(
-                            notification.oldPrice,
-                            notification.newPrice
-                          )}
-                          %
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          בעגלה: {notification.cartId}
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dismissNotification(notification.id);
-                    }}
-                  >
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </NotificationItem>
-              ))
+                          <ShoppingBag size={20} color="white" />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={notification.productName}
+                        secondary={
+                          <React.Fragment>
+                            <Typography variant="body2" display="block">
+                              מחיר חדש: {formatPrice(notification.newPrice)}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              display="block"
+                              sx={{
+                                textDecoration: "line-through",
+                                color: "text.secondary",
+                              }}
+                            >
+                              מחיר קודם: {formatPrice(notification.oldPrice)}
+                            </Typography>
+                            {discount !== null && (
+                              <Typography
+                                variant="body2"
+                                color="primary.main"
+                                sx={{ fontWeight: "bold" }}
+                              >
+                                חסכון: {discount}%
+                              </Typography>
+                            )}
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              בעגלה: {cartName}
+                            </Typography>
+                          </React.Fragment>
+                        }
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissNotification(notification.id);
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </NotificationItem>
+                  );
+                })
             )}
           </>
         )}
