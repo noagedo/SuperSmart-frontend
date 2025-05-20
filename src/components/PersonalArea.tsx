@@ -46,7 +46,10 @@ import useItems from "../hooks/useItems";
 import { styled } from "@mui/material";
 import CartChat from "./CartChat";
 import useNotifications from "../hooks/useNotifications";
-import notificationService from "../services/notification-service"; // Ensure this is the correct path
+import notificationService, {
+  PriceDropNotification,
+} from "../services/notification-service"; // Ensure this is the correct path
+import ProductCard from "./ProductCard";
 
 interface PersonalAreaProps {
   user: User;
@@ -136,6 +139,11 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
   // Filter notifications for carts
   const cartNotifications = notifications.filter((n) => n.cartId);
+
+  // Add state for cart price drop notifications
+  const [cartPriceDropNotifications, setCartPriceDropNotifications] = useState<
+    PriceDropNotification[]
+  >([]);
 
   const handleSave = async () => {
     setUpdateError(null);
@@ -262,7 +270,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     if (myCarts.length > 0 && user) {
       console.log("Subscribing to cart notifications for user carts");
       myCarts.forEach((cart) => {
-        if (cart._id) {
+        if (typeof cart._id === "string" && cart._id) {
           notificationService.joinCartRoom(cart._id);
         }
       });
@@ -270,10 +278,77 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       // Update localStorage with latest cart IDs
       localStorage.setItem(
         "userCarts",
-        JSON.stringify(myCarts.map((c) => c._id))
+        JSON.stringify(
+          myCarts
+            .map((c) => c._id)
+            .filter((id): id is string => typeof id === "string" && !!id)
+        )
       );
     }
   }, [myCarts, user]);
+
+  // Fetch cart price drops (last 24 hours) on mount
+  useEffect(() => {
+    const fetchCartPriceDrops = async () => {
+      if (!user || !user._id) return;
+      try {
+        // Fetch all carts for the user
+        const { request } = cartService.getCartsByUser(user._id);
+        const responseCarts = await request;
+        const carts = responseCarts.data || [];
+
+        // Map productId -> cartId(s)
+        const productToCartIds: Record<string, string[]> = {};
+        carts.forEach((cart) => {
+          if (cart.items && typeof cart._id === "string" && cart._id) {
+            cart.items.forEach((item) => {
+              if (!productToCartIds[item.productId]) {
+                productToCartIds[item.productId] = [];
+              }
+              productToCartIds[item.productId].push(cart._id as string);
+            });
+          }
+        });
+
+        // Fetch price drops from API
+        const response = await notificationService.getCartPriceDrops();
+        const drops = Array.isArray(response.data) ? response.data : [];
+
+        // Only keep drops from last 24 hours
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+        // For each drop, create a notification for each cart it belongs to
+        const notifications: PriceDropNotification[] = [];
+        drops.forEach((drop: any) => {
+          const cartIds = productToCartIds[drop.productId] || [];
+          if (cartIds.length === 0) return;
+          cartIds.forEach((cartId) => {
+            if (drop.changeDate && new Date(drop.changeDate) < oneDayAgo)
+              return;
+            notifications.push({
+              ...drop,
+              cartId,
+              id:
+                new Date().getTime().toString() +
+                Math.random().toString(36).substring(2, 9),
+            });
+          });
+        });
+
+        setCartPriceDropNotifications(notifications);
+      } catch (error) {
+        console.error("Failed to fetch cart price drops:", error);
+      }
+    };
+
+    fetchCartPriceDrops();
+  }, [user]);
+
+  // Dismiss a cart notification
+  const dismissCartNotification = (id: string) => {
+    setCartPriceDropNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
 
   // Handle deleting a cart
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
@@ -475,6 +550,31 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     }
   };
 
+  // Add a helper to get price drops for a specific cart, including product details
+  const getCartPriceDropsForCart = (cartId: string) => {
+    // Combine both notification sources (socket + API)
+    const allCartNotifications = [
+      ...cartNotifications,
+      ...cartPriceDropNotifications,
+    ];
+    // Filter for this cart
+    return allCartNotifications
+      .filter((n) => n.cartId === cartId)
+      .map((notif) => {
+        // Try to enrich with product details if missing
+        if (!notif.productName || !notif.image) {
+          const product =
+            allProducts?.find((p) => p._id === notif.productId) || {};
+          return {
+            ...notif,
+            productName: notif.productName || (product as any).name || "",
+            image: notif.image || (product as any).image || "",
+          };
+        }
+        return notif;
+      });
+  };
+
   return (
     <Box
       sx={{
@@ -671,7 +771,6 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         </Box>
       </Paper>
 
-      {/* Saved Carts Section */}
       <Paper
         elevation={3}
         sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
@@ -732,109 +831,102 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                     </Typography>
                   </SectionHeader>
                   <Grid container spacing={3} sx={{ mb: 4 }}>
-                    {myCarts.map((cart) => (
-                      <Grid item xs={12} md={6} key={cart._id}>
-                        <Card
-                          sx={{
-                            cursor: "pointer",
-                            transition: "transform 0.2s, box-shadow 0.2s",
-                            "&:hover": {
-                              transform: "translateY(-4px)",
-                              boxShadow: 4,
-                            },
-                            height: "100%",
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-                          onClick={() => handleViewCartDetails(cart)}
-                        >
-                          <CardContent sx={{ flexGrow: 1 }}>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                mb: 2,
-                              }}
-                            >
-                              <Typography
-                                variant="h6"
-                                sx={{ fontWeight: 600, color: "#16a34a" }}
+                    {myCarts.map((cart) => {
+                      // Get price drop notifications for this cart
+                      const drops = getCartPriceDropsForCart(cart._id!);
+                      return (
+                        <Grid item xs={12} md={6} key={cart._id}>
+                          <Card
+                            sx={{
+                              cursor: "pointer",
+                              transition: "transform 0.2s, box-shadow 0.2s",
+                              "&:hover": {
+                                transform: "translateY(-4px)",
+                                boxShadow: 4,
+                              },
+                              height: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                            onClick={() => handleViewCartDetails(cart)}
+                          >
+                            <CardContent sx={{ flexGrow: 1 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  mb: 2,
+                                }}
                               >
-                                {cart.name || "עגלה ללא שם"}
-                              </Typography>
-                              <Box>
-                                <Tooltip title="שתף עגלה">
-                                  <IconButton
+                                <Typography
+                                  variant="h6"
+                                  sx={{ fontWeight: 600, color: "#16a34a" }}
+                                >
+                                  {cart.name || "עגלה ללא שם"}
+                                </Typography>
+                                <Box>
+                                  <Tooltip title="שתף עגלה">
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedCartForShare(cart);
+                                        setShareDialogOpen(true);
+                                      }}
+                                      sx={{
+                                        color: "#16a34a",
+                                        mr: 1,
+                                      }}
+                                    >
+                                      <Share2 size={18} />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Button
                                     size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedCartForShare(cart);
-                                      setShareDialogOpen(true);
-                                    }}
+                                    variant="outlined"
                                     sx={{
                                       color: "#16a34a",
+                                      borderColor: "#16a34a",
+                                      "&:hover": {
+                                        bgcolor: "rgba(22, 163, 74, 0.04)",
+                                        borderColor: "#15803d",
+                                      },
                                       mr: 1,
                                     }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/edit-cart/${cart._id}`);
+                                    }}
                                   >
-                                    <Share2 size={18} />
+                                    ערוך
+                                  </Button>
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={(e) =>
+                                      handleDeleteCart(cart._id!, e)
+                                    }
+                                    sx={{
+                                      "&:hover": {
+                                        bgcolor: "rgba(211, 47, 47, 0.1)",
+                                      },
+                                    }}
+                                  >
+                                    <Trash2 size={18} />
                                   </IconButton>
-                                </Tooltip>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{
-                                    color: "#16a34a",
-                                    borderColor: "#16a34a",
-                                    "&:hover": {
-                                      bgcolor: "rgba(22, 163, 74, 0.04)",
-                                      borderColor: "#15803d",
-                                    },
-                                    mr: 1,
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/edit-cart/${cart._id}`);
-                                  }}
-                                >
-                                  ערוך
-                                </Button>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={(e) =>
-                                    handleDeleteCart(cart._id!, e)
-                                  }
-                                  sx={{
-                                    "&:hover": {
-                                      bgcolor: "rgba(211, 47, 47, 0.1)",
-                                    },
-                                  }}
-                                >
-                                  <Trash2 size={18} />
-                                </IconButton>
+                                </Box>
                               </Box>
-                            </Box>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ mb: 1 }}
-                            >
-                              נוצר: {formatDate(cart.createdAt)}
-                            </Typography>
-                            <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-                              <Chip
-                                label={`${cart.items?.length || 0} פריטים`}
-                                size="small"
-                                sx={{
-                                  bgcolor: "rgba(22, 163, 74, 0.1)",
-                                  color: "#16a34a",
-                                  fontWeight: 600,
-                                }}
-                              />
-                              {cart.participants.length > 0 && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 1 }}
+                              >
+                                נוצר: {formatDate(cart.createdAt)}
+                              </Typography>
+                              <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                                 <Chip
-                                  label={`${cart.participants.length} משתתפים`}
+                                  label={`${cart.items?.length || 0} פריטים`}
                                   size="small"
                                   sx={{
                                     bgcolor: "rgba(22, 163, 74, 0.1)",
@@ -842,104 +934,115 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                                     fontWeight: 600,
                                   }}
                                 />
-                              )}
-                            </Box>
-                            {cart.participants.length > 0 && (
-                              <Box sx={{ mb: 2 }}>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{ mb: 1 }}
-                                >
-                                  משתתפים:
-                                </Typography>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    flexWrap: "wrap",
-                                    gap: 1,
-                                  }}
-                                >
-                                  {cart.participants.map((participant) => (
-                                    <Chip
-                                      key={participant}
-                                      label={participant}
-                                      size="small"
-                                      onDelete={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedCartForShare(cart);
-                                        setSelectedParticipant(participant);
-                                        setRemoveDialogOpen(true);
-                                      }}
-                                      deleteIcon={<UserMinus size={14} />}
-                                      sx={{
-                                        bgcolor: "rgba(22, 163, 74, 0.05)",
-                                        borderColor: "rgba(22, 163, 74, 0.2)",
-                                        border: "1px solid",
-                                      }}
-                                    />
-                                  ))}
-                                </Box>
+                                {cart.participants.length > 0 && (
+                                  <Chip
+                                    label={`${cart.participants.length} משתתפים`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(22, 163, 74, 0.1)",
+                                      color: "#16a34a",
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                )}
                               </Box>
-                            )}
-                            <Box
-                              sx={{
-                                display: "flex",
-                                justifyContent: "flex-end",
-                                mt: 2,
-                              }}
-                            >
-                              <Button
-                                size="small"
-                                endIcon={<ArrowRight size={16} />}
-                                sx={{ color: "#16a34a" }}
+                              {cart.participants.length > 0 && (
+                                <Box sx={{ mb: 2 }}>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mb: 1 }}
+                                  >
+                                    משתתפים:
+                                  </Typography>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      flexWrap: "wrap",
+                                      gap: 1,
+                                    }}
+                                  >
+                                    {cart.participants.map((participant) => (
+                                      <Chip
+                                        key={participant}
+                                        label={participant}
+                                        size="small"
+                                        onDelete={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedCartForShare(cart);
+                                          setSelectedParticipant(participant);
+                                          setRemoveDialogOpen(true);
+                                        }}
+                                        deleteIcon={<UserMinus size={14} />}
+                                        sx={{
+                                          bgcolor: "rgba(22, 163, 74, 0.05)",
+                                          borderColor: "rgba(22, 163, 74, 0.2)",
+                                          border: "1px solid",
+                                        }}
+                                      />
+                                    ))}
+                                  </Box>
+                                </Box>
+                              )}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "flex-end",
+                                  mt: 2,
+                                }}
                               >
-                                צפה בפרטים
-                              </Button>
-                            </Box>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                mt: 2,
-                              }}
-                            >
-                              <Tooltip
-                                title={
-                                  cart.notifications
-                                    ? "כבה התראות"
-                                    : "הפעל התראות"
-                                }
-                              >
-                                <IconButton
+                                <Button
                                   size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleToggleNotifications(cart);
-                                  }}
-                                  sx={{
-                                    color: cart.notifications
-                                      ? "#16a34a"
-                                      : "text.secondary",
-                                    "&:hover": {
-                                      bgcolor: cart.notifications
-                                        ? "rgba(22, 163, 74, 0.04)"
-                                        : "rgba(0, 0, 0, 0.04)",
-                                    },
-                                  }}
+                                  endIcon={<ArrowRight size={16} />}
+                                  sx={{ color: "#16a34a" }}
                                 >
-                                  {cart.notifications ? (
-                                    <Bell size={18} />
-                                  ) : (
-                                    <BellOff size={18} />
-                                  )}
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
+                                  צפה בפרטים
+                                </Button>
+                              </Box>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  mt: 2,
+                                }}
+                              >
+                                <Tooltip
+                                  title={
+                                    cart.notifications
+                                      ? "כבה התראות"
+                                      : "הפעל התראות"
+                                  }
+                                >
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleNotifications(cart);
+                                    }}
+                                    sx={{
+                                      color: cart.notifications
+                                        ? "#16a34a"
+                                        : "text.secondary",
+                                      "&:hover": {
+                                        bgcolor: cart.notifications
+                                          ? "rgba(22, 163, 74, 0.04)"
+                                          : "rgba(0, 0, 0, 0.04)",
+                                      },
+                                    }}
+                                  >
+                                    {cart.notifications ? (
+                                      <Bell size={18} />
+                                    ) : (
+                                      <BellOff size={18} />
+                                    )}
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      );
+                    })}
                   </Grid>
                 </>
               )}
@@ -1051,56 +1154,6 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         </Box>
       </Paper>
 
-      {/* Cart Notifications Section */}
-      {cartNotifications.length > 0 && (
-        <Paper
-          elevation={3}
-          sx={{
-            maxWidth: 800,
-            mx: "auto",
-            borderRadius: 3,
-            overflow: "hidden",
-            mt: 4,
-          }}
-        >
-          <Box
-            sx={{
-              bgcolor: "#16a34a",
-              p: 3,
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-            }}
-          >
-            <ShoppingBag size={32} color="white" />
-            <Typography variant="h5" sx={{ color: "white", fontWeight: 700 }}>
-              התראות על ירידת מחירים בעגלות
-            </Typography>
-          </Box>
-
-          <List>
-            {cartNotifications.map((notification) => (
-              <ListItem key={notification.id} divider>
-                <ListItemText
-                  primary={`המוצר ${
-                    notification.productName
-                  } ירד במחיר מ-₪${notification.oldPrice.toFixed(
-                    2
-                  )} ל-₪${notification.newPrice.toFixed(2)}`}
-                  secondary={`עגלה: ${notification.cartId}`}
-                />
-                <IconButton
-                  edge="end"
-                  onClick={() => dismissNotification(notification.id)}
-                >
-                  <Trash2 size={18} />
-                </IconButton>
-              </ListItem>
-            ))}
-          </List>
-        </Paper>
-      )}
-
       {/* Cart Details Dialog */}
       <Dialog
         open={cartDetailsOpen}
@@ -1127,61 +1180,36 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                   <CircularProgress size={30} color="primary" />
                 </Box>
               ) : (
-                <List sx={{ bgcolor: "#f8fafc", borderRadius: 2 }}>
+                // Show product cards instead of List
+                <Grid container spacing={2}>
                   {cartItemsWithDetails.length > 0 ? (
-                    cartItemsWithDetails.map((item, index) => (
-                      <ListItem
-                        key={index}
-                        divider={index < cartItemsWithDetails.length - 1}
-                        alignItems="flex-start"
-                      >
-                        {item.image && (
-                          <Box
-                            component="img"
-                            src={
-                              item.image ||
-                              "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"
-                            }
-                            alt={item.productName || `מוצר #${index + 1}`}
-                            sx={{
-                              width: 60,
-                              height: 60,
-                              borderRadius: 1.5,
-                              objectFit: "cover",
-                              mr: 2,
-                              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                              border: "1px solid rgba(22,163,74,0.2)",
-                            }}
+                    cartItemsWithDetails.map((item, index) => {
+                      // Try to find the full product object for this item
+                      const product = allProducts?.find(
+                        (p) => p._id === item.productId
+                      );
+                      if (!product) return null;
+                      return (
+                        <Grid
+                          item
+                          xs={12}
+                          sm={6}
+                          md={4}
+                          key={item.productId || index}
+                        >
+                          <ProductCard
+                            product={product}
+                            onAddToCart={() => {}} // Optional: implement add to cart if needed
                           />
-                        )}
-                        <ListItemText
-                          primary={item.productName || `מוצר #${index + 1}`}
-                          secondary={
-                            <Box>
-                              <Typography variant="body2">
-                                כמות: {item.quantity || 1}
-                              </Typography>
-                              {item.category && (
-                                <Typography variant="body2">
-                                  קטגוריה: {item.category}
-                                </Typography>
-                              )}
-                              {item.price !== undefined && (
-                                <Typography variant="body2">
-                                  מחיר: ₪{item.price.toFixed(2)}
-                                </Typography>
-                              )}
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    ))
+                        </Grid>
+                      );
+                    })
                   ) : (
-                    <ListItem>
-                      <ListItemText primary="אין לך עגלות שמורות עדיין" />
-                    </ListItem>
+                    <Grid item xs={12}>
+                      <Alert severity="info">אין לך עגלות שמורות עדיין</Alert>
+                    </Grid>
                   )}
-                </List>
+                </Grid>
               )}
 
               {/* Cart Chat Section */}

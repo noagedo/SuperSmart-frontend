@@ -43,6 +43,27 @@ const useNotifications = () => {
     [user, wishlist]
   );
 
+  // Helper: Add only unique notifications (by productId+cartId+wishlistId+storeId+newPrice)
+  function addUniqueNotifications<T extends PriceDropNotification>(
+    prev: T[],
+    newNotifs: T[]
+  ): T[] {
+    return [
+      ...prev,
+      ...newNotifs.filter(
+        (newNotif) =>
+          !prev.some(
+            (n) =>
+              n.productId === newNotif.productId &&
+              n.cartId === newNotif.cartId &&
+              n.wishlistId === newNotif.wishlistId &&
+              n.storeId === newNotif.storeId &&
+              Math.abs(n.newPrice - newNotif.newPrice) < 0.01
+          )
+      ),
+    ];
+  }
+
   // Setup notification listener for real-time updates (wishlist + cart)
   useEffect(() => {
     console.log("Setting up unified notification listener");
@@ -52,6 +73,12 @@ const useNotifications = () => {
         console.log("Ignoring notification - no user logged in");
         return;
       }
+
+      // Log every incoming notification for debugging
+      console.log(
+        "🔔 [handlePriceDrop] Received price-drop notification:",
+        notification
+      );
 
       setNotifications((prev) => {
         // Wishlist notification (wishlistId) or cart notification (cartId)
@@ -70,7 +97,17 @@ const useNotifications = () => {
                 n.wishlistId === notification.wishlistId
             );
 
-        if (isDuplicate) return prev;
+        if (isDuplicate) {
+          console.log(
+            "🔔 [handlePriceDrop] Duplicate notification skipped:",
+            notification
+          );
+          return prev;
+        }
+        console.log(
+          "🔔 [handlePriceDrop] Adding notification to state:",
+          notification
+        );
         return [...prev, notification];
       });
     };
@@ -144,62 +181,220 @@ const useNotifications = () => {
     };
   }, [user]);
 
+  useEffect(() => {
+    const fetchCartPriceDrops = async () => {
+      try {
+        if (!user || !user._id) return;
+
+        console.log(
+          "🔔 [Cart Drops] Fetching cart price drops for user:",
+          user._id
+        );
+
+        // Fetch all carts for the user to map productId -> cartId(s)
+        const { request } = cartService.getCartsByUser(user._id);
+        const responseCarts = await request;
+        const carts = responseCarts.data || [];
+        console.log("🔔 [Cart Drops] User carts:", carts);
+
+        // Log all products in all carts
+        carts.forEach((cart) => {
+          if (Array.isArray(cart.items)) {
+            console.log(
+              `🛒 Cart "${cart.name || cart._id}" contains products:`,
+              cart.items.map((i) => i.productId)
+            );
+          }
+        });
+
+        // Map productId -> cartId(s)
+        const productToCartIds: Record<string, string[]> = {};
+        carts.forEach((cart) => {
+          if (
+            Array.isArray(cart.items) &&
+            typeof cart._id === "string" &&
+            cart._id
+          ) {
+            cart.items.forEach((item) => {
+              if (!item || !item.productId) {
+                console.warn(
+                  "🔔 [Cart Drops] Skipping invalid cart item:",
+                  item,
+                  "in cart",
+                  cart
+                );
+                return;
+              }
+              if (!productToCartIds[item.productId]) {
+                productToCartIds[item.productId] = [];
+              }
+              productToCartIds[item.productId].push(cart._id as string);
+            });
+          } else {
+            console.warn(
+              "🔔 [Cart Drops] Cart has no items or invalid _id:",
+              cart
+            );
+          }
+        });
+        console.log("🔔 [Cart Drops] productToCartIds:", productToCartIds);
+
+        // Fetch cart price drops from the API
+        const response = await notificationService.getCartPriceDrops();
+        const drops = Array.isArray(response.data) ? response.data : [];
+        console.log("🔔 [Cart Drops] Raw drops from API:", drops);
+
+        // Only keep drops from last 24 hours
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+        // For each cart, check if any of its products had a price drop and create a cart-level notification
+        const cartLevelDrops: PriceDropNotification[] = [];
+        carts.forEach((cart) => {
+          if (!Array.isArray(cart.items) || !cart._id) return;
+          // Find all drops for products in this cart
+          const dropsForCart = drops.filter((drop: any) =>
+            cart.items.some((item: any) => item.productId === drop.productId)
+          );
+          // אל תיצור התראת סכימה אם יש רק מוצר אחד
+          if (dropsForCart.length <= 1) return;
+          const products = dropsForCart
+            .map((drop: any) => drop.productName)
+            .join(", ");
+          const notification: PriceDropNotification = {
+            id:
+              new Date().getTime().toString() +
+              Math.random().toString(36).substring(2, 9),
+            cartId: cart._id,
+            productId: "",
+            productName: `ירידת מחיר ב-${dropsForCart.length} מוצרים: ${products}`,
+            oldPrice: 0,
+            newPrice: 0,
+            storeId: "",
+            changeDate: new Date(),
+            image: "",
+            wishlistId: "",
+            wishlistName: "",
+          };
+          cartLevelDrops.push(notification);
+        });
+
+        // Add cart-level notifications to state (avoid duplicates)
+        setNotifications((prev) =>
+          addUniqueNotifications(prev, cartLevelDrops)
+        );
+      } catch (error) {
+        console.error(
+          "❌ [Cart Drops] Failed to fetch cart price drops:",
+          error
+        );
+      }
+    };
+
+    fetchCartPriceDrops();
+  }, [user]);
+
   // Fetch cart price drops via API on mount (for persistence after refresh)
   useEffect(() => {
     const fetchCartPriceDrops = async () => {
       try {
         if (!user || !user._id) return;
-        // שלוף את כל העגלות של המשתמש
+
+        console.log(
+          "🔔 [Cart Drops] Fetching cart price drops for user:",
+          user._id
+        );
+
+        // Fetch all carts for the user to map productId -> cartId(s)
         const { request } = cartService.getCartsByUser(user._id);
         const responseCarts = await request;
         const carts = responseCarts.data || [];
+        console.log("🔔 [Cart Drops] User carts:", carts);
 
-        // צור מפה productId -> cartId (יכול להיות מוצר בכמה עגלות)
+        // Map productId -> cartId(s)
         const productToCartIds: Record<string, string[]> = {};
         carts.forEach((cart) => {
-          if (cart.items && cart._id) {
+          if (
+            Array.isArray(cart.items) &&
+            typeof cart._id === "string" &&
+            cart._id
+          ) {
             cart.items.forEach((item) => {
+              if (!item || !item.productId) {
+                console.warn(
+                  "🔔 [Cart Drops] Skipping invalid cart item:",
+                  item,
+                  "in cart",
+                  cart
+                );
+                return;
+              }
               if (!productToCartIds[item.productId]) {
                 productToCartIds[item.productId] = [];
               }
-              if (cart._id) {
-                productToCartIds[item.productId].push(cart._id);
-              }
+              productToCartIds[item.productId].push(cart._id as string);
             });
+          } else {
+            console.warn(
+              "🔔 [Cart Drops] Cart has no items or invalid _id:",
+              cart
+            );
           }
         });
+        console.log("🔔 [Cart Drops] productToCartIds:", productToCartIds);
 
-        // שלוף price drops מה-API
+        // Fetch cart price drops from the API
         const response = await notificationService.getCartPriceDrops();
-        const cartDrops = Array.isArray(response.data)
-          ? response.data.flatMap((drop: any) => {
-              // לכל מוצר, הוסף התראה עבור כל עגלה שהוא נמצא בה
-              const cartIds = productToCartIds[drop.productId] || [];
-              if (cartIds.length === 0) return [];
-              return cartIds.map((cartId) => ({
-                ...drop,
-                cartId,
-                id:
-                  new Date().getTime().toString() +
-                  Math.random().toString(36).substring(2, 9),
-              }));
-            })
-          : [];
-        // הימנע מכפילויות
-        setNotifications((prev) => [
-          ...prev,
-          ...cartDrops.filter(
-            (newNotif) =>
-              !prev.some(
-                (n) =>
-                  n.productId === newNotif.productId &&
-                  n.cartId === newNotif.cartId &&
-                  Math.abs(n.newPrice - newNotif.newPrice) < 0.01
-              )
-          ),
-        ]);
+        const drops = Array.isArray(response.data) ? response.data : [];
+        console.log("🔔 [Cart Drops] Raw drops from API:", drops);
+
+        // Only keep drops from last 24 hours
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+        // For each drop, create a notification for each cart it belongs to
+        const cartDrops: PriceDropNotification[] = [];
+        drops.forEach((drop: any) => {
+          const cartIds = productToCartIds[drop.productId] || [];
+          if (cartIds.length === 0) {
+            console.log("🔔 [Cart Drops] Drop with no matching cart:", drop);
+            return;
+          }
+          cartIds.forEach((cartId) => {
+            if (drop.changeDate && new Date(drop.changeDate) < oneDayAgo) {
+              console.log("🔔 [Cart Drops] Drop too old:", drop);
+              return;
+            }
+            // Always set wishlistId and wishlistName to empty for cart notifications
+            const cartNotification: PriceDropNotification = {
+              ...drop,
+              cartId,
+              id:
+                new Date().getTime().toString() +
+                Math.random().toString(36).substring(2, 9),
+              wishlistId: "", // <-- force empty for cart notifications
+              wishlistName: "", // <-- force empty for cart notifications
+            };
+            console.log(
+              "🔔 [Cart Drops] Creating cart notification:",
+              cartNotification
+            );
+            cartDrops.push(cartNotification);
+          });
+        });
+
+        console.log(
+          "🔔 [Cart Drops] Final cartDrops notifications:",
+          cartDrops
+        );
+
+        // Avoid duplicates
+        setNotifications((prev) => addUniqueNotifications(prev, cartDrops));
       } catch (error) {
-        console.error("Failed to fetch cart price drops:", error);
+        console.error(
+          "❌ [Cart Drops] Failed to fetch cart price drops:",
+          error
+        );
       }
     };
 
@@ -302,7 +497,7 @@ const useNotifications = () => {
                     )
                 );
 
-                return [...prev, ...newChanges];
+                return addUniqueNotifications(prev, newChanges);
               });
             }
           } else {
@@ -480,7 +675,7 @@ const useNotifications = () => {
                   )
               );
 
-              return [...prev, ...newChanges];
+              return addUniqueNotifications(prev, newChanges);
             });
           }
         } else {
@@ -630,7 +825,7 @@ const useNotifications = () => {
           )
       );
 
-      return [...prev, ...uniqueNewChanges];
+      return addUniqueNotifications(prev, uniqueNewChanges);
     });
   };
 
@@ -643,6 +838,50 @@ const useNotifications = () => {
   const dismissAllNotifications = () => {
     setNotifications([]);
   };
+
+  // Add log to see all notifications in state, and split by type
+  useEffect(() => {
+    const wishlistNotifs = notifications.filter(
+      (n) => n.wishlistId && !n.cartId
+    );
+    const cartNotifs = notifications.filter((n) => n.cartId);
+    console.log("🔔 [All Notifications in useNotifications]:", notifications);
+    console.log("⭐ [Wishlist Notifications]:", wishlistNotifs);
+    console.log("🛒 [Cart Notifications]:", cartNotifs);
+    // Extra: log cart notifications for debugging NotificationsCenter
+    if (cartNotifs.length === 0) {
+      console.warn(
+        "🛒 [DEBUG] No cart notifications in state. If you expect cart notifications, check that:"
+      );
+      console.warn("- The backend sends notifications with cartId");
+      console.warn(
+        "- The frontend receives and stores notifications with cartId"
+      );
+      console.warn("- The cartId matches your user's carts");
+    }
+  }, [notifications]);
+
+  // --- FIX: Filter out cart notifications from wishlist tab and prevent duplicates ---
+  // Helper: Add only unique notifications (by productId+cartId+wishlistId+storeId+newPrice)
+
+  // Replace all setNotifications([...prev, ...newNotifs]) with addUniqueNotifications(prev, newNotifs)
+  // Example for cart notifications:
+  // setNotifications((prev) => [
+  //   ...prev,
+  //   ...cartDrops.filter(...),
+  // ]);
+  // =>
+  // setNotifications((prev) => addUniqueNotifications(prev, cartDrops));
+
+  // --- Replace in both cart-level and drop-level notifications ---
+  // In all setNotifications for cart drops:
+  // ...existing code...
+  // ...existing code...
+  // ...existing code...
+
+  // --- When filtering for wishlist notifications, exclude those with cartId ---
+  // (This is already done in NotificationsCenter, but if you use filteredNotifications elsewhere, ensure this logic)
+  // ...existing code...
 
   return {
     notifications,
