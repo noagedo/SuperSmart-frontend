@@ -1214,21 +1214,51 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
               {/* Cart Chat Section */}
               {selectedCart && selectedCart._id && (
-                <Box
-                  sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0,0,0,0.12)" }}
-                >
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 600, mb: 2 }}
-                  >
-                    שיחות על העגלה:
-                  </Typography>
-                  <CartChat
-                    cartId={selectedCart._id}
-                    userName={user.userName}
-                    isOpen={cartDetailsOpen}
-                  />
-                </Box>
+                <>
+                  {selectedCart.participants && selectedCart.participants.length > 0 ? (
+                    <Box
+                      sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0,0,0,0.12)" }}
+                    >
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: 600, mb: 2 }}
+                      >
+                        שיחות על העגלה:
+                      </Typography>
+                      <CartChat
+                        cartId={selectedCart._id}
+                        userName={user.userName}
+                        isOpen={cartDetailsOpen}
+                      />
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{ 
+                        mt: 4, 
+                        pt: 3, 
+                        borderTop: "1px solid rgba(0,0,0,0.12)",
+                        textAlign: "center",
+                        color: "text.secondary"
+                      }}
+                    >
+                      <Typography variant="body1">
+                        צ'אט זמין רק בעגלות משותפות
+                      </Typography>
+                      <Button 
+                        startIcon={<Share2 size={16} />}
+                        sx={{ mt: 1, color: "#16a34a" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCartForShare(selectedCart);
+                          setShareDialogOpen(true);
+                          setCartDetailsOpen(false);
+                        }}
+                      >
+                        שתף עגלה זו כדי להפעיל צ'אט
+                      </Button>
+                    </Box>
+                  )}
+                </>
               )}
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
