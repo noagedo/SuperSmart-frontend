@@ -107,6 +107,7 @@ const WishlistDetail: React.FC = () => {
         _id: product._id,
         name: product.name,
         category: product.category,
+         nutrition: product.nutrition,
         storePrices: product.storePrices,
         quantity: 1,
         selectedStorePrice: {
