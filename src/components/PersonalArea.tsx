@@ -50,6 +50,7 @@ import notificationService, {
   PriceDropNotification,
 } from "../services/notification-service"; // Ensure this is the correct path
 import ProductCard from "./ProductCard";
+import CartEmailSender from "./CartEmailSender";
 
 interface PersonalAreaProps {
   user: User;
@@ -866,6 +867,26 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                                   {cart.name || "עגלה ללא שם"}
                                 </Typography>
                                 <Box>
+                                  {/* Add the cart email sender here */}
+                                  <Tooltip title="שלח עגלה למייל">
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Prevent card click
+                                      }}
+                                      sx={{
+                                        color: "#16a34a",
+                                        mr: 1,
+                                      }}
+                                    >
+                                      <CartEmailSender
+                                        savedCart={cart}
+                                        size={18}
+                                        hideTooltip={true}
+                                        onlyIcon={true}
+                                      />
+                                    </IconButton>
+                                  </Tooltip>
                                   <Tooltip title="שתף עגלה">
                                     <IconButton
                                       size="small"
@@ -1090,25 +1111,47 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                               >
                                 {cart.name || "עגלה ללא שם"}
                               </Typography>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                sx={{
-                                  color: "#16a34a",
-                                  borderColor: "#16a34a",
-                                  "&:hover": {
-                                    bgcolor: "rgba(22, 163, 74, 0.04)",
-                                    borderColor: "#15803d",
-                                  },
-                                  mr: 1,
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/edit-cart/${cart._id}`);
-                                }}
-                              >
-                                ערוך
-                              </Button>
+                              <Box>
+                                {/* Add the cart email sender here */}
+                                <Tooltip title="שלח עגלה למייל">
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent card click
+                                    }}
+                                    sx={{
+                                      color: "#16a34a",
+                                      mr: 1,
+                                    }}
+                                  >
+                                    <CartEmailSender
+                                      savedCart={cart}
+                                      size={18}
+                                      hideTooltip={true}
+                                      onlyIcon={true}
+                                    />
+                                  </IconButton>
+                                </Tooltip>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    color: "#16a34a",
+                                    borderColor: "#16a34a",
+                                    "&:hover": {
+                                      bgcolor: "rgba(22, 163, 74, 0.04)",
+                                      borderColor: "#15803d",
+                                    },
+                                    mr: 1,
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/edit-cart/${cart._id}`);
+                                  }}
+                                >
+                                  ערוך
+                                </Button>
+                              </Box>
                             </Box>
                             <Typography
                               variant="body2"

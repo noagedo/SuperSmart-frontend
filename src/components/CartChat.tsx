@@ -363,7 +363,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
         <Box
           ref={chatContainerRef}
           sx={{
-            height: 350, // Increased from maxHeight: 250
+            height: 250, // Increased from maxHeight: 250
             overflowY: "auto",
             mb: 2,
             bgcolor: "#ffffff",
