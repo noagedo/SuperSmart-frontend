@@ -148,17 +148,18 @@ function ProductList() {
           ) {
             const firstPrice = firstStorePrice.prices[0];
             addItemToCart({
-              _id: productToAdd._id,
-              name: productToAdd.name,
-              category: productToAdd.category,
-              storePrices: productToAdd.storePrices,
-              quantity: newItem.quantity,
-              selectedStorePrice: {
-                storeId: firstStorePrice.storeId,
-                price: firstPrice.price ?? 0,
-              },
-              image: productToAdd.image,
-            });
+                          _id: productToAdd._id,
+                          name: productToAdd.name,
+                          category: productToAdd.category,
+                          nutrition: productToAdd.nutrition,
+                          storePrices: productToAdd.storePrices,
+                          quantity: newItem.quantity,
+                          selectedStorePrice: {
+                            storeId: firstStorePrice.storeId,
+                            price: firstPrice.price ?? 0,
+                          },
+                          image: productToAdd.image,
+                        });
           }
         }
       });
@@ -178,6 +179,7 @@ function ProductList() {
       _id: product._id,
       name: product.name,
       category: product.category,
+      nutrition: product.nutrition,
       storePrices: product.storePrices,
       quantity: 1,
       selectedStorePrice: storePrice,

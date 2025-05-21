@@ -76,11 +76,12 @@ const WishlistsPage: React.FC = () => {
         _id: product._id,
         name: product.name,
         category: product.category,
+         nutrition: product.nutrition,
         storePrices: product.storePrices,
         quantity: 1,
         selectedStorePrice: {
           storeId: firstStorePrice.storeId,
-          price: firstPrice.price ?? 0,
+          price: firstPrice.price ?? 0
         },
         image: product.image,
       });

@@ -3,6 +3,17 @@ import createHttpService from "./http-service";
 
 export { CanceledError };
 
+export interface NutritionInfo {
+  protein: number;
+  fat: number;
+  carbs: number;
+  calories: number;
+  sodium: number;
+  calcium: number | null;
+  vitamin_c: number | null;
+  cholesterol: number;
+}
+
 export interface Price {
   date?: string; // תאריך בפורמט ISO
   data?: string; // Alternative field name found in the database
@@ -23,6 +34,7 @@ export interface Item {
   image?: string;
   code?: string;
   barcode?: string;
+  nutrition: NutritionInfo;
 }
 
 export interface CartItem extends Item {

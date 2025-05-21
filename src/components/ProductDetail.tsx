@@ -14,6 +14,9 @@ import {
   CircularProgress,
   Alert,
   IconButton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -31,6 +34,7 @@ import PriceChart from "./PriceChart";
 import { Item, StorePrice } from "../services/item-service";
 import itemService from "../services/item-service"; 
 import { gql } from "@apollo/client";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 const GET_STORE_BY_ID = gql`
   query GetStoreById($storeId: ID!) {
@@ -115,6 +119,7 @@ const ProductDetails = () => {
       _id: product._id,
       name: product.name,
       category: product.category,
+      nutrition: product.nutrition,
       storePrices: product.storePrices,
       quantity: 1,
       selectedStorePrice: lowestPriceOption,
@@ -131,6 +136,7 @@ const ProductDetails = () => {
       _id: product._id,
       name: product.name,
       category: product.category,
+       nutrition: product.nutrition,
       storePrices: product.storePrices,
       quantity: 1,
       selectedStorePrice: storePrice,
@@ -167,6 +173,25 @@ const ProductDetails = () => {
     }
   };
 
+  // Helper function to check if nutrition data exists and is meaningful
+  const hasNutritionData = (() => {
+    if (!product?.nutrition) return false;
+    
+    // If it's a string, check if it's non-empty
+    if (typeof product.nutrition === "string") {
+      return (product.nutrition as string).trim() !== "";
+    }
+    
+    // If it's an object, check if it has any meaningful values
+    if (typeof product.nutrition === "object") {
+      return Object.entries(product.nutrition).some(
+        ([key, value]) => value !== null && value !== undefined && value !== ""
+      );
+    }
+    
+    return false;
+  })();
+  
   if (isLoading) {
     return (
       <Box
@@ -486,6 +511,80 @@ const ProductDetails = () => {
                   <Alert severity="error" sx={{ mt: 2 }}>
                     {predictionError}
                   </Alert>
+                )}
+                
+                {/* Nutrition Section */}
+                {hasNutritionData && (
+                  <Accordion
+                    sx={{
+                      mt: 3,
+                      mb: 2,
+                      bgcolor: "#f9fafb",
+                      borderRadius: 2, 
+                      border: "1px solid #e2e8f0",
+                      boxShadow: 1,
+                      overflow: "hidden"
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon sx={{ color: "#16a34a" }} />}
+                      aria-controls="nutrition-content"
+                      id="nutrition-header"
+                      sx={{
+                        flexDirection: "row-reverse",
+                        "& .MuiAccordionSummary-content": { marginLeft: 1 },
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <BarChart2 size={40} color="#16a34a" style={{ marginLeft: 8 }} />
+                        <Typography variant="h6" sx={{ color: "#16a34a", fontWeight: 700 }}>
+                          ערכים תזונתיים
+                        </Typography>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {typeof product.nutrition === "string" ? (
+                        <Typography variant="body2" sx={{ whiteSpace: "pre-line", color: "text.secondary", px: 1 }}>
+                          {product.nutrition}
+                        </Typography>
+                      ) : (
+                        <Box sx={{ overflowX: "auto" }}>
+                          <Box
+                            component="table"
+                            sx={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                              background: "#fff",
+                              borderRadius: 1,
+                              boxShadow: 0,
+                              mt: 1,
+                            }}
+                          >
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: "right", color: "#16a34a", fontWeight: 600, padding: 8, borderBottom: "1px solid #e0e0e0" }}>רכיב</th>
+                                <th style={{ textAlign: "right", color: "#16a34a", fontWeight: 600, padding: 8, borderBottom: "1px solid #e0e0e0" }}>ערך</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(product.nutrition)
+                                .filter(([key, value]) => value !== null && value !== undefined && value !== "")
+                                .map(([key, value]) => (
+                                  <tr key={key}>
+                                    <td style={{ padding: 8, borderBottom: "1px solid #f0f0f0", color: "#374151" }}>
+                                      {key}
+                                    </td>
+                                    <td style={{ padding: 8, borderBottom: "1px solid #f0f0f0", color: "#374151" }}>
+                                      {value}
+                                    </td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </Box>
+                        </Box>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
                 )}
               </Paper>
             </Grid>
