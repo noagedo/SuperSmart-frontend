@@ -25,17 +25,17 @@ import {
   Paper,
   useMediaQuery,
   useTheme,
-
 } from "@mui/material";
 import {
   ShoppingCart as CartIcon,
   Delete as TrashIcon,
-
 } from "@mui/icons-material";
+import RoomIcon from "@mui/icons-material/Room";
 import { CartItem } from "../services/item-service";
 import cartService from "../services/cart-service";
 import useUsers from "../hooks/useUsers";
 import { getStoreName } from "../utils/storeUtils";
+import SuperMap, { Supermarket } from "./SuperMap"; // Import the SuperMap component
 
 const theme = createTheme({
   palette: {
@@ -112,8 +112,18 @@ interface CartProps {
   onRemoveItem: (id: string) => void;
 }
 
+// Define store locations with proper coordinates for Israel
+const storeLocations: Record<string, { lat: number; lng: number; address: string }> = {
+  shufersal: { lat: 32.0853, lng: 34.7818, address: "שופרסל, תל אביב" },
+  mega: { lat: 32.0836, lng: 34.8004, address: "ויקטורי, תל אביב" },
+  yenotbitan: { lat: 32.0707, lng: 34.8245, address: "יינות ביתן, תל אביב" },
+  ramilevi: { lat: 31.9522, lng: 34.7998, address: "רמי לוי, ראשון לציון" },
+  mahsaneiHashuk: { lat: 32.1019, lng: 34.8271, address: "מחסני השוק, רמת גן" },
+};
+
 export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const [showShopComparison, setShowShopComparison] = useState(false);
+  const [showAllStoresMap, setShowAllStoresMap] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [clearCartDialogOpen, setClearCartDialogOpen] = useState(false);
   const [cartName, setCartName] = useState("");
@@ -275,6 +285,28 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
     });
   };
 
+  // Helper: get store address by storeId (stub, replace with real data)
+  const getStoreAddress = (storeId: string) => {
+    if (storeId === "shufersal") return "Shufersal, Tel Aviv, Israel";
+    if (storeId === "victory") return "Victory, Tel Aviv, Israel";
+    if (storeId === "yenotbitan") return "Yenot Bitan, Tel Aviv, Israel";
+    return "Israel";
+  };
+
+  // Function to convert store data to Supermarket format for the map
+  const getMapStores = (): Supermarket[] => {
+    return calculateShopTotals().map(([storeId, { name }]) => {
+      const location = storeLocations[storeId] || { lat: 32.0853, lng: 34.7818, address: "Israel" };
+      return {
+        id: storeId,
+        name: name,
+        address: location.address,
+        lat: location.lat,
+        lng: location.lng
+      };
+    });
+  };
+
   if (items.length === 0) {
     return (
       <StyledCard>
@@ -331,12 +363,37 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
         >
           {showShopComparison ? (
             <Box>
-              <Typography
-                variant="h6"
-                sx={{ mb: 3, fontWeight: 700, color: "primary.main" }}
-              >
-                השוואת מחירים בין חנויות
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 2 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 700, color: "primary.main" }}
+                >
+                  השוואת מחירים בין חנויות
+                </Typography>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<RoomIcon />}
+                  onClick={() => setShowAllStoresMap((prev) => !prev)}
+                  sx={{ ml: 2 }}
+                >
+                  מפה
+                </Button>
+              </Box>
+              {showAllStoresMap && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                    מיקום כל החנויות
+                  </Typography>
+                  <Box sx={{ width: "100%", height: 300, borderRadius: 2, overflow: "hidden", boxShadow: 1 }}>
+                    {/* Replace Google Maps iframe with SuperMap component */}
+                    <SuperMap 
+                      stores={getMapStores()} 
+                      height={300}
+                    />
+                  </Box>
+                </Box>
+              )}
               <List sx={{ bgcolor: "#f8fafc", borderRadius: 2, p: 2 }}>
                 {calculateShopTotals().map(
                   ([storeId, { total, name }], index) => (
