@@ -48,12 +48,12 @@ import useCart from "../hooks/useCart";
 import useItems from "../hooks/useItems";
 import { styled } from "@mui/material";
 import CartChat from "./CartChat";
-import useNotifications from "../hooks/useNotifications";
 import notificationService, {
   PriceDropNotification,
 } from "../services/notification-service";
 import ProductCard from "./ProductCard";
 import CartEmailSender from "./CartEmailSender";
+import { useNotifications } from "../contexts/NotificationContext"; // ייבוא ה-context החדש
 
 interface PersonalAreaProps {
   user: User;
@@ -72,6 +72,7 @@ const SectionHeader = styled(Box)(({ theme }) => ({
 }));
 
 // CustomChatBadge - הצגת אייקון צ'אט עם מספר ההודעות
+// שיפור חזותי של הבאדג' של הצ'אט - אנימציה ובליטות
 const CustomChatBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
 
@@ -81,7 +82,7 @@ const CustomChatBadge = ({ count }: { count: number }) => {
         position: "absolute",
         top: 8,
         left: 8,
-        zIndex: 1,
+        zIndex: 10,
         bgcolor: "#ef4444",
         color: "white",
         borderRadius: "12px",
@@ -91,11 +92,85 @@ const CustomChatBadge = ({ count }: { count: number }) => {
         fontSize: "0.75rem",
         fontWeight: "bold",
         boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+        animation: "pulse 1.5s infinite", // הוספת אנימצית פעימה
+        "@keyframes pulse": {
+          "0%": {
+            boxShadow: "0 0 0 0 rgba(239, 68, 68, 0.7)",
+          },
+          "70%": {
+            boxShadow: "0 0 0 6px rgba(239, 68, 68, 0)",
+          },
+          "100%": {
+            boxShadow: "0 0 0 0 rgba(239, 68, 68, 0)",
+          },
+        },
       }}
     >
       <MessageCircle size={14} style={{ marginRight: 4 }} />
       {count}
     </Box>
+  );
+};
+
+// הוסף רכיב חדש להצגת כל התראות הצ'אט עבור עגלה ספציפית
+const CartNotificationTooltip = ({
+  cartId,
+  children,
+}: {
+  cartId: string;
+  children: React.ReactNode;
+}) => {
+  const { getChatNotificationsForCart } = useNotifications();
+  const notifications = getChatNotificationsForCart(cartId);
+
+  if (notifications.length === 0) return <>{children}</>;
+
+  // מציג 5 הודעות אחרונות לכל היותר
+  const lastNotifications = notifications
+    .sort(
+      (a, b) =>
+        new Date(b.changeDate).getTime() - new Date(a.changeDate).getTime()
+    )
+    .slice(0, 5);
+
+  const tooltipContent = (
+    <Box sx={{ maxWidth: 300, p: 1 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: "bold" }}>
+        הודעות אחרונות:
+      </Typography>
+      <List disablePadding dense>
+        {lastNotifications.map((notification) => (
+          <ListItem key={notification.id} disableGutters sx={{ pb: 0.5 }}>
+            <ListItemText
+              primary={notification.productName.replace(
+                "הודעה חדשה מעגלה: ",
+                ""
+              )}
+              secondary={notification.message}
+              primaryTypographyProps={{ variant: "body2", fontWeight: "bold" }}
+              secondaryTypographyProps={{ variant: "caption" }}
+            />
+          </ListItem>
+        ))}
+      </List>
+      <Typography
+        variant="caption"
+        sx={{
+          display: "block",
+          textAlign: "center",
+          mt: 1,
+          fontStyle: "italic",
+        }}
+      >
+        לחץ לצפייה בשיחה המלאה
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <Tooltip title={tooltipContent} placement="top" arrow>
+      <Box sx={{ position: "relative", width: "100%" }}>{children}</Box>
+    </Tooltip>
   );
 };
 
@@ -167,11 +242,10 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     severity: "success",
   });
 
-  const { notifications, dismissNotification, markChatNotificationsAsRead } =
-    useNotifications();
+  const { chatNotifications, markChatNotificationsAsRead } = useNotifications();
 
   // Filter notifications for carts
-  const cartNotifications = notifications.filter((n) => n.cartId);
+  const cartNotifications = chatNotifications.filter((n) => n.cartId);
 
   // Add state for cart price drop notifications
   const [cartPriceDropNotifications, setCartPriceDropNotifications] = useState<
@@ -180,7 +254,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
   // Helper: ספירת הודעות צ'אט חדשות בעגלה
   const getUnreadChatCount = (cartId: string) => {
-    return notifications.filter(
+    return chatNotifications.filter(
       (n) => n.type === "chat" && n.cartId === cartId && !n.isRead
     ).length;
   };
@@ -360,7 +434,9 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     setLoadingDetails(true);
 
     // סמן את כל הודעות הצ'אט בעגלה הזו כנקראו
-    markChatNotificationsAsRead(cart._id!);
+    if (cart._id) {
+      markChatNotificationsAsRead(cart._id);
+    }
 
     try {
       // If we already have all products loaded, use them to get details
@@ -819,7 +895,13 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
       <Paper
         elevation={3}
-        sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
+        sx={{
+          maxWidth: 800,
+          mx: "auto",
+          borderRadius: 3,
+          overflow: "hidden",
+          mt: 4,
+        }}
       >
         <Box
           sx={{
@@ -876,6 +958,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                       העגלות שלי
                     </Typography>
                   </SectionHeader>
+
                   <Grid container spacing={3} sx={{ mb: 4 }}>
                     {myCarts.map((cart) => {
                       // Get price drop notifications for this cart
@@ -883,129 +966,139 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                       const unreadCount = getUnreadChatCount(cart._id!);
                       return (
                         <Grid item xs={12} md={6} key={cart._id}>
-                          <Box sx={{ position: "relative" }}>
-                            <CustomChatBadge count={unreadCount} />
-                            <Card
-                              sx={{
-                                cursor: "pointer",
-                                transition: "transform 0.2s, box-shadow 0.2s",
-                                "&:hover": {
-                                  transform: "translateY(-4px)",
-                                  boxShadow: 4,
-                                },
-                                height: "100%",
-                                display: "flex",
-                                flexDirection: "column",
-                              }}
-                              onClick={() => handleViewCartDetails(cart)}
-                            >
-                              <CardContent sx={{ flexGrow: 1 }}>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    mb: 2,
-                                  }}
-                                >
-                                  <Typography
-                                    variant="h6"
-                                    sx={{ fontWeight: 600, color: "#16a34a" }}
+                          <CartNotificationTooltip cartId={cart._id!}>
+                            <Box sx={{ position: "relative" }}>
+                              <CustomChatBadge count={unreadCount} />
+                              <Card
+                                sx={{
+                                  cursor: "pointer",
+                                  transition: "transform 0.2s, box-shadow 0.2s",
+                                  "&:hover": {
+                                    transform: "translateY(-4px)",
+                                    boxShadow: 4,
+                                  },
+                                  height: "100%",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  // שיפור החיווי הויזואלי להודעות לא-נקראות
+                                  ...(unreadCount > 0 && {
+                                    border: "2px solid #ef4444",
+                                    position: "relative",
+                                    "&::before": {
+                                      content: '""',
+                                      position: "absolute",
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "4px",
+                                      background:
+                                        "linear-gradient(90deg, #ef4444 0%, #f87171 100%)",
+                                      borderTopLeftRadius: "inherit",
+                                      borderTopRightRadius: "inherit",
+                                    },
+                                  }),
+                                }}
+                                onClick={() => handleViewCartDetails(cart)}
+                              >
+                                <CardContent sx={{ flexGrow: 1 }}>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      mb: 2,
+                                    }}
                                   >
-                                    {cart.name || "עגלה ללא שם"}
-                                  </Typography>
-                                  <Box>
-                                    {/* Add the cart email sender here */}
-                                    <Tooltip title="שלח עגלה למייל">
-                                      <IconButton
+                                    <Typography
+                                      variant="h6"
+                                      sx={{ fontWeight: 600, color: "#16a34a" }}
+                                    >
+                                      {cart.name || "עגלה ללא שם"}
+                                    </Typography>
+                                    <Box>
+                                      {/* Add the cart email sender here */}
+                                      <Tooltip title="שלח עגלה למייל">
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Prevent card click
+                                          }}
+                                          sx={{
+                                            color: "#16a34a",
+                                            mr: 1,
+                                          }}
+                                        >
+                                          <CartEmailSender
+                                            savedCart={cart}
+                                            size={18}
+                                            hideTooltip={true}
+                                            onlyIcon={true}
+                                          />
+                                        </IconButton>
+                                      </Tooltip>
+                                      <Tooltip title="שתף עגלה">
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedCartForShare(cart);
+                                            setShareDialogOpen(true);
+                                          }}
+                                          sx={{
+                                            color: "#16a34a",
+                                            mr: 1,
+                                          }}
+                                        >
+                                          <Share2 size={18} />
+                                        </IconButton>
+                                      </Tooltip>
+                                      <Button
                                         size="small"
-                                        onClick={(e) => {
-                                          e.stopPropagation(); // Prevent card click
-                                        }}
+                                        variant="outlined"
                                         sx={{
                                           color: "#16a34a",
+                                          borderColor: "#16a34a",
+                                          "&:hover": {
+                                            bgcolor: "rgba(22, 163, 74, 0.04)",
+                                            borderColor: "#15803d",
+                                          },
                                           mr: 1,
                                         }}
-                                      >
-                                        <CartEmailSender
-                                          savedCart={cart}
-                                          size={18}
-                                          hideTooltip={true}
-                                          onlyIcon={true}
-                                        />
-                                      </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="שתף עגלה">
-                                      <IconButton
-                                        size="small"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setSelectedCartForShare(cart);
-                                          setShareDialogOpen(true);
-                                        }}
-                                        sx={{
-                                          color: "#16a34a",
-                                          mr: 1,
+                                          navigate(`/edit-cart/${cart._id}`);
                                         }}
                                       >
-                                        <Share2 size={18} />
+                                        ערוך
+                                      </Button>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={(e) =>
+                                          handleDeleteCart(cart._id!, e)
+                                        }
+                                        sx={{
+                                          "&:hover": {
+                                            bgcolor: "rgba(211, 47, 47, 0.1)",
+                                          },
+                                        }}
+                                      >
+                                        <Trash2 size={18} />
                                       </IconButton>
-                                    </Tooltip>
-                                    <Button
-                                      size="small"
-                                      variant="outlined"
-                                      sx={{
-                                        color: "#16a34a",
-                                        borderColor: "#16a34a",
-                                        "&:hover": {
-                                          bgcolor: "rgba(22, 163, 74, 0.04)",
-                                          borderColor: "#15803d",
-                                        },
-                                        mr: 1,
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/edit-cart/${cart._id}`);
-                                      }}
-                                    >
-                                      ערוך
-                                    </Button>
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      onClick={(e) =>
-                                        handleDeleteCart(cart._id!, e)
-                                      }
-                                      sx={{
-                                        "&:hover": {
-                                          bgcolor: "rgba(211, 47, 47, 0.1)",
-                                        },
-                                      }}
-                                    >
-                                      <Trash2 size={18} />
-                                    </IconButton>
+                                    </Box>
                                   </Box>
-                                </Box>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{ mb: 1 }}
-                                >
-                                  נוצר: {formatDate(cart.createdAt)}
-                                </Typography>
-                                <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-                                  <Chip
-                                    label={`${cart.items?.length || 0} פריטים`}
-                                    size="small"
-                                    sx={{
-                                      bgcolor: "rgba(22, 163, 74, 0.1)",
-                                      color: "#16a34a",
-                                      fontWeight: 600,
-                                    }}
-                                  />
-                                  {cart.participants.length > 0 && (
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mb: 1 }}
+                                  >
+                                    נוצר: {formatDate(cart.createdAt)}
+                                  </Typography>
+                                  <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                                     <Chip
-                                      label={`${cart.participants.length} משתתפים`}
+                                      label={`${
+                                        cart.items?.length || 0
+                                      } פריטים`}
                                       size="small"
                                       sx={{
                                         bgcolor: "rgba(22, 163, 74, 0.1)",
@@ -1013,104 +1106,122 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                                         fontWeight: 600,
                                       }}
                                     />
-                                  )}
-                                </Box>
-                                {cart.participants.length > 0 && (
-                                  <Box sx={{ mb: 2 }}>
-                                    <Typography
-                                      variant="body2"
-                                      color="text.secondary"
-                                      sx={{ mb: 1 }}
-                                    >
-                                      משתתפים:
-                                    </Typography>
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        flexWrap: "wrap",
-                                        gap: 1,
-                                      }}
-                                    >
-                                      {cart.participants.map((participant) => (
-                                        <Chip
-                                          key={participant}
-                                          label={participant}
-                                          size="small"
-                                          onDelete={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedCartForShare(cart);
-                                            setSelectedParticipant(participant);
-                                            setRemoveDialogOpen(true);
-                                          }}
-                                          deleteIcon={<UserMinus size={14} />}
-                                          sx={{
-                                            bgcolor: "rgba(22, 163, 74, 0.05)",
-                                            borderColor:
-                                              "rgba(22, 163, 74, 0.2)",
-                                            border: "1px solid",
-                                          }}
-                                        />
-                                      ))}
-                                    </Box>
+                                    {cart.participants.length > 0 && (
+                                      <Chip
+                                        label={`${cart.participants.length} משתתפים`}
+                                        size="small"
+                                        sx={{
+                                          bgcolor: "rgba(22, 163, 74, 0.1)",
+                                          color: "#16a34a",
+                                          fontWeight: 600,
+                                        }}
+                                      />
+                                    )}
                                   </Box>
-                                )}
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "flex-end",
-                                    mt: 2,
-                                  }}
-                                >
-                                  <Button
-                                    size="small"
-                                    endIcon={<ArrowRight size={16} />}
-                                    sx={{ color: "#16a34a" }}
+                                  {cart.participants.length > 0 && (
+                                    <Box sx={{ mb: 2 }}>
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mb: 1 }}
+                                      >
+                                        משתתפים:
+                                      </Typography>
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          flexWrap: "wrap",
+                                          gap: 1,
+                                        }}
+                                      >
+                                        {cart.participants.map(
+                                          (participant) => (
+                                            <Chip
+                                              key={participant}
+                                              label={participant}
+                                              size="small"
+                                              onDelete={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedCartForShare(cart);
+                                                setSelectedParticipant(
+                                                  participant
+                                                );
+                                                setRemoveDialogOpen(true);
+                                              }}
+                                              deleteIcon={
+                                                <UserMinus size={14} />
+                                              }
+                                              sx={{
+                                                bgcolor:
+                                                  "rgba(22, 163, 74, 0.05)",
+                                                borderColor:
+                                                  "rgba(22, 163, 74, 0.2)",
+                                                border: "1px solid",
+                                              }}
+                                            />
+                                          )
+                                        )}
+                                      </Box>
+                                    </Box>
+                                  )}
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "flex-end",
+                                      mt: 2,
+                                    }}
                                   >
-                                    צפה בפרטים
-                                  </Button>
-                                </Box>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    mt: 2,
-                                  }}
-                                >
-                                  <Tooltip
-                                    title={
-                                      cart.notifications
-                                        ? "כבה התראות"
-                                        : "הפעל התראות"
-                                    }
-                                  >
-                                    <IconButton
+                                    <Button
                                       size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleToggleNotifications(cart);
-                                      }}
-                                      sx={{
-                                        color: cart.notifications
-                                          ? "#16a34a"
-                                          : "text.secondary",
-                                        "&:hover": {
-                                          bgcolor: cart.notifications
-                                            ? "rgba(22, 163, 74, 0.04)"
-                                            : "rgba(0, 0, 0, 0.04)",
-                                        },
-                                      }}
+                                      endIcon={<ArrowRight size={16} />}
+                                      sx={{ color: "#16a34a" }}
                                     >
-                                      {cart.notifications ? (
-                                        <Bell size={18} />
-                                      ) : (
-                                        <BellOff size={18} />
-                                      )}
-                                    </IconButton>
-                                  </Tooltip>
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          </Box>
+                                      צפה בפרטים
+                                    </Button>
+                                  </Box>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      mt: 2,
+                                    }}
+                                  >
+                                    <Tooltip
+                                      title={
+                                        cart.notifications
+                                          ? "כבה התראות"
+                                          : "הפעל התראות"
+                                      }
+                                    >
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleNotifications(cart);
+                                        }}
+                                        sx={{
+                                          color: cart.notifications
+                                            ? "#16a34a"
+                                            : "text.secondary",
+                                          "&:hover": {
+                                            bgcolor: cart.notifications
+                                              ? "rgba(22, 163, 74, 0.04)"
+                                              : "rgba(0, 0, 0, 0.04)",
+                                          },
+                                        }}
+                                      >
+                                        {cart.notifications ? (
+                                          <Bell size={18} />
+                                        ) : (
+                                          <BellOff size={18} />
+                                        )}
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            </Box>
+                          </CartNotificationTooltip>
                         </Grid>
                       );
                     })}
@@ -1129,119 +1240,139 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                       עגלות ששיתפו איתי
                     </Typography>
                   </SectionHeader>
+
                   <Grid container spacing={3}>
                     {sharedCarts.map((cart) => {
                       const unreadCount = getUnreadChatCount(cart._id!);
                       return (
                         <Grid item xs={12} md={6} key={cart._id}>
-                          <Box sx={{ position: "relative" }}>
-                            <CustomChatBadge count={unreadCount} />
-                            <Card
-                              sx={{
-                                cursor: "pointer",
-                                transition: "transform 0.2s, box-shadow 0.2s",
-                                "&:hover": {
-                                  transform: "translateY(-4px)",
-                                  boxShadow: 4,
-                                },
-                                height: "100%",
-                                display: "flex",
-                                flexDirection: "column",
-                              }}
-                              onClick={() => handleViewCartDetails(cart)}
-                            >
-                              <CardContent sx={{ flexGrow: 1 }}>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    mb: 2,
-                                  }}
-                                >
-                                  <Typography
-                                    variant="h6"
-                                    sx={{ fontWeight: 600, color: "#16a34a" }}
+                          <CartNotificationTooltip cartId={cart._id!}>
+                            <Box sx={{ position: "relative" }}>
+                              <CustomChatBadge count={unreadCount} />
+                              <Card
+                                sx={{
+                                  cursor: "pointer",
+                                  transition: "transform 0.2s, box-shadow 0.2s",
+                                  "&:hover": {
+                                    transform: "translateY(-4px)",
+                                    boxShadow: 4,
+                                  },
+                                  height: "100%",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  // שיפור החיווי הויזואלי להודעות לא-נקראות
+                                  ...(unreadCount > 0 && {
+                                    border: "2px solid #ef4444",
+                                    position: "relative",
+                                    "&::before": {
+                                      content: '""',
+                                      position: "absolute",
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "4px",
+                                      background:
+                                        "linear-gradient(90deg, #ef4444 0%, #f87171 100%)",
+                                      borderTopLeftRadius: "inherit",
+                                      borderTopRightRadius: "inherit",
+                                    },
+                                  }),
+                                }}
+                                onClick={() => handleViewCartDetails(cart)}
+                              >
+                                <CardContent sx={{ flexGrow: 1 }}>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      mb: 2,
+                                    }}
                                   >
-                                    {cart.name || "עגלה ללא שם"}
-                                  </Typography>
-                                  <Box>
-                                    {/* Add the cart email sender here */}
-                                    <Tooltip title="שלח עגלה למייל">
-                                      <IconButton
+                                    <Typography
+                                      variant="h6"
+                                      sx={{ fontWeight: 600, color: "#16a34a" }}
+                                    >
+                                      {cart.name || "עגלה ללא שם"}
+                                    </Typography>
+                                    <Box>
+                                      {/* Add the cart email sender here */}
+                                      <Tooltip title="שלח עגלה למייל">
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Prevent card click
+                                          }}
+                                          sx={{
+                                            color: "#16a34a",
+                                            mr: 1,
+                                          }}
+                                        >
+                                          <CartEmailSender
+                                            savedCart={cart}
+                                            size={18}
+                                            hideTooltip={true}
+                                            onlyIcon={true}
+                                          />
+                                        </IconButton>
+                                      </Tooltip>
+                                      <Button
                                         size="small"
-                                        onClick={(e) => {
-                                          e.stopPropagation(); // Prevent card click
-                                        }}
+                                        variant="outlined"
                                         sx={{
                                           color: "#16a34a",
+                                          borderColor: "#16a34a",
+                                          "&:hover": {
+                                            bgcolor: "rgba(22, 163, 74, 0.04)",
+                                            borderColor: "#15803d",
+                                          },
                                           mr: 1,
                                         }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(`/edit-cart/${cart._id}`);
+                                        }}
                                       >
-                                        <CartEmailSender
-                                          savedCart={cart}
-                                          size={18}
-                                          hideTooltip={true}
-                                          onlyIcon={true}
-                                        />
-                                      </IconButton>
-                                    </Tooltip>
+                                        ערוך
+                                      </Button>
+                                    </Box>
+                                  </Box>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mb: 1 }}
+                                  >
+                                    נוצר: {formatDate(cart.createdAt)}
+                                  </Typography>
+                                  <Chip
+                                    label={`${cart.items?.length || 0} פריטים`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(22, 163, 74, 0.1)",
+                                      color: "#16a34a",
+                                      fontWeight: 600,
+                                      mb: 2,
+                                    }}
+                                  />
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "flex-end",
+                                      mt: 2,
+                                    }}
+                                  >
                                     <Button
                                       size="small"
-                                      variant="outlined"
-                                      sx={{
-                                        color: "#16a34a",
-                                        borderColor: "#16a34a",
-                                        "&:hover": {
-                                          bgcolor: "rgba(22, 163, 74, 0.04)",
-                                          borderColor: "#15803d",
-                                        },
-                                        mr: 1,
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/edit-cart/${cart._id}`);
-                                      }}
+                                      endIcon={<ArrowRight size={16} />}
+                                      sx={{ color: "#16a34a" }}
                                     >
-                                      ערוך
+                                      צפה בפרטים
                                     </Button>
                                   </Box>
-                                </Box>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{ mb: 1 }}
-                                >
-                                  נוצר: {formatDate(cart.createdAt)}
-                                </Typography>
-                                <Chip
-                                  label={`${cart.items?.length || 0} פריטים`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "rgba(22, 163, 74, 0.1)",
-                                    color: "#16a34a",
-                                    fontWeight: 600,
-                                    mb: 2,
-                                  }}
-                                />
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "flex-end",
-                                    mt: 2,
-                                  }}
-                                >
-                                  <Button
-                                    size="small"
-                                    endIcon={<ArrowRight size={16} />}
-                                    sx={{ color: "#16a34a" }}
-                                  >
-                                    צפה בפרטים
-                                  </Button>
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          </Box>
+                                </CardContent>
+                              </Card>
+                            </Box>
+                          </CartNotificationTooltip>
                         </Grid>
                       );
                     })}

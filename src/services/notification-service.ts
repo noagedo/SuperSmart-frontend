@@ -156,8 +156,8 @@ class NotificationService {
         cartId: data.cartId,
         productId: "",
         productName: `הודעה חדשה מעגלה: ${data.sender}`,
-        oldPrice: 0,
-        newPrice: 0,
+        oldPrice: 0, // ערכים כברירת מחדל, לא רלוונטים להתראות צ'אט
+        newPrice: 0, // ערכים כברירת מחדל, לא רלוונטים להתראות צ'אט
         storeId: "",
         changeDate: new Date(data.timestamp || new Date()),
         image: "",

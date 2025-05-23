@@ -30,7 +30,7 @@ import notificationService, {
   PriceDropNotification,
 } from "../services/notification-service";
 import { getStoreName } from "../utils/storeUtils";
-import { ShoppingBag, Trash2 } from "lucide-react";
+import { ShoppingBag, Trash2, MessageCircle } from "lucide-react";
 import useItems from "../hooks/useItems";
 import cartService from "../services/cart-service";
 
@@ -515,23 +515,69 @@ const NotificationsCenter: React.FC = () => {
                 </Typography>
               </MenuItem>
             ) : (
-              cartTabNotifications
-                // סנן התראות סכימה של cart-level עם מוצר אחד בלבד
-                .filter(
-                  (notification) =>
-                    !(
-                      notification.productName &&
-                      notification.productName.startsWith(
-                        "ירידת מחיר ב-1 מוצרים"
-                      )
-                    )
-                )
-                .map((notification) => {
-                  // מצא את המוצר המלא
-                  const product = allProducts?.find(
-                    (p) => p._id === notification.productId
+              cartTabNotifications.map((notification) => {
+                // מצא את המוצר המלא
+                const product = allProducts?.find(
+                  (p) => p._id === notification.productId
+                );
+
+                // שם העגלה
+                const cartName = notification.cartId
+                  ? cartNames[notification.cartId] || notification.cartId
+                  : "";
+
+                // הצג תוכן שונה לפי סוג ההתראה
+                if (notification.type === "chat") {
+                  // עבור התראות צ'אט, הצג מידע רלוונטי לצ'אט בלבד
+                  return (
+                    <NotificationItem
+                      key={notification.id}
+                      sx={{ bgcolor: "rgba(25, 118, 210, 0.08)" }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar sx={{ bgcolor: "#2563eb" }} variant="rounded">
+                          <MessageCircle size={20} color="white" />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={notification.productName}
+                        secondary={
+                          <React.Fragment>
+                            {notification.message && (
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  maxWidth: "200px",
+                                }}
+                              >
+                                {notification.message}
+                              </Typography>
+                            )}
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              בעגלה: {cartName}
+                            </Typography>
+                          </React.Fragment>
+                        }
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissNotification(notification.id);
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </NotificationItem>
                   );
-                  // חשב אחוז ירידת מחיר
+                } else {
+                  // עבור התראות ירידות מחירים, המשך להציג את המחירים
                   const discount =
                     notification.oldPrice && notification.newPrice
                       ? Math.round(
@@ -540,10 +586,6 @@ const NotificationsCenter: React.FC = () => {
                             100
                         )
                       : null;
-                  // שם העגלה
-                  const cartName = notification.cartId
-                    ? cartNames[notification.cartId] || notification.cartId
-                    : "";
 
                   return (
                     <NotificationItem
@@ -606,7 +648,8 @@ const NotificationsCenter: React.FC = () => {
                       </IconButton>
                     </NotificationItem>
                   );
-                })
+                }
+              })
             )}
           </>
         )}

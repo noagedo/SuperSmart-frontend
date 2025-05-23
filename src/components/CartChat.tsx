@@ -14,6 +14,7 @@ import {
   Slide,
 } from "@mui/material";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import { useNotifications } from "../contexts/NotificationContext"; // ייבוא ה-context החדש
 
 // יצירת חיבור Socket.IO אחד לכל האפליקציה במקום בכל רנדור של הקומפוננטה
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:3000";
@@ -59,6 +60,9 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
   const prevCartIdRef = useRef<string>("");
   const prevIsOpenRef = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(false);
+
+  // שימוש ב-context להתראות
+  const { markChatNotificationsAsRead } = useNotifications();
 
   // הוספת פונקציית עזר לשמירה בלוקל סטורג'
   const saveMessagesToLocalStorage = (messages: ChatMessage[]) => {
@@ -185,6 +189,19 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     // Update previous isOpen state
     prevIsOpenRef.current = isOpen;
   }, [isOpen, cartId]);
+
+  // עדכון useEffect כדי לסמן הודעות כנקראו כאשר הצ'אט נפתח
+  useEffect(() => {
+    // סמן הודעות צ'אט כנקראו כשהצ'אט פתוח
+    if (isOpen && cartId) {
+      markChatNotificationsAsRead(cartId);
+
+      // גם נגלול לתחתית הצ'אט כשהוא נפתח כדי לראות הודעות חדשות
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [isOpen, cartId, markChatNotificationsAsRead]);
 
   // Load messages from localStorage on mount and when cartId changes
   useEffect(() => {
@@ -439,7 +456,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     }
   };
 
-  // עדכון פונקציית שליחת ההודעה לשימוש בפונקציית העזר
+  // עדכון פונקציית שליחת ההודעה להוספת שם המשתמש למידע שנשלח
   const handleSend = async () => {
     if (!newMessage.trim() || !cartId || !socketRef.current) return;
 
@@ -460,8 +477,12 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
 
       setNewMessage("");
 
-      // Emit to socket server
-      socketRef.current.emit("send-message", { ...payload, cartId });
+      // Emit to socket server - שליחת שם המשתמש בנוסף למזהה
+      socketRef.current.emit("send-message", {
+        ...payload,
+        cartId,
+        userName, // שליחת שם המשתמש כדי לעזור בסינון הודעות
+      });
 
       // Save to API with retry logic
       const saveToAPI = async (retries = 3) => {

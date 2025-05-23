@@ -20,6 +20,7 @@ import {
   ListItemText,
   useMediaQuery,
   useTheme,
+  Badge,
 } from "@mui/material";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -27,6 +28,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import { Apple, Heart, Menu } from "lucide-react";
 import Loading from "./Loading";
 import NotificationsCenter from "./NotificationsCenter";
+import { useNotifications } from "../contexts/NotificationContext"; // ייבוא ה-context החדש
 
 const theme = createTheme({
   palette: {
@@ -80,6 +82,8 @@ const NavBar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+  // השימוש ב-context להתראות
+  const { unreadChatCount } = useNotifications();
 
   const handleNavigation = (path: string) => {
     setLoading(true);
@@ -138,21 +142,36 @@ const NavBar: React.FC = () => {
 
           {user._id && <NotificationsCenter />}
 
-          <IconButton
-            onClick={() => handleNavigation("/personal-area")}
-            disabled={loading}
+          {/* הוספת Badge עם מספר ההתראות לאיקון האזור האישי */}
+          <Badge
+            badgeContent={unreadChatCount}
+            color="error"
+            overlap="circular"
             sx={{
-              color: theme.palette.primary.main,
-              transition: "all 0.2s ease-in-out",
-              "&:hover": {
-                backgroundColor: theme.palette.primary.light,
-                color: "white",
-                transform: "scale(1.1)",
+              "& .MuiBadge-badge": {
+                fontSize: "0.65rem",
+                minWidth: "18px",
+                height: "18px",
               },
             }}
+            invisible={unreadChatCount === 0}
           >
-            <AccountCircleIcon />
-          </IconButton>
+            <IconButton
+              onClick={() => handleNavigation("/personal-area")}
+              disabled={loading}
+              sx={{
+                color: theme.palette.primary.main,
+                transition: "all 0.2s ease-in-out",
+                "&:hover": {
+                  backgroundColor: theme.palette.primary.light,
+                  color: "white",
+                  transform: "scale(1.1)",
+                },
+              }}
+            >
+              <AccountCircleIcon />
+            </IconButton>
+          </Badge>
 
           <IconButton
             onClick={handleLogout}
@@ -308,37 +327,71 @@ const NavBar: React.FC = () => {
         </Box>
 
         <List>
-  <ListItem disablePadding>
-    <ListItemButton onClick={() => handleNavigation(user ? "/Products" : "/")}>
-      <ListItemIcon>
-        <HomeIcon color="primary" />
-      </ListItemIcon>
-      <ListItemText primary="דף הבית" />
-    </ListItemButton>
-  </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => handleNavigation(user ? "/Products" : "/")}
+            >
+              <ListItemIcon>
+                <HomeIcon color="primary" />
+              </ListItemIcon>
+              <ListItemText primary="דף הבית" />
+            </ListItemButton>
+          </ListItem>
 
-  {user && (
-    <>
-      <ListItem disablePadding>
-        <ListItemButton onClick={() => handleNavigation("/wishlists")}>
-          <ListItemIcon>
-            <Heart color="#16a34a" size={24} />
-          </ListItemIcon>
-          <ListItemText primary="רשימות מועדפים" />
-        </ListItemButton>
-      </ListItem>
+          {user && (
+            <>
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => handleNavigation("/wishlists")}>
+                  <ListItemIcon>
+                    <Heart color="#16a34a" size={24} />
+                  </ListItemIcon>
+                  <ListItemText primary="רשימות מועדפים" />
+                </ListItemButton>
+              </ListItem>
 
-      <ListItem disablePadding>
-        <ListItemButton onClick={() => handleNavigation("/personal-area")}>
-          <ListItemIcon>
-            <AccountCircleIcon color="primary" />
-          </ListItemIcon>
-          <ListItemText primary="אזור אישי" />
-        </ListItemButton>
-      </ListItem>
-    </>
-  )}
-</List>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => handleNavigation("/personal-area")}
+                >
+                  <ListItemIcon>
+                    <Badge
+                      badgeContent={unreadChatCount}
+                      color="error"
+                      invisible={unreadChatCount === 0}
+                      sx={{
+                        "& .MuiBadge-badge": {
+                          fontSize: "0.65rem",
+                        },
+                      }}
+                    >
+                      <AccountCircleIcon color="primary" />
+                    </Badge>
+                  </ListItemIcon>
+                  <ListItemText primary="אזור אישי" />
+                  {unreadChatCount > 0 && (
+                    <Box
+                      component="span"
+                      sx={{
+                        bgcolor: "error.main",
+                        color: "white",
+                        borderRadius: "50%",
+                        fontSize: "0.75rem",
+                        minWidth: "20px",
+                        height: "20px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        ml: 1,
+                      }}
+                    >
+                      {unreadChatCount}
+                    </Box>
+                  )}
+                </ListItemButton>
+              </ListItem>
+            </>
+          )}
+        </List>
 
         <Box sx={{ mt: "auto", p: 2 }}>
           {user ? (
