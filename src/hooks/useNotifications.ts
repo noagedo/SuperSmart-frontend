@@ -883,6 +883,38 @@ const useNotifications = () => {
   // (This is already done in NotificationsCenter, but if you use filteredNotifications elsewhere, ensure this logic)
   // ...existing code...
 
+  // Listen for chat notifications (new-chat-notification)
+  useEffect(() => {
+    const handleChatNotification = (notification: PriceDropNotification) => {
+      console.log("🔔 [handleChatNotification]", notification); // הוסף לוג
+      if (!notification.cartId) return;
+      setNotifications((prev) => {
+        // Avoid duplicates (by cartId, type, timestamp)
+        const isDuplicate = prev.some(
+          (n) =>
+            n.type === "chat" &&
+            n.cartId === notification.cartId &&
+            n.changeDate?.toString() === notification.changeDate?.toString()
+        );
+        if (isDuplicate) return prev;
+        return [...prev, notification];
+      });
+    };
+    notificationService.onChatMessage(handleChatNotification);
+    return () => {
+      notificationService.onChatMessage(() => {});
+    };
+  }, []);
+
+  // Mark all chat notifications for a cart as read
+  const markChatNotificationsAsRead = (cartId: string) => {
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.type === "chat" && n.cartId === cartId ? { ...n, isRead: true } : n
+      )
+    );
+  };
+
   return {
     notifications,
     dismissNotification,
@@ -890,6 +922,7 @@ const useNotifications = () => {
     checkPriceChanges,
     checkRecentChanges,
     checkSpecificProducts,
+    markChatNotificationsAsRead, // <-- expose this
   };
 };
 
