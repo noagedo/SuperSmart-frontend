@@ -13,6 +13,7 @@ import NotificationDebug from "./components/NotificationDebug";
 import useUsers from "./hooks/useUsers";
 import ProductList from "./components/ProductList";
 import ProductDetails from "./components/ProductDetail";
+import { NotificationProvider } from "./contexts/NotificationContext"; // הוספת ה-provider החדש
 
 const App: React.FC = () => {
   const { user } = useUsers();
@@ -43,52 +44,54 @@ const App: React.FC = () => {
   }, [user]);
 
   return (
-    <Router>
-      <NavBar />
-      <Routes>
-        <Route path="/" element={<HomeBeforeSignIn />} />
-        <Route path="/sign-up" element={<SignUp />} />
-        <Route path="/sign-in" element={<SignIn />} />
+    <NotificationProvider>
+      <Router>
+        <NavBar />
+        <Routes>
+          <Route path="/" element={<HomeBeforeSignIn />} />
+          <Route path="/sign-up" element={<SignUp />} />
+          <Route path="/sign-in" element={<SignIn />} />
 
-        {/* Product routes */}
-        <Route path="/products" element={<ProductList />} />
-        <Route path="/products/:productId" element={<ProductDetails />} />
+          {/* Product routes */}
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/products/:productId" element={<ProductDetails />} />
 
-        {/* Auth-protected routes */}
-        <Route
-          path="/personal-area"
-          element={user ? <PersonalArea user={user} /> : <SignIn />}
-        />
+          {/* Auth-protected routes */}
+          <Route
+            path="/personal-area"
+            element={user ? <PersonalArea user={user} /> : <SignIn />}
+          />
 
-        <Route
-          path="/edit-cart/:id"
-          element={user ? <EditCart /> : <SignIn />}
-        />
-        {/* Add wishlist routes */}
-        <Route
-          path="/wishlists"
-          element={user ? <WishlistsPage /> : <SignIn />}
-        />
-        <Route
-          path="/wishlists/:id"
-          element={user ? <WishlistDetail /> : <SignIn />}
-        />
+          <Route
+            path="/edit-cart/:id"
+            element={user ? <EditCart /> : <SignIn />}
+          />
+          {/* Add wishlist routes */}
+          <Route
+            path="/wishlists"
+            element={user ? <WishlistsPage /> : <SignIn />}
+          />
+          <Route
+            path="/wishlists/:id"
+            element={user ? <WishlistDetail /> : <SignIn />}
+          />
 
-        {/* Debug-only routes */}
-        {process.env.NODE_ENV !== "production" && (
-          <>
-            <Route
-              path="/debug"
-              element={user ? <PriceCheckDebug /> : <SignIn />}
-            />
-            <Route
-              path="/notification-debug"
-              element={user ? <NotificationDebug /> : <SignIn />}
-            />
-          </>
-        )}
-      </Routes>
-    </Router>
+          {/* Debug-only routes */}
+          {process.env.NODE_ENV !== "production" && (
+            <>
+              <Route
+                path="/debug"
+                element={user ? <PriceCheckDebug /> : <SignIn />}
+              />
+              <Route
+                path="/notification-debug"
+                element={user ? <NotificationDebug /> : <SignIn />}
+              />
+            </>
+          )}
+        </Routes>
+      </Router>
+    </NotificationProvider>
   );
 };
 

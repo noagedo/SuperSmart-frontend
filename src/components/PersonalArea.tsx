@@ -21,6 +21,8 @@ import {
   Grid,
   Tooltip,
   Snackbar,
+  Badge,
+  BadgeProps,
 } from "@mui/material";
 import useUsers from "../hooks/useUsers";
 import { User } from "../services/user-service";
@@ -39,18 +41,19 @@ import {
   UserMinus,
   BellOff,
   Bell,
+  MessageCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import useCart from "../hooks/useCart";
 import useItems from "../hooks/useItems";
 import { styled } from "@mui/material";
 import CartChat from "./CartChat";
-import useNotifications from "../hooks/useNotifications";
 import notificationService, {
   PriceDropNotification,
-} from "../services/notification-service"; // Ensure this is the correct path
+} from "../services/notification-service";
 import ProductCard from "./ProductCard";
 import CartEmailSender from "./CartEmailSender";
+import { useNotifications } from "../contexts/NotificationContext"; // ייבוא ה-context החדש
 
 interface PersonalAreaProps {
   user: User;
@@ -67,6 +70,109 @@ const SectionHeader = styled(Box)(({ theme }) => ({
   alignItems: "center",
   justifyContent: "space-between",
 }));
+
+// CustomChatBadge - הצגת אייקון צ'אט עם מספר ההודעות
+// שיפור חזותי של הבאדג' של הצ'אט - אנימציה ובליטות
+const CustomChatBadge = ({ count }: { count: number }) => {
+  if (count <= 0) return null;
+
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        top: 8,
+        left: 8,
+        zIndex: 10,
+        bgcolor: "#ef4444",
+        color: "white",
+        borderRadius: "12px",
+        padding: "3px 8px",
+        display: "flex",
+        alignItems: "center",
+        fontSize: "0.75rem",
+        fontWeight: "bold",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+        animation: "pulse 1.5s infinite", // הוספת אנימצית פעימה
+        "@keyframes pulse": {
+          "0%": {
+            boxShadow: "0 0 0 0 rgba(239, 68, 68, 0.7)",
+          },
+          "70%": {
+            boxShadow: "0 0 0 6px rgba(239, 68, 68, 0)",
+          },
+          "100%": {
+            boxShadow: "0 0 0 0 rgba(239, 68, 68, 0)",
+          },
+        },
+      }}
+    >
+      <MessageCircle size={14} style={{ marginRight: 4 }} />
+      {count}
+    </Box>
+  );
+};
+
+// הוסף רכיב חדש להצגת כל התראות הצ'אט עבור עגלה ספציפית
+const CartNotificationTooltip = ({
+  cartId,
+  children,
+}: {
+  cartId: string;
+  children: React.ReactNode;
+}) => {
+  const { getChatNotificationsForCart } = useNotifications();
+  const notifications = getChatNotificationsForCart(cartId);
+
+  if (notifications.length === 0) return <>{children}</>;
+
+  // מציג 5 הודעות אחרונות לכל היותר
+  const lastNotifications = notifications
+    .sort(
+      (a, b) =>
+        new Date(b.changeDate).getTime() - new Date(a.changeDate).getTime()
+    )
+    .slice(0, 5);
+
+  const tooltipContent = (
+    <Box sx={{ maxWidth: 300, p: 1 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: "bold" }}>
+        הודעות אחרונות:
+      </Typography>
+      <List disablePadding dense>
+        {lastNotifications.map((notification) => (
+          <ListItem key={notification.id} disableGutters sx={{ pb: 0.5 }}>
+            <ListItemText
+              primary={notification.productName.replace(
+                "הודעה חדשה מעגלה: ",
+                ""
+              )}
+              secondary={notification.message}
+              primaryTypographyProps={{ variant: "body2", fontWeight: "bold" }}
+              secondaryTypographyProps={{ variant: "caption" }}
+            />
+          </ListItem>
+        ))}
+      </List>
+      <Typography
+        variant="caption"
+        sx={{
+          display: "block",
+          textAlign: "center",
+          mt: 1,
+          fontStyle: "italic",
+        }}
+      >
+        לחץ לצפייה בשיחה המלאה
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <Tooltip title={tooltipContent} placement="top" arrow>
+      <Box sx={{ position: "relative", width: "100%" }}>{children}</Box>
+    </Tooltip>
+  );
+};
 
 const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const { updateUser } = useUsers();
@@ -136,110 +242,37 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     severity: "success",
   });
 
-  const { notifications, dismissNotification } = useNotifications();
+  const { chatNotifications, markChatNotificationsAsRead } = useNotifications();
 
   // Filter notifications for carts
-  const cartNotifications = notifications.filter((n) => n.cartId);
+  const cartNotifications = chatNotifications.filter((n) => n.cartId);
 
   // Add state for cart price drop notifications
   const [cartPriceDropNotifications, setCartPriceDropNotifications] = useState<
     PriceDropNotification[]
   >([]);
 
-  const handleSave = async () => {
-    setUpdateError(null);
-    try {
-      let avatarUrl = user.profilePicture;
-
-      if (profilePicture) {
-        const { request: uploadRequest } =
-          userService.uploadImage(profilePicture);
-        const uploadResponse = await uploadRequest;
-        avatarUrl = uploadResponse.data.url;
-      }
-
-      const updatedUser = {
-        ...user,
-        userName,
-        email,
-        profilePicture: avatarUrl,
-      };
-      const result = await updateUser(updatedUser);
-
-      if (result.success) {
-        setEditMode(false);
-        window.location.reload();
-      } else {
-        setUpdateError(result.error ?? null);
-      }
-    } catch (err) {
-      console.error("Error updating profile:", err);
-      setUpdateError("Failed to update profile. Please try again.");
-    }
+  // Helper: ספירת הודעות צ'אט חדשות בעגלה
+  const getUnreadChatCount = (cartId: string) => {
+    return chatNotifications.filter(
+      (n) => n.type === "chat" && n.cartId === cartId && !n.isRead
+    ).length;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      setProfilePicture(files[0]);
+  // Helper: האם יש הודעת צ'אט חדשה בעגלה
+  const hasUnreadChatNotification = (cartId: string) => {
+    const count = getUnreadChatCount(cartId);
+    // לוג לבדיקה
+    if (count > 0) {
+      console.log("🔴 יש", count, "הודעות צ'אט חדשות בעגלה", cartId);
     }
-  };
-
-  const handlePasswordChange = async () => {
-    if (!user._id) {
-      setPasswordError("User ID not found");
-      return;
-    }
-
-    setPasswordError(null);
-    setPasswordSuccess(false);
-    setIsSubmitting(true);
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError("New passwords don't match");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters long");
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      const { request } = userService.changePassword(
-        user._id,
-        currentPassword,
-        newPassword
-      );
-      await request;
-      setPasswordSuccess(true);
-      setTimeout(() => {
-        setIsPasswordDialogOpen(false);
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-        setIsSubmitting(false);
-      }, 1500);
-    } catch (err: any) {
-      console.error("Error changing password:", err);
-      const errorMessage =
-        typeof err.response?.data?.error === "string"
-          ? err.response.data.error
-          : err.response?.data?.error?.message ||
-            "Failed to change password. Please try again.";
-
-      setPasswordError(errorMessage);
-      setIsSubmitting(false);
-    }
+    return count > 0;
   };
 
   // Fetch user's carts
   useEffect(() => {
     const fetchCarts = async () => {
       if (!user || !user._id) return;
-
       setLoadingCarts(true);
       setCartError(null);
 
@@ -292,6 +325,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   useEffect(() => {
     const fetchCartPriceDrops = async () => {
       if (!user || !user._id) return;
+
       try {
         // Fetch all carts for the user
         const { request } = cartService.getCartsByUser(user._id);
@@ -325,8 +359,9 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
           const cartIds = productToCartIds[drop.productId] || [];
           if (cartIds.length === 0) return;
           cartIds.forEach((cartId) => {
-            if (drop.changeDate && new Date(drop.changeDate) < oneDayAgo)
+            if (drop.changeDate && new Date(drop.changeDate) < oneDayAgo) {
               return;
+            }
             notifications.push({
               ...drop,
               cartId,
@@ -398,6 +433,11 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     setCartDetailsOpen(true);
     setLoadingDetails(true);
 
+    // סמן את כל הודעות הצ'אט בעגלה הזו כנקראו
+    if (cart._id) {
+      markChatNotificationsAsRead(cart._id);
+    }
+
     try {
       // If we already have all products loaded, use them to get details
       if (Array.isArray(allProducts) && allProducts.length > 0) {
@@ -413,7 +453,6 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
             image: productDetails?.image,
           };
         });
-
         setCartItemsWithDetails(itemsWithDetails);
       } else {
         // Fallback to using just the IDs and quantities
@@ -445,8 +484,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         participants: [...selectedCartForShare.participants, shareEmail],
       };
 
-      setMyCarts(
-        myCarts.map((cart) =>
+      setMyCarts((prevCarts) =>
+        prevCarts.map((cart) =>
           cart._id === selectedCartForShare._id ? updatedCart : cart
         )
       );
@@ -492,8 +531,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         ),
       };
 
-      setMyCarts(
-        myCarts.map((cart) =>
+      setMyCarts((prevCarts) =>
+        prevCarts.map((cart) =>
           cart._id === selectedCartForShare._id ? updatedCart : cart
         )
       );
@@ -576,6 +615,94 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       });
   };
 
+  async function handlePasswordChange(
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ): Promise<void> {
+    event.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("יש למלא את כל השדות");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("הסיסמאות החדשות אינן תואמות");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await userService.changePassword(user._id!, currentPassword, newPassword);
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      setPasswordError(error.response?.data?.message || "שגיאה בשינוי הסיסמה");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // Handle file change
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
+    const files = event.target.files;
+    if (files && files[0]) {
+      setProfilePicture(files[0]);
+    }
+  }
+
+  // Handle saving profile changes - Fix for the properties that don't exist
+  async function handleSave(
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ): Promise<void> {
+    event.preventDefault();
+    setUpdateError(null);
+
+    if (!userName || !email) {
+      setUpdateError("יש למלא את כל השדות");
+      return;
+    }
+
+    try {
+      let avatarUrl = user.profilePicture;
+
+      if (profilePicture) {
+        const { request: uploadRequest } =
+          userService.uploadImage(profilePicture);
+        const uploadResponse = await uploadRequest;
+        avatarUrl = uploadResponse.data.url;
+      }
+
+      const updatedUser = {
+        ...user,
+        userName,
+        email,
+        profilePicture: avatarUrl,
+      };
+
+      // Use the updateUser from the hook instead of directly from the service
+      const result = await updateUser(updatedUser);
+
+      if (result.success) {
+        setEditMode(false);
+        setSnackbar({
+          open: true,
+          message: "הפרופיל עודכן בהצלחה",
+          severity: "success",
+        });
+      } else {
+        setUpdateError(result.error || "שגיאה בעדכון הפרופיל");
+      }
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      setUpdateError(error.response?.data?.message || "שגיאה בעדכון הפרופיל");
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -587,13 +714,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     >
       <Paper
         elevation={3}
-        sx={{
-          maxWidth: 800,
-          mx: "auto",
-          borderRadius: 3,
-          overflow: "hidden",
-          mb: 4,
-        }}
+        sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
       >
         <Box
           sx={{
@@ -774,7 +895,13 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
       <Paper
         elevation={3}
-        sx={{ maxWidth: 800, mx: "auto", borderRadius: 3, overflow: "hidden" }}
+        sx={{
+          maxWidth: 800,
+          mx: "auto",
+          borderRadius: 3,
+          overflow: "hidden",
+          mt: 4,
+        }}
       >
         <Box
           sx={{
@@ -831,236 +958,270 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                       העגלות שלי
                     </Typography>
                   </SectionHeader>
+
                   <Grid container spacing={3} sx={{ mb: 4 }}>
                     {myCarts.map((cart) => {
                       // Get price drop notifications for this cart
                       const drops = getCartPriceDropsForCart(cart._id!);
+                      const unreadCount = getUnreadChatCount(cart._id!);
                       return (
                         <Grid item xs={12} md={6} key={cart._id}>
-                          <Card
-                            sx={{
-                              cursor: "pointer",
-                              transition: "transform 0.2s, box-shadow 0.2s",
-                              "&:hover": {
-                                transform: "translateY(-4px)",
-                                boxShadow: 4,
-                              },
-                              height: "100%",
-                              display: "flex",
-                              flexDirection: "column",
-                            }}
-                            onClick={() => handleViewCartDetails(cart)}
-                          >
-                            <CardContent sx={{ flexGrow: 1 }}>
-                              <Box
+                          <CartNotificationTooltip cartId={cart._id!}>
+                            <Box sx={{ position: "relative" }}>
+                              <CustomChatBadge count={unreadCount} />
+                              <Card
                                 sx={{
+                                  cursor: "pointer",
+                                  transition: "transform 0.2s, box-shadow 0.2s",
+                                  "&:hover": {
+                                    transform: "translateY(-4px)",
+                                    boxShadow: 4,
+                                  },
+                                  height: "100%",
                                   display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  mb: 2,
+                                  flexDirection: "column",
+                                  // שיפור החיווי הויזואלי להודעות לא-נקראות
+                                  ...(unreadCount > 0 && {
+                                    border: "2px solid #ef4444",
+                                    position: "relative",
+                                    "&::before": {
+                                      content: '""',
+                                      position: "absolute",
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "4px",
+                                      background:
+                                        "linear-gradient(90deg, #ef4444 0%, #f87171 100%)",
+                                      borderTopLeftRadius: "inherit",
+                                      borderTopRightRadius: "inherit",
+                                    },
+                                  }),
                                 }}
+                                onClick={() => handleViewCartDetails(cart)}
                               >
-                                <Typography
-                                  variant="h6"
-                                  sx={{ fontWeight: 600, color: "#16a34a" }}
-                                >
-                                  {cart.name || "עגלה ללא שם"}
-                                </Typography>
-                                <Box>
-                                  {/* Add the cart email sender here */}
-                                  <Tooltip title="שלח עגלה למייל">
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation(); // Prevent card click
-                                      }}
-                                      sx={{
-                                        color: "#16a34a",
-                                        mr: 1,
-                                      }}
-                                    >
-                                      <CartEmailSender
-                                        savedCart={cart}
-                                        size={18}
-                                        hideTooltip={true}
-                                        onlyIcon={true}
-                                      />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="שתף עגלה">
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedCartForShare(cart);
-                                        setShareDialogOpen(true);
-                                      }}
-                                      sx={{
-                                        color: "#16a34a",
-                                        mr: 1,
-                                      }}
-                                    >
-                                      <Share2 size={18} />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
+                                <CardContent sx={{ flexGrow: 1 }}>
+                                  <Box
                                     sx={{
-                                      color: "#16a34a",
-                                      borderColor: "#16a34a",
-                                      "&:hover": {
-                                        bgcolor: "rgba(22, 163, 74, 0.04)",
-                                        borderColor: "#15803d",
-                                      },
-                                      mr: 1,
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/edit-cart/${cart._id}`);
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      mb: 2,
                                     }}
                                   >
-                                    ערוך
-                                  </Button>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={(e) =>
-                                      handleDeleteCart(cart._id!, e)
-                                    }
-                                    sx={{
-                                      "&:hover": {
-                                        bgcolor: "rgba(211, 47, 47, 0.1)",
-                                      },
-                                    }}
-                                  >
-                                    <Trash2 size={18} />
-                                  </IconButton>
-                                </Box>
-                              </Box>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ mb: 1 }}
-                              >
-                                נוצר: {formatDate(cart.createdAt)}
-                              </Typography>
-                              <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-                                <Chip
-                                  label={`${cart.items?.length || 0} פריטים`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "rgba(22, 163, 74, 0.1)",
-                                    color: "#16a34a",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                                {cart.participants.length > 0 && (
-                                  <Chip
-                                    label={`${cart.participants.length} משתתפים`}
-                                    size="small"
-                                    sx={{
-                                      bgcolor: "rgba(22, 163, 74, 0.1)",
-                                      color: "#16a34a",
-                                      fontWeight: 600,
-                                    }}
-                                  />
-                                )}
-                              </Box>
-                              {cart.participants.length > 0 && (
-                                <Box sx={{ mb: 2 }}>
+                                    <Typography
+                                      variant="h6"
+                                      sx={{ fontWeight: 600, color: "#16a34a" }}
+                                    >
+                                      {cart.name || "עגלה ללא שם"}
+                                    </Typography>
+                                    <Box>
+                                      {/* Add the cart email sender here */}
+                                      <Tooltip title="שלח עגלה למייל">
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Prevent card click
+                                          }}
+                                          sx={{
+                                            color: "#16a34a",
+                                            mr: 1,
+                                          }}
+                                        >
+                                          <CartEmailSender
+                                            savedCart={cart}
+                                            size={18}
+                                            hideTooltip={true}
+                                            onlyIcon={true}
+                                          />
+                                        </IconButton>
+                                      </Tooltip>
+                                      <Tooltip title="שתף עגלה">
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedCartForShare(cart);
+                                            setShareDialogOpen(true);
+                                          }}
+                                          sx={{
+                                            color: "#16a34a",
+                                            mr: 1,
+                                          }}
+                                        >
+                                          <Share2 size={18} />
+                                        </IconButton>
+                                      </Tooltip>
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{
+                                          color: "#16a34a",
+                                          borderColor: "#16a34a",
+                                          "&:hover": {
+                                            bgcolor: "rgba(22, 163, 74, 0.04)",
+                                            borderColor: "#15803d",
+                                          },
+                                          mr: 1,
+                                        }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(`/edit-cart/${cart._id}`);
+                                        }}
+                                      >
+                                        ערוך
+                                      </Button>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={(e) =>
+                                          handleDeleteCart(cart._id!, e)
+                                        }
+                                        sx={{
+                                          "&:hover": {
+                                            bgcolor: "rgba(211, 47, 47, 0.1)",
+                                          },
+                                        }}
+                                      >
+                                        <Trash2 size={18} />
+                                      </IconButton>
+                                    </Box>
+                                  </Box>
                                   <Typography
                                     variant="body2"
                                     color="text.secondary"
                                     sx={{ mb: 1 }}
                                   >
-                                    משתתפים:
+                                    נוצר: {formatDate(cart.createdAt)}
                                   </Typography>
+                                  <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                                    <Chip
+                                      label={`${
+                                        cart.items?.length || 0
+                                      } פריטים`}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: "rgba(22, 163, 74, 0.1)",
+                                        color: "#16a34a",
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                    {cart.participants.length > 0 && (
+                                      <Chip
+                                        label={`${cart.participants.length} משתתפים`}
+                                        size="small"
+                                        sx={{
+                                          bgcolor: "rgba(22, 163, 74, 0.1)",
+                                          color: "#16a34a",
+                                          fontWeight: 600,
+                                        }}
+                                      />
+                                    )}
+                                  </Box>
+                                  {cart.participants.length > 0 && (
+                                    <Box sx={{ mb: 2 }}>
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mb: 1 }}
+                                      >
+                                        משתתפים:
+                                      </Typography>
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          flexWrap: "wrap",
+                                          gap: 1,
+                                        }}
+                                      >
+                                        {cart.participants.map(
+                                          (participant) => (
+                                            <Chip
+                                              key={participant}
+                                              label={participant}
+                                              size="small"
+                                              onDelete={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedCartForShare(cart);
+                                                setSelectedParticipant(
+                                                  participant
+                                                );
+                                                setRemoveDialogOpen(true);
+                                              }}
+                                              deleteIcon={
+                                                <UserMinus size={14} />
+                                              }
+                                              sx={{
+                                                bgcolor:
+                                                  "rgba(22, 163, 74, 0.05)",
+                                                borderColor:
+                                                  "rgba(22, 163, 74, 0.2)",
+                                                border: "1px solid",
+                                              }}
+                                            />
+                                          )
+                                        )}
+                                      </Box>
+                                    </Box>
+                                  )}
                                   <Box
                                     sx={{
                                       display: "flex",
-                                      flexWrap: "wrap",
-                                      gap: 1,
+                                      justifyContent: "flex-end",
+                                      mt: 2,
                                     }}
                                   >
-                                    {cart.participants.map((participant) => (
-                                      <Chip
-                                        key={participant}
-                                        label={participant}
-                                        size="small"
-                                        onDelete={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedCartForShare(cart);
-                                          setSelectedParticipant(participant);
-                                          setRemoveDialogOpen(true);
-                                        }}
-                                        deleteIcon={<UserMinus size={14} />}
-                                        sx={{
-                                          bgcolor: "rgba(22, 163, 74, 0.05)",
-                                          borderColor: "rgba(22, 163, 74, 0.2)",
-                                          border: "1px solid",
-                                        }}
-                                      />
-                                    ))}
+                                    <Button
+                                      size="small"
+                                      endIcon={<ArrowRight size={16} />}
+                                      sx={{ color: "#16a34a" }}
+                                    >
+                                      צפה בפרטים
+                                    </Button>
                                   </Box>
-                                </Box>
-                              )}
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "flex-end",
-                                  mt: 2,
-                                }}
-                              >
-                                <Button
-                                  size="small"
-                                  endIcon={<ArrowRight size={16} />}
-                                  sx={{ color: "#16a34a" }}
-                                >
-                                  צפה בפרטים
-                                </Button>
-                              </Box>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  mt: 2,
-                                }}
-                              >
-                                <Tooltip
-                                  title={
-                                    cart.notifications
-                                      ? "כבה התראות"
-                                      : "הפעל התראות"
-                                  }
-                                >
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleNotifications(cart);
-                                    }}
+                                  <Box
                                     sx={{
-                                      color: cart.notifications
-                                        ? "#16a34a"
-                                        : "text.secondary",
-                                      "&:hover": {
-                                        bgcolor: cart.notifications
-                                          ? "rgba(22, 163, 74, 0.04)"
-                                          : "rgba(0, 0, 0, 0.04)",
-                                      },
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      mt: 2,
                                     }}
                                   >
-                                    {cart.notifications ? (
-                                      <Bell size={18} />
-                                    ) : (
-                                      <BellOff size={18} />
-                                    )}
-                                  </IconButton>
-                                </Tooltip>
-                              </Box>
-                            </CardContent>
-                          </Card>
+                                    <Tooltip
+                                      title={
+                                        cart.notifications
+                                          ? "כבה התראות"
+                                          : "הפעל התראות"
+                                      }
+                                    >
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleNotifications(cart);
+                                        }}
+                                        sx={{
+                                          color: cart.notifications
+                                            ? "#16a34a"
+                                            : "text.secondary",
+                                          "&:hover": {
+                                            bgcolor: cart.notifications
+                                              ? "rgba(22, 163, 74, 0.04)"
+                                              : "rgba(0, 0, 0, 0.04)",
+                                          },
+                                        }}
+                                      >
+                                        {cart.notifications ? (
+                                          <Bell size={18} />
+                                        ) : (
+                                          <BellOff size={18} />
+                                        )}
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            </Box>
+                          </CartNotificationTooltip>
                         </Grid>
                       );
                     })}
@@ -1079,116 +1240,142 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                       עגלות ששיתפו איתי
                     </Typography>
                   </SectionHeader>
+
                   <Grid container spacing={3}>
-                    {sharedCarts.map((cart) => (
-                      <Grid item xs={12} md={6} key={cart._id}>
-                        <Card
-                          sx={{
-                            cursor: "pointer",
-                            transition: "transform 0.2s, box-shadow 0.2s",
-                            "&:hover": {
-                              transform: "translateY(-4px)",
-                              boxShadow: 4,
-                            },
-                            height: "100%",
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-                          onClick={() => handleViewCartDetails(cart)}
-                        >
-                          <CardContent sx={{ flexGrow: 1 }}>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                mb: 2,
-                              }}
-                            >
-                              <Typography
-                                variant="h6"
-                                sx={{ fontWeight: 600, color: "#16a34a" }}
+                    {sharedCarts.map((cart) => {
+                      const unreadCount = getUnreadChatCount(cart._id!);
+                      return (
+                        <Grid item xs={12} md={6} key={cart._id}>
+                          <CartNotificationTooltip cartId={cart._id!}>
+                            <Box sx={{ position: "relative" }}>
+                              <CustomChatBadge count={unreadCount} />
+                              <Card
+                                sx={{
+                                  cursor: "pointer",
+                                  transition: "transform 0.2s, box-shadow 0.2s",
+                                  "&:hover": {
+                                    transform: "translateY(-4px)",
+                                    boxShadow: 4,
+                                  },
+                                  height: "100%",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  // שיפור החיווי הויזואלי להודעות לא-נקראות
+                                  ...(unreadCount > 0 && {
+                                    border: "2px solid #ef4444",
+                                    position: "relative",
+                                    "&::before": {
+                                      content: '""',
+                                      position: "absolute",
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "4px",
+                                      background:
+                                        "linear-gradient(90deg, #ef4444 0%, #f87171 100%)",
+                                      borderTopLeftRadius: "inherit",
+                                      borderTopRightRadius: "inherit",
+                                    },
+                                  }),
+                                }}
+                                onClick={() => handleViewCartDetails(cart)}
                               >
-                                {cart.name || "עגלה ללא שם"}
-                              </Typography>
-                              <Box>
-                                {/* Add the cart email sender here */}
-                                <Tooltip title="שלח עגלה למייל">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation(); // Prevent card click
-                                    }}
+                                <CardContent sx={{ flexGrow: 1 }}>
+                                  <Box
                                     sx={{
-                                      color: "#16a34a",
-                                      mr: 1,
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      mb: 2,
                                     }}
                                   >
-                                    <CartEmailSender
-                                      savedCart={cart}
-                                      size={18}
-                                      hideTooltip={true}
-                                      onlyIcon={true}
-                                    />
-                                  </IconButton>
-                                </Tooltip>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{
-                                    color: "#16a34a",
-                                    borderColor: "#16a34a",
-                                    "&:hover": {
-                                      bgcolor: "rgba(22, 163, 74, 0.04)",
-                                      borderColor: "#15803d",
-                                    },
-                                    mr: 1,
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/edit-cart/${cart._id}`);
-                                  }}
-                                >
-                                  ערוך
-                                </Button>
-                              </Box>
+                                    <Typography
+                                      variant="h6"
+                                      sx={{ fontWeight: 600, color: "#16a34a" }}
+                                    >
+                                      {cart.name || "עגלה ללא שם"}
+                                    </Typography>
+                                    <Box>
+                                      {/* Add the cart email sender here */}
+                                      <Tooltip title="שלח עגלה למייל">
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Prevent card click
+                                          }}
+                                          sx={{
+                                            color: "#16a34a",
+                                            mr: 1,
+                                          }}
+                                        >
+                                          <CartEmailSender
+                                            savedCart={cart}
+                                            size={18}
+                                            hideTooltip={true}
+                                            onlyIcon={true}
+                                          />
+                                        </IconButton>
+                                      </Tooltip>
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{
+                                          color: "#16a34a",
+                                          borderColor: "#16a34a",
+                                          "&:hover": {
+                                            bgcolor: "rgba(22, 163, 74, 0.04)",
+                                            borderColor: "#15803d",
+                                          },
+                                          mr: 1,
+                                        }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(`/edit-cart/${cart._id}`);
+                                        }}
+                                      >
+                                        ערוך
+                                      </Button>
+                                    </Box>
+                                  </Box>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mb: 1 }}
+                                  >
+                                    נוצר: {formatDate(cart.createdAt)}
+                                  </Typography>
+                                  <Chip
+                                    label={`${cart.items?.length || 0} פריטים`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: "rgba(22, 163, 74, 0.1)",
+                                      color: "#16a34a",
+                                      fontWeight: 600,
+                                      mb: 2,
+                                    }}
+                                  />
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "flex-end",
+                                      mt: 2,
+                                    }}
+                                  >
+                                    <Button
+                                      size="small"
+                                      endIcon={<ArrowRight size={16} />}
+                                      sx={{ color: "#16a34a" }}
+                                    >
+                                      צפה בפרטים
+                                    </Button>
+                                  </Box>
+                                </CardContent>
+                              </Card>
                             </Box>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ mb: 1 }}
-                            >
-                              נוצר: {formatDate(cart.createdAt)}
-                            </Typography>
-                            <Chip
-                              label={`${cart.items?.length || 0} פריטים`}
-                              size="small"
-                              sx={{
-                                bgcolor: "rgba(22, 163, 74, 0.1)",
-                                color: "#16a34a",
-                                fontWeight: 600,
-                                mb: 2,
-                              }}
-                            />
-                            <Box
-                              sx={{
-                                display: "flex",
-                                justifyContent: "flex-end",
-                                mt: 2,
-                              }}
-                            >
-                              <Button
-                                size="small"
-                                endIcon={<ArrowRight size={16} />}
-                                sx={{ color: "#16a34a" }}
-                              >
-                                צפה בפרטים
-                              </Button>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
+                          </CartNotificationTooltip>
+                        </Grid>
+                      );
+                    })}
                   </Grid>
                 </>
               )}
@@ -1258,9 +1445,14 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
               {/* Cart Chat Section */}
               {selectedCart && selectedCart._id && (
                 <>
-                  {selectedCart.participants && selectedCart.participants.length > 0 ? (
+                  {selectedCart.participants &&
+                  selectedCart.participants.length > 0 ? (
                     <Box
-                      sx={{ mt: 4, pt: 3, borderTop: "1px solid rgba(0,0,0,0.12)" }}
+                      sx={{
+                        mt: 4,
+                        pt: 3,
+                        borderTop: "1px solid rgba(0,0,0,0.12)",
+                      }}
                     >
                       <Typography
                         variant="subtitle1"
@@ -1276,18 +1468,18 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                     </Box>
                   ) : (
                     <Box
-                      sx={{ 
-                        mt: 4, 
-                        pt: 3, 
+                      sx={{
+                        mt: 4,
+                        pt: 3,
                         borderTop: "1px solid rgba(0,0,0,0.12)",
                         textAlign: "center",
-                        color: "text.secondary"
+                        color: "text.secondary",
                       }}
                     >
                       <Typography variant="body1">
                         צ'אט זמין רק בעגלות משותפות
                       </Typography>
-                      <Button 
+                      <Button
                         startIcon={<Share2 size={16} />}
                         sx={{ mt: 1, color: "#16a34a" }}
                         onClick={(e) => {
@@ -1424,7 +1616,6 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
               {passwordError}
             </Alert>
           )}
-
           <TextField
             label="סיסמה נוכחית"
             type="password"

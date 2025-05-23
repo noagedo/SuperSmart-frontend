@@ -14,11 +14,17 @@ export interface PriceDropNotification {
   wishlistName: string;
   userId?: string; // Add userId field for client-side filtering
   cartId?: string; // Ensure cartId field is included for cart-specific notifications
+  type?: "price-drop" | "chat"; // Add type for notification
+  isRead?: boolean; // For chat notifications
+  message?: string; // Add message field for chat notifications
 }
 
 class NotificationService {
   public socket: Socket | null = null; // Changed to public for debugging
   private onPriceDropCallback:
+    | ((notification: PriceDropNotification) => void)
+    | null = null;
+  private onChatMessageCallback:
     | ((notification: PriceDropNotification) => void)
     | null = null;
   private currentUserId: string | null = null;
@@ -58,7 +64,6 @@ class NotificationService {
       if (typeof window !== "undefined") {
         (window as any).socketConnected = true;
       }
-
       // Resubscribe with user ID after reconnection
       const userId = localStorage.getItem("userId");
       if (userId) {
@@ -76,6 +81,7 @@ class NotificationService {
 
     // Replace direct event binding with our custom method
     this.setupNotificationListener();
+    this.setupChatNotificationListener();
   }
 
   public subscribeToWishlistUpdates(userId: string) {
@@ -83,13 +89,11 @@ class NotificationService {
       console.log("Subscribing to wishlist updates for user:", userId);
       this.currentUserId = userId; // Store current user ID
       localStorage.setItem("userId", userId);
-
       // Explicitly request to only get events for this user's wishlists
       this.socket.emit("subscribe-to-wishlists", {
         userId: userId,
         onlyUserWishlists: true,
       });
-
       // Send a separate message to ensure backward compatibility
       this.socket.emit("set-user-filter", userId);
     }
@@ -99,13 +103,18 @@ class NotificationService {
     this.onPriceDropCallback = callback;
   }
 
+  public onChatMessage(
+    callback: (notification: PriceDropNotification) => void
+  ) {
+    this.onChatMessageCallback = callback;
+  }
+
   // Listen for price drop notifications
   private setupNotificationListener() {
     if (!this.socket) return;
 
     this.socket.on("price-drop", (data) => {
-      console.log("Received price-drop event:", data); // <-- ודא שאתה רואה כאן cartId
-
+      console.log("Received price-drop event:", data);
       // Create a properly formatted notification
       const notification: PriceDropNotification = {
         id:
@@ -115,12 +124,52 @@ class NotificationService {
         changeDate: new Date(data.changeDate || new Date()),
         wishlistId: data.wishlistId || "", // Ensure these fields always exist
         wishlistName: data.wishlistName || "רשימת מועדפים",
+        type: "price-drop", // <-- Add type
+        isRead: false,
       };
 
       console.log("Processed notification:", notification);
-
       if (this.onPriceDropCallback) {
         this.onPriceDropCallback(notification);
+      }
+    });
+  }
+
+  // Listen for chat notifications
+  private setupChatNotificationListener() {
+    if (!this.socket) return;
+
+    this.socket.on("new-chat-notification", (data) => {
+      console.log("Received new-chat-notification", data);
+
+      // בדוק אם ההודעה היא מהמשתמש הנוכחי (אין צורך להתריע על הודעות משלך)
+      const currentSocketId = this.socket?.id;
+      if (data.clientId === currentSocketId) {
+        console.log("Ignoring own chat message notification", data);
+        return; // דלג על התראות להודעות שנשלחו מהמשתמש הנוכחי
+      }
+
+      const notification: PriceDropNotification = {
+        id:
+          new Date().getTime().toString() +
+          Math.random().toString(36).substring(2, 9),
+        cartId: data.cartId,
+        productId: "",
+        productName: `הודעה חדשה מעגלה: ${data.sender}`,
+        oldPrice: 0, // ערכים כברירת מחדל, לא רלוונטים להתראות צ'אט
+        newPrice: 0, // ערכים כברירת מחדל, לא רלוונטים להתראות צ'אט
+        storeId: "",
+        changeDate: new Date(data.timestamp || new Date()),
+        image: "",
+        wishlistId: "",
+        wishlistName: "",
+        type: "chat",
+        isRead: false,
+        message: data.message || "", // Add the message content from the incoming data
+      };
+
+      if (this.onChatMessageCallback) {
+        this.onChatMessageCallback(notification);
       }
     });
   }
