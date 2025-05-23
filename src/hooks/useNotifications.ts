@@ -886,8 +886,22 @@ const useNotifications = () => {
   // Listen for chat notifications (new-chat-notification)
   useEffect(() => {
     const handleChatNotification = (notification: PriceDropNotification) => {
-      console.log("🔔 [handleChatNotification]", notification); // הוסף לוג
+      console.log("🔔 [handleChatNotification]", notification);
       if (!notification.cartId) return;
+
+      // בדוק אם ההודעה היא מהמשתמש הנוכחי לפי השם (אין צורך להתריע על הודעות משלך)
+      const currentUserName = user?.userName;
+      // הסר את "הודעה חדשה מעגלה: " מתחילת השם
+      const senderName = notification.productName?.replace(
+        "הודעה חדשה מעגלה: ",
+        ""
+      );
+
+      if (currentUserName && senderName === currentUserName) {
+        console.log("Ignoring own chat message notification from:", senderName);
+        return; // דלג על התראות להודעות שנשלחו מהמשתמש הנוכחי
+      }
+
       setNotifications((prev) => {
         // Avoid duplicates (by cartId, type, timestamp)
         const isDuplicate = prev.some(
@@ -899,12 +913,78 @@ const useNotifications = () => {
         if (isDuplicate) return prev;
         return [...prev, notification];
       });
+
+      // שמירת הודעת צ'אט בלוקל סטורג'
+      try {
+        // קריאה להודעות קיימות מהמטמון
+        const localStorageKey = `chat_messages_${notification.cartId}`;
+        const existingMessagesStr = localStorage.getItem(localStorageKey);
+
+        // Extract sender name from the notification
+        const senderName = notification.productName
+          ? notification.productName.replace("הודעה חדשה מעגלה: ", "")
+          : "Unknown User";
+
+        // המרת ההתראה להודעת צ'אט
+        const chatMessage = {
+          sender: senderName,
+          message: notification.message || "",
+          timestamp:
+            notification.changeDate?.toISOString() || new Date().toISOString(),
+          clientId: "",
+          _id: notification.id,
+        };
+
+        // אם יש הודעות קיימות, הוסף את ההודעה החדשה
+        if (existingMessagesStr) {
+          try {
+            const existingMessages = JSON.parse(existingMessagesStr);
+
+            // בדוק אם ההודעה כבר קיימת
+            const isDuplicate = existingMessages.some(
+              (msg: any) =>
+                msg.sender === chatMessage.sender &&
+                msg.message === chatMessage.message &&
+                msg.timestamp === chatMessage.timestamp
+            );
+
+            if (!isDuplicate) {
+              const updatedMessages = [...existingMessages, chatMessage];
+              localStorage.setItem(
+                localStorageKey,
+                JSON.stringify(updatedMessages)
+              );
+              console.log(
+                `[handleChatNotification] Saved notification to localStorage for cart ${notification.cartId} (total: ${updatedMessages.length} messages)`
+              );
+            }
+          } catch (error) {
+            console.error(
+              "[handleChatNotification] Error parsing chat messages:",
+              error
+            );
+          }
+        } else {
+          // אין הודעות קיימות, צור מערך חדש עם ההודעה הנוכחית
+          localStorage.setItem(localStorageKey, JSON.stringify([chatMessage]));
+          console.log(
+            `[handleChatNotification] Created new chat cache for cart ${notification.cartId}`
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[handleChatNotification] Error saving chat to localStorage:",
+          error
+        );
+      }
     };
+
     notificationService.onChatMessage(handleChatNotification);
+
     return () => {
       notificationService.onChatMessage(() => {});
     };
-  }, []);
+  }, [user?.userName]); // הוסף את שם המשתמש כתלות
 
   // Mark all chat notifications for a cart as read
   const markChatNotificationsAsRead = (cartId: string) => {

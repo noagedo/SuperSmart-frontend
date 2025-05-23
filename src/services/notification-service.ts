@@ -16,6 +16,7 @@ export interface PriceDropNotification {
   cartId?: string; // Ensure cartId field is included for cart-specific notifications
   type?: "price-drop" | "chat"; // Add type for notification
   isRead?: boolean; // For chat notifications
+  message?: string; // Add message field for chat notifications
 }
 
 class NotificationService {
@@ -63,7 +64,6 @@ class NotificationService {
       if (typeof window !== "undefined") {
         (window as any).socketConnected = true;
       }
-
       // Resubscribe with user ID after reconnection
       const userId = localStorage.getItem("userId");
       if (userId) {
@@ -81,7 +81,7 @@ class NotificationService {
 
     // Replace direct event binding with our custom method
     this.setupNotificationListener();
-    this.setupChatNotificationListener(); // <-- Add this
+    this.setupChatNotificationListener();
   }
 
   public subscribeToWishlistUpdates(userId: string) {
@@ -89,13 +89,11 @@ class NotificationService {
       console.log("Subscribing to wishlist updates for user:", userId);
       this.currentUserId = userId; // Store current user ID
       localStorage.setItem("userId", userId);
-
       // Explicitly request to only get events for this user's wishlists
       this.socket.emit("subscribe-to-wishlists", {
         userId: userId,
         onlyUserWishlists: true,
       });
-
       // Send a separate message to ensure backward compatibility
       this.socket.emit("set-user-filter", userId);
     }
@@ -116,8 +114,7 @@ class NotificationService {
     if (!this.socket) return;
 
     this.socket.on("price-drop", (data) => {
-      console.log("Received price-drop event:", data); // <-- ודא שאתה רואה כאן cartId
-
+      console.log("Received price-drop event:", data);
       // Create a properly formatted notification
       const notification: PriceDropNotification = {
         id:
@@ -132,7 +129,6 @@ class NotificationService {
       };
 
       console.log("Processed notification:", notification);
-
       if (this.onPriceDropCallback) {
         this.onPriceDropCallback(notification);
       }
@@ -142,8 +138,17 @@ class NotificationService {
   // Listen for chat notifications
   private setupChatNotificationListener() {
     if (!this.socket) return;
+
     this.socket.on("new-chat-notification", (data) => {
-      console.log("Received new-chat-notification", data); // הוסף לוג
+      console.log("Received new-chat-notification", data);
+
+      // בדוק אם ההודעה היא מהמשתמש הנוכחי (אין צורך להתריע על הודעות משלך)
+      const currentSocketId = this.socket?.id;
+      if (data.clientId === currentSocketId) {
+        console.log("Ignoring own chat message notification", data);
+        return; // דלג על התראות להודעות שנשלחו מהמשתמש הנוכחי
+      }
+
       const notification: PriceDropNotification = {
         id:
           new Date().getTime().toString() +
@@ -160,7 +165,9 @@ class NotificationService {
         wishlistName: "",
         type: "chat",
         isRead: false,
+        message: data.message || "", // Add the message content from the incoming data
       };
+
       if (this.onChatMessageCallback) {
         this.onChatMessageCallback(notification);
       }
