@@ -113,7 +113,10 @@ interface CartProps {
 }
 
 // Define store locations with proper coordinates for Israel
-const storeLocations: Record<string, { lat: number; lng: number; address: string }> = {
+const storeLocations: Record<
+  string,
+  { lat: number; lng: number; address: string }
+> = {
   shufersal: { lat: 32.0853, lng: 34.7818, address: "שופרסל, תל אביב" },
   mega: { lat: 32.0836, lng: 34.8004, address: "ויקטורי, תל אביב" },
   yenotbitan: { lat: 32.0707, lng: 34.8245, address: "יינות ביתן, תל אביב" },
@@ -138,7 +141,8 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const { user } = useUsers();
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
-  const [showSingleStoreMap, setShowSingleStoreMap] = useState<null | Supermarket>(null);
+  const [showSingleStoreMap, setShowSingleStoreMap] =
+    useState<null | Supermarket>(null);
 
   const calculatePriceRange = (storePrices: CartItem["storePrices"] = []) => {
     const latestPricesByStore = storePrices
@@ -297,13 +301,17 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   // Function to convert store data to Supermarket format for the map
   const getMapStores = (): Supermarket[] => {
     return calculateShopTotals().map(([storeId, { name }]) => {
-      const location = storeLocations[storeId] || { lat: 32.0853, lng: 34.7818, address: "Israel" };
+      const location = storeLocations[storeId] || {
+        lat: 32.0853,
+        lng: 34.7818,
+        address: "Israel",
+      };
       return {
         id: storeId,
         name: name,
         address: location.address,
         lat: location.lat,
-        lng: location.lng
+        lng: location.lng,
       };
     });
   };
@@ -364,7 +372,9 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
         >
           {showShopComparison ? (
             <Box>
-              <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", mb: 2, gap: 2 }}
+              >
                 <Typography
                   variant="h6"
                   sx={{ fontWeight: 700, color: "primary.main" }}
@@ -386,25 +396,34 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                   <Typography variant="subtitle1" sx={{ mb: 1 }}>
                     מיקום כל החנויות
                   </Typography>
-                  <Box sx={{ width: "100%", height: 300, borderRadius: 2, overflow: "hidden", boxShadow: 1 }}>
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: 300,
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      boxShadow: 1,
+                    }}
+                  >
                     {/* Replace Google Maps iframe with SuperMap component */}
-                    <SuperMap 
-                      stores={getMapStores()} 
-                      height={300}
-                    />
+                    <SuperMap stores={getMapStores()} height={300} />
                   </Box>
                 </Box>
               )}
               <List sx={{ bgcolor: "#f8fafc", borderRadius: 2, p: 2 }}>
                 {calculateShopTotals().map(
                   ([storeId, { total, name }], index) => {
-                    const location = storeLocations[storeId] || { lat: 32.0853, lng: 34.7818, address: "Israel" };
+                    const location = storeLocations[storeId] || {
+                      lat: 32.0853,
+                      lng: 34.7818,
+                      address: "Israel",
+                    };
                     const storeForMap: Supermarket = {
                       id: storeId,
                       name,
                       address: location.address,
                       lat: location.lat,
-                      lng: location.lng
+                      lng: location.lng,
                     };
                     return (
                       <ListItem
@@ -438,7 +457,9 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                             alignItems: "center",
                             gap: 2,
                             width: isMobile ? "100%" : "auto",
-                            justifyContent: isMobile ? "space-between" : "flex-end",
+                            justifyContent: isMobile
+                              ? "space-between"
+                              : "flex-end",
                           }}
                         >
                           {index === 0 && (
@@ -495,7 +516,8 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.onerror = null;
-                        target.src = "https://placehold.co/100x100?text=No+Image";
+                        target.src =
+                          "https://placehold.co/100x100?text=No+Image";
                       }}
                     />
                     <Box sx={{ flex: 1 }}>
@@ -568,7 +590,10 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
           >
             {showShopComparison ? "חזרה לעגלה" : "השוואת מחירים בין רשתות"}
           </ActionButton>
-          <ActionButton variant="outlined" onClick={() => setSaveDialogOpen(true)}>
+          <ActionButton
+            variant="outlined"
+            onClick={() => setSaveDialogOpen(true)}
+          >
             שמירת עגלה
           </ActionButton>
 
@@ -603,7 +628,9 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
               label="שם העגלה"
               value={cartName}
               onChange={(e) => setCartName(e.target.value)}
-              placeholder={`העגלה שלי ${new Date().toLocaleDateString("he-IL")}`}
+              placeholder={`העגלה שלי ${new Date().toLocaleDateString(
+                "he-IL"
+              )}`}
             />
           </DialogContent>
           <DialogActions sx={{ p: 3 }}>
@@ -664,19 +691,35 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
         </Dialog>
 
         {/* Single Store Map Dialog */}
-        <Dialog open={!!showSingleStoreMap} onClose={() => setShowSingleStoreMap(null)} maxWidth="md" fullWidth>
+        <Dialog
+          open={!!showSingleStoreMap}
+          onClose={() => setShowSingleStoreMap(null)}
+          maxWidth="md"
+          fullWidth
+        >
           <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>
             מיקום החנות במפה
           </DialogTitle>
           <DialogContent sx={{ p: 0 }}>
             {showSingleStoreMap && (
-              <Box sx={{ width: "100%", height: 350, borderRadius: 2, overflow: "hidden" }}>
+              <Box
+                sx={{
+                  width: "100%",
+                  height: 350,
+                  borderRadius: 2,
+                  overflow: "hidden",
+                }}
+              >
                 <SuperMap stores={[showSingleStoreMap]} height={350} />
               </Box>
             )}
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setShowSingleStoreMap(null)} color="primary" variant="contained">
+            <Button
+              onClick={() => setShowSingleStoreMap(null)}
+              color="primary"
+              variant="contained"
+            >
               סגור
             </Button>
           </DialogActions>
