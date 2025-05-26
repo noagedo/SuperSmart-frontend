@@ -138,6 +138,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   const { user } = useUsers();
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const [showSingleStoreMap, setShowSingleStoreMap] = useState<null | Supermarket>(null);
 
   const calculatePriceRange = (storePrices: CartItem["storePrices"] = []) => {
     const latestPricesByStore = storePrices
@@ -396,54 +397,72 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
               )}
               <List sx={{ bgcolor: "#f8fafc", borderRadius: 2, p: 2 }}>
                 {calculateShopTotals().map(
-                  ([storeId, { total, name }], index) => (
-                    <ListItem
-                      key={storeId}
-                      sx={{
-                        bgcolor:
-                          index === 0 ? "rgba(22, 163, 74, 0.1)" : "white",
-                        borderRadius: 2,
-                        mb: 2,
-                        border:
-                          index === 0
-                            ? "2px solid rgba(22, 163, 74, 0.3)"
-                            : "1px solid rgba(0, 0, 0, 0.1)",
-                        flexDirection: isMobile ? "column" : "row",
-                        alignItems: isMobile ? "flex-start" : "center",
-                        gap: isMobile ? 2 : 0,
-                        padding: 2,
-                      }}
-                    >
-                      <ListItemText
-                        primary={
-                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            {name}
-                          </Typography>
-                        }
-                        secondary={index === 0 ? "המחיר הנמוך ביותר" : null}
-                      />
-                      <Box
+                  ([storeId, { total, name }], index) => {
+                    const location = storeLocations[storeId] || { lat: 32.0853, lng: 34.7818, address: "Israel" };
+                    const storeForMap: Supermarket = {
+                      id: storeId,
+                      name,
+                      address: location.address,
+                      lat: location.lat,
+                      lng: location.lng
+                    };
+                    return (
+                      <ListItem
+                        key={storeId}
                         sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 2,
-                          width: isMobile ? "100%" : "auto",
-                          justifyContent: isMobile ? "space-between" : "flex-end",
+                          bgcolor:
+                            index === 0 ? "rgba(22, 163, 74, 0.1)" : "white",
+                          borderRadius: 2,
+                          mb: 2,
+                          border:
+                            index === 0
+                              ? "2px solid rgba(22, 163, 74, 0.3)"
+                              : "1px solid rgba(0, 0, 0, 0.1)",
+                          flexDirection: isMobile ? "column" : "row",
+                          alignItems: isMobile ? "flex-start" : "center",
+                          gap: isMobile ? 2 : 0,
+                          padding: 2,
                         }}
                       >
-                        {index === 0 && (
-                          <Chip
-                            label="הכי זול!"
+                        <ListItemText
+                          primary={
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                              {name}
+                            </Typography>
+                          }
+                          secondary={index === 0 ? "המחיר הנמוך ביותר" : null}
+                        />
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2,
+                            width: isMobile ? "100%" : "auto",
+                            justifyContent: isMobile ? "space-between" : "flex-end",
+                          }}
+                        >
+                          {index === 0 && (
+                            <Chip
+                              label="הכי זול!"
+                              color="primary"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          )}
+                          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                            ₪{total.toFixed(2)}
+                          </Typography>
+                          <Button
+                            variant="outlined"
                             color="primary"
-                            sx={{ fontWeight: 600 }}
-                          />
-                        )}
-                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                          ₪{total.toFixed(2)}
-                        </Typography>
-                      </Box>
-                    </ListItem>
-                  )
+                            startIcon={<RoomIcon />}
+                            onClick={() => setShowSingleStoreMap(storeForMap)}
+                          >
+                            הצג במפה
+                          </Button>
+                        </Box>
+                      </ListItem>
+                    );
+                  }
                 )}
               </List>
             </Box>
@@ -640,6 +659,25 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
             <Button onClick={() => setShareDialogOpen(false)}>ביטול</Button>
             <Button onClick={handleShareCart} variant="contained">
               שתף
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Single Store Map Dialog */}
+        <Dialog open={!!showSingleStoreMap} onClose={() => setShowSingleStoreMap(null)} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>
+            מיקום החנות במפה
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            {showSingleStoreMap && (
+              <Box sx={{ width: "100%", height: 350, borderRadius: 2, overflow: "hidden" }}>
+                <SuperMap stores={[showSingleStoreMap]} height={350} />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setShowSingleStoreMap(null)} color="primary" variant="contained">
+              סגור
             </Button>
           </DialogActions>
         </Dialog>
