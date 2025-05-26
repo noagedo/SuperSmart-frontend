@@ -1,18 +1,23 @@
-// 📁 services/cart-service.ts
 import apiClient, { CanceledError } from "./api-client";
 import { CartItem } from "./item-service";
 
 export { CanceledError };
 
+export interface CartParticipant {
+  _id: string;
+  email: string;
+  userName: string;
+}
+
 export interface Cart {
   _id?: string;
   name?: string;
   ownerId: string;
-  participants: string[];
+  participants: CartParticipant[];
   items: { productId: string; quantity: number }[];
   createdAt?: Date;
   updatedAt?: Date;
-  notifications?: boolean; // Add notifications field
+  notifications?: boolean;
 }
 
 const createCart = (cart: Omit<Cart, "_id">) => {
@@ -51,6 +56,7 @@ const deleteCart = (cartId: string) => {
   });
   return { request, cancel: () => controller.abort() };
 };
+
 const addParticipant = (cartId: string, email: string) => {
   const controller = new AbortController();
   const request = apiClient.put(

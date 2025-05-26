@@ -35,7 +35,8 @@ import { CartItem } from "../services/item-service";
 import cartService from "../services/cart-service";
 import useUsers from "../hooks/useUsers";
 import { getStoreName } from "../utils/storeUtils";
-import SuperMap, { Supermarket } from "./SuperMap"; // Import the SuperMap component
+import SuperMap, { Supermarket } from "./SuperMap";
+import { CartParticipant } from "../services/cart-service";
 
 const theme = createTheme({
   palette: {
@@ -110,9 +111,9 @@ interface CartProps {
   items: CartItem[];
   onUpdateQuantity: (id: string, quantity: number) => void;
   onRemoveItem: (id: string) => void;
+  participants?: CartParticipant[];
 }
 
-// Define store locations with proper coordinates for Israel
 const storeLocations: Record<
   string,
   { lat: number; lng: number; address: string }
@@ -124,7 +125,7 @@ const storeLocations: Record<
   mahsaneiHashuk: { lat: 32.1019, lng: 34.8271, address: "מחסני השוק, רמת גן" },
 };
 
-export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
+export function Cart({ items, onUpdateQuantity, onRemoveItem, participants = [] }: CartProps) {
   const [showShopComparison, setShowShopComparison] = useState(false);
   const [showAllStoresMap, setShowAllStoresMap] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -290,7 +291,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
     });
   };
 
-  // Helper: get store address by storeId (stub, replace with real data)
   const getStoreAddress = (storeId: string) => {
     if (storeId === "shufersal") return "Shufersal, Tel Aviv, Israel";
     if (storeId === "victory") return "Victory, Tel Aviv, Israel";
@@ -298,7 +298,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
     return "Israel";
   };
 
-  // Function to convert store data to Supermarket format for the map
   const getMapStores = (): Supermarket[] => {
     return calculateShopTotals().map(([storeId, { name }]) => {
       const location = storeLocations[storeId] || {
@@ -314,6 +313,29 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
         lng: location.lng,
       };
     });
+  };
+
+  const renderParticipants = () => {
+    if (!participants.length) return null;
+
+    return (
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+          משתתפים בעגלה:
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {participants.map((participant) => (
+            <Chip
+              key={participant._id}
+              label={participant.userName || participant.email}
+              variant="outlined"
+              color="primary"
+              sx={{ borderRadius: 1 }}
+            />
+          ))}
+        </Box>
+      </Box>
+    );
   };
 
   if (items.length === 0) {
@@ -350,17 +372,11 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
   return (
     <ThemeProvider theme={theme}>
       <StyledCard>
-        <Box
-          sx={{
-            bgcolor: "primary.main",
-            p: 3,
-            color: "white",
-            background: "linear-gradient(45deg, #16a34a 30%, #22c55e 90%)",
-          }}
-        >
+        <Box sx={{ bgcolor: "primary.main", p: 3, color: "white", background: "linear-gradient(45deg, #16a34a 30%, #22c55e 90%)" }}>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
             עגלת קניות ({items.length} {items.length === 1 ? "פריט" : "פריטים"})
           </Typography>
+          {renderParticipants()}
         </Box>
 
         <CardContent
@@ -405,7 +421,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
                       boxShadow: 1,
                     }}
                   >
-                    {/* Replace Google Maps iframe with SuperMap component */}
                     <SuperMap stores={getMapStores()} height={300} />
                   </Box>
                 </Box>
@@ -617,7 +632,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
           </ActionButton>
         </Box>
 
-        {/* Dialogs */}
         <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
           <DialogTitle sx={{ bgcolor: "primary.main", color: "white", py: 3 }}>
             שמירת עגלה
@@ -690,7 +704,6 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem }: CartProps) {
           </DialogActions>
         </Dialog>
 
-        {/* Single Store Map Dialog */}
         <Dialog
           open={!!showSingleStoreMap}
           onClose={() => setShowSingleStoreMap(null)}
