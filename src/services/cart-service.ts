@@ -7,6 +7,7 @@ export interface CartParticipant {
   _id: string;
   email: string;
   userName: string;
+  profilePicture?: string;
 }
 
 export interface Cart {

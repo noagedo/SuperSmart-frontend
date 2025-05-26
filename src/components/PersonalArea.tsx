@@ -201,8 +201,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
   // Remove participant dialog states
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
- const [selectedParticipant, setSelectedParticipant] = useState<CartParticipant | null>(null);
-
+  const [selectedParticipant, setSelectedParticipant] =
+    useState<CartParticipant | null>(null);
 
   // Add state for cart items with product details
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState<
@@ -282,12 +282,11 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         const allCarts = response.data;
 
         const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
-       const shared = allCarts.filter(
-  (cart: Cart) =>
-    cart.ownerId !== user._id &&
-    cart.participants.some((p) => p._id === user._id)
-);
-
+        const shared = allCarts.filter(
+          (cart: Cart) =>
+            cart.ownerId !== user._id &&
+            cart.participants.some((p) => p._id === user._id)
+        );
 
         setMyCarts(my);
         setSharedCarts(shared);
@@ -481,18 +480,17 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       await request;
 
       // Update the cart in the local state
-     const updatedCart = {
-  ...selectedCartForShare,
-  participants: [
-    ...selectedCartForShare.participants,
-    {
-      userId: "", // אפשר להשאיר ריק זמנית, או להביא מהשרת
-      email: shareEmail,
-      userName: "משתמש חדש", // אפשר להחליף בשם מתאים
-    },
-  ],
-};
-
+      const updatedCart = {
+        ...selectedCartForShare,
+        participants: [
+          ...selectedCartForShare.participants,
+          {
+            userId: "", // אפשר להשאיר ריק זמנית, או להביא מהשרת
+            email: shareEmail,
+            userName: "משתמש חדש", // אפשר להחליף בשם מתאים
+          },
+        ],
+      };
 
       setShareDialogOpen(false);
       setShareEmail("");
@@ -515,58 +513,57 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   };
 
   // Handle removing a participant
- const handleRemoveParticipant = async () => {
-  console.log("📣 handleRemoveParticipant נקראה");
+  const handleRemoveParticipant = async () => {
+    console.log("📣 handleRemoveParticipant נקראה");
 
-  if (!selectedCartForShare?._id || !selectedParticipant?._id) {
-    console.warn("⛔ תנאי עצירה:");
-    console.warn("selectedCartForShare?._id:", selectedCartForShare?._id);
-    console.warn("selectedParticipant:", selectedParticipant);
-    return;
-  }
+    if (!selectedCartForShare?._id || !selectedParticipant?._id) {
+      console.warn("⛔ תנאי עצירה:");
+      console.warn("selectedCartForShare?._id:", selectedCartForShare?._id);
+      console.warn("selectedParticipant:", selectedParticipant);
+      return;
+    }
 
-  try {
-    const { request } = cartService.removeParticipant(
-      selectedCartForShare._id,
-      selectedParticipant._id
-    );
+    try {
+      const { request } = cartService.removeParticipant(
+        selectedCartForShare._id,
+        selectedParticipant._id
+      );
 
-    console.log("📤 שולח בקשת הסרה לשרת...");
+      console.log("📤 שולח בקשת הסרה לשרת...");
 
-    await request;
+      await request;
 
-    const updatedCart = {
-      ...selectedCartForShare,
-      participants: selectedCartForShare.participants.filter(
-        (p) => p._id !== selectedParticipant._id
-      ),
-    };
+      const updatedCart = {
+        ...selectedCartForShare,
+        participants: selectedCartForShare.participants.filter(
+          (p) => p._id !== selectedParticipant._id
+        ),
+      };
 
-    setMyCarts((prevCarts) =>
-      prevCarts.map((cart) =>
-        cart._id === selectedCartForShare._id ? updatedCart : cart
-      )
-    );
+      setMyCarts((prevCarts) =>
+        prevCarts.map((cart) =>
+          cart._id === selectedCartForShare._id ? updatedCart : cart
+        )
+      );
 
-    setRemoveDialogOpen(false);
-    setSelectedParticipant(null);
-    setSelectedCartForShare(null);
+      setRemoveDialogOpen(false);
+      setSelectedParticipant(null);
+      setSelectedCartForShare(null);
 
-    setSnackbar({
-      open: true,
-      message: "המשתתף הוסר בהצלחה",
-      severity: "success",
-    });
-  } catch (error) {
-    console.error("❌ שגיאה בהסרה:", error);
-    setSnackbar({
-      open: true,
-      message: "שגיאה בהסרת המשתתף",
-      severity: "error",
-    });
-  }
-};
-
+      setSnackbar({
+        open: true,
+        message: "המשתתף הוסר בהצלחה",
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("❌ שגיאה בהסרה:", error);
+      setSnackbar({
+        open: true,
+        message: "שגיאה בהסרת המשתתף",
+        severity: "error",
+      });
+    }
+  };
 
   // Handle closing the snackbar
   const handleCloseSnackbar = () => {
@@ -1145,16 +1142,34 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                                           gap: 1,
                                         }}
                                       >
-                                        {cart.participants.map((participant) => (
-  <Chip
-    key={participant._id}
-    label={participant.userName}
-
+                                        {cart.participants.map(
+                                          (participant) => (
+                                            <Chip
+                                              key={participant._id}
+                                              label={participant.userName}
+                                              avatar={
+                                                participant.profilePicture ? (
+                                                  <img
+                                                    src={
+                                                      participant.profilePicture
+                                                    }
+                                                    alt={participant.userName}
+                                                    style={{
+                                                      width: 24,
+                                                      height: 24,
+                                                      borderRadius: "50%",
+                                                      objectFit: "cover",
+                                                    }}
+                                                  />
+                                                ) : undefined 
+                                              }
                                               size="small"
                                               onDelete={(e) => {
                                                 e.stopPropagation();
                                                 setSelectedCartForShare(cart);
-                                                setSelectedParticipant(participant); // עכשיו participant הוא CartParticipant
+                                                setSelectedParticipant(
+                                                  participant
+                                                ); // עכשיו participant הוא CartParticipant
 
                                                 setRemoveDialogOpen(true);
                                               }}
@@ -1393,7 +1408,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
           )}
         </Box>
       </Paper>
-{/* Cart Details Dialog */}
+
+      {/* Cart Details Dialog */}
 <Dialog
   open={cartDetailsOpen}
   onClose={() => setCartDetailsOpen(false)}
@@ -1499,69 +1515,71 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
           </Grid>
         )}
 
-        {/* Chat Section */}
-        {selectedCart && selectedCart._id && (
-          <>
-            {selectedCart.participants?.length > 0 ? (
-              <Box
-                sx={{
-                  mt: 4,
-                  pt: 3,
-                  borderTop: "1px solid rgba(0,0,0,0.12)",
-                }}
+              {/* 🔵 Chat Section */}
+              {selectedCart && selectedCart._id && (
+                <>
+                  {selectedCart.participants?.length > 0 ? (
+                    <Box
+                      sx={{
+                        mt: 4,
+                        pt: 3,
+                        borderTop: "1px solid rgba(0,0,0,0.12)",
+                      }}
+                    >
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: 600, mb: 2 }}
+                      >
+                        שיחות על העגלה:
+                      </Typography>
+                      <CartChat
+                        cartId={selectedCart._id}
+                        userName={user.userName}
+                        isOpen={cartDetailsOpen}
+                      />
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        mt: 4,
+                        pt: 3,
+                        borderTop: "1px solid rgba(0,0,0,0.12)",
+                        textAlign: "center",
+                        color: "text.secondary",
+                      }}
+                    >
+                      <Typography variant="body1">
+                        צ'אט זמין רק בעגלות משותפות
+                      </Typography>
+                      <Button
+                        startIcon={<Share2 size={16} />}
+                        sx={{ mt: 1, color: "#16a34a" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCartForShare(selectedCart);
+                          setShareDialogOpen(true);
+                          setCartDetailsOpen(false);
+                        }}
+                      >
+                        שתף עגלה זו כדי להפעיל צ'אט
+                      </Button>
+                    </Box>
+                  )}
+                </>
+              )}
+            </DialogContent>
+
+            <DialogActions sx={{ p: 2 }}>
+              <Button
+                onClick={() => setCartDetailsOpen(false)}
+                sx={{ color: "text.secondary" }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#16a34a' }}>
-                  שיחות על העגלה:
-                </Typography>
-                <CartChat
-                  cartId={selectedCart._id}
-                  userName={user.userName}
-                  isOpen={cartDetailsOpen}
-                />
-              </Box>
-            ) : (
-              <Box
-                sx={{
-                  mt: 4,
-                  pt: 3,
-                  borderTop: "1px solid rgba(0,0,0,0.12)",
-                  textAlign: "center",
-                  color: "text.secondary",
-                }}
-              >
-                <Typography variant="body1">
-                  צ'אט זמין רק בעגלות משותפות
-                </Typography>
-                <Button
-                  startIcon={<Share2 size={16} />}
-                  sx={{ mt: 1, color: "#16a34a" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedCartForShare(selectedCart);
-                    setShareDialogOpen(true);
-                    setCartDetailsOpen(false);
-                  }}
-                >
-                  שתף עגלה זו כדי להפעיל צ'אט
-                </Button>
-              </Box>
-            )}
+                סגור
+              </Button>
+            </DialogActions>
           </>
         )}
-      </DialogContent>
-
-      <DialogActions sx={{ p: 2 }}>
-        <Button
-          onClick={() => setCartDetailsOpen(false)}
-          sx={{ color: "text.secondary" }}
-        >
-          סגור
-        </Button>
-      </DialogActions>
-    </>
-  )}
-</Dialog>
-
+      </Dialog>
 
       {/* Share Cart Dialog */}
       <Dialog
@@ -1618,7 +1636,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         </DialogTitle>
         <DialogContent sx={{ pt: 2, mt: 2 }}>
           <Typography>
-            האם אתה בטוח שברצונך להסיר את המשתמש {selectedParticipant?.userName} מהעגלה?
+            האם אתה בטוח שברצונך להסיר את המשתמש {selectedParticipant?.userName}{" "}
+            מהעגלה?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
