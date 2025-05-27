@@ -210,34 +210,35 @@ const EditCart = () => {
 
   // Handle adding a new participant
   const handleAddParticipant = async () => {
-    if (!cart?._id || !newParticipantEmail) return;
+  if (!cart?._id || !newParticipantEmail) return;
 
-    try {
-      const { request } = cartService.addParticipant(cart._id, newParticipantEmail);
-      await request;
+  try {
+    const { request } = cartService.addParticipant(cart._id, newParticipantEmail);
+    await request;
 
-      setCart(prev => prev ? {
-        ...prev,
-        participants: [...prev.participants, newParticipantEmail]
-      } : null);
+    // 🟢 ריענון של העגלה כדי לקבל את המשתתפים המעודכנים עם userName ו-email
+    const { request: fetchUpdated } = cartService.getCartById(cart._id);
+    const response = await fetchUpdated;
+    setCart(response.data);
 
-      setParticipantDialogOpen(false);
-      setNewParticipantEmail('');
-      
-      setSnackbar({
-        open: true,
-        message: 'המשתתף נוסף בהצלחה',
-        severity: 'success'
-      });
-    } catch (err) {
-      console.error('Failed to add participant:', err);
-      setSnackbar({
-        open: true,
-        message: 'שגיאה בהוספת המשתתף',
-        severity: 'error'
-      });
-    }
-  };
+    setParticipantDialogOpen(false);
+    setNewParticipantEmail('');
+
+    setSnackbar({
+      open: true,
+      message: 'המשתתף נוסף בהצלחה',
+      severity: 'success'
+    });
+  } catch (err) {
+    console.error('Failed to add participant:', err);
+    setSnackbar({
+      open: true,
+      message: 'שגיאה בהוספת המשתתף',
+      severity: 'error'
+    });
+  }
+};
+
 
   // Handle removing a participant
   const handleRemoveParticipant = async () => {
@@ -249,7 +250,7 @@ const EditCart = () => {
 
       setCart(prev => prev ? {
         ...prev,
-        participants: prev.participants.filter(p => p !== participantToRemove)
+        participants: prev.participants.filter(p => p._id !== participantToRemove)
       } : null);
 
       setRemoveParticipantDialogOpen(false);
@@ -405,26 +406,27 @@ const EditCart = () => {
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   {cart.participants.map((participant) => (
-                    <Chip
-                      key={participant}
-                      label={participant}
-                      onDelete={() => {
-                        setParticipantToRemove(participant);
-                        setRemoveParticipantDialogOpen(true);
-                      }}
-                      deleteIcon={<UserMinus size={16} />}
-                      sx={{
-                        bgcolor: 'rgba(22, 163, 74, 0.1)',
-                        color: 'primary.main',
-                        '& .MuiChip-deleteIcon': {
-                          color: 'primary.main',
-                          '&:hover': {
-                            color: 'error.main',
-                          },
-                        },
-                      }}
-                    />
-                  ))}
+  <Chip
+    key={participant._id}
+    label={participant.userName || participant.email}
+    onDelete={() => {
+      setParticipantToRemove(participant._id);
+      setRemoveParticipantDialogOpen(true);
+    }}
+    deleteIcon={<UserMinus size={16} />}
+    sx={{
+      bgcolor: 'rgba(22, 163, 74, 0.1)',
+      color: 'primary.main',
+      '& .MuiChip-deleteIcon': {
+        color: 'primary.main',
+        '&:hover': {
+          color: 'error.main',
+        },
+      },
+    }}
+  />
+))}
+
                 </Box>
               </Box>
             )}

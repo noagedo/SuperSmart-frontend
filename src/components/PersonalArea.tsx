@@ -21,8 +21,7 @@ import {
   Grid,
   Tooltip,
   Snackbar,
-  Badge,
-  BadgeProps,
+  Divider,
 } from "@mui/material";
 import useUsers from "../hooks/useUsers";
 import { User } from "../services/user-service";
@@ -54,7 +53,7 @@ import notificationService, {
 import ProductCard from "./ProductCard";
 import CartEmailSender from "./CartEmailSender";
 import { useNotifications } from "../contexts/NotificationContext"; // ייבוא ה-context החדש
-
+import { CartParticipant } from "../services/cart-service";
 interface PersonalAreaProps {
   user: User;
 }
@@ -183,7 +182,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const inputFileRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
-  const { addItem, clearCart } = useCart();
+  const { clearCart } = useCart();
 
   // Add states for carts
   const [myCarts, setMyCarts] = useState<Cart[]>([]);
@@ -202,7 +201,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
   // Remove participant dialog states
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [selectedParticipant, setSelectedParticipant] = useState<string>("");
+  const [selectedParticipant, setSelectedParticipant] =
+    useState<CartParticipant | null>(null);
 
   // Add state for cart items with product details
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState<
@@ -284,7 +284,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
         const shared = allCarts.filter(
           (cart: Cart) =>
-            cart.ownerId !== user._id && cart.participants.includes(user._id!)
+            cart.ownerId !== user._id &&
+            cart.participants.some((p) => p._id === user._id)
         );
 
         setMyCarts(my);
@@ -481,14 +482,15 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       // Update the cart in the local state
       const updatedCart = {
         ...selectedCartForShare,
-        participants: [...selectedCartForShare.participants, shareEmail],
+        participants: [
+          ...selectedCartForShare.participants,
+          {
+            userId: "", // אפשר להשאיר ריק זמנית, או להביא מהשרת
+            email: shareEmail,
+            userName: "משתמש חדש", // אפשר להחליף בשם מתאים
+          },
+        ],
       };
-
-      setMyCarts((prevCarts) =>
-        prevCarts.map((cart) =>
-          cart._id === selectedCartForShare._id ? updatedCart : cart
-        )
-      );
 
       setShareDialogOpen(false);
       setShareEmail("");
@@ -512,22 +514,29 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
   // Handle removing a participant
   const handleRemoveParticipant = async () => {
-    if (!selectedCartForShare?._id || !selectedParticipant) {
+    console.log("📣 handleRemoveParticipant נקראה");
+
+    if (!selectedCartForShare?._id || !selectedParticipant?._id) {
+      console.warn("⛔ תנאי עצירה:");
+      console.warn("selectedCartForShare?._id:", selectedCartForShare?._id);
+      console.warn("selectedParticipant:", selectedParticipant);
       return;
     }
 
     try {
       const { request } = cartService.removeParticipant(
         selectedCartForShare._id,
-        selectedParticipant
+        selectedParticipant._id
       );
+
+      console.log("📤 שולח בקשת הסרה לשרת...");
+
       await request;
 
-      // Update the cart in the local state
       const updatedCart = {
         ...selectedCartForShare,
         participants: selectedCartForShare.participants.filter(
-          (p) => p !== selectedParticipant
+          (p) => p._id !== selectedParticipant._id
         ),
       };
 
@@ -538,17 +547,16 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       );
 
       setRemoveDialogOpen(false);
-      setSelectedParticipant("");
+      setSelectedParticipant(null);
       setSelectedCartForShare(null);
 
-      // Show success message
       setSnackbar({
         open: true,
         message: "המשתתף הוסר בהצלחה",
         severity: "success",
       });
     } catch (error) {
-      console.error("Error removing participant:", error);
+      console.error("❌ שגיאה בהסרה:", error);
       setSnackbar({
         open: true,
         message: "שגיאה בהסרת המשתתף",
@@ -1137,15 +1145,32 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                                         {cart.participants.map(
                                           (participant) => (
                                             <Chip
-                                              key={participant}
-                                              label={participant}
+                                              key={participant._id}
+                                              label={participant.userName}
+                                              avatar={
+                                                participant.profilePicture ? (
+                                                  <img
+                                                    src={
+                                                      participant.profilePicture
+                                                    }
+                                                    alt={participant.userName}
+                                                    style={{
+                                                      width: 24,
+                                                      height: 24,
+                                                      borderRadius: "50%",
+                                                      objectFit: "cover",
+                                                    }}
+                                                  />
+                                                ) : undefined 
+                                              }
                                               size="small"
                                               onDelete={(e) => {
                                                 e.stopPropagation();
                                                 setSelectedCartForShare(cart);
                                                 setSelectedParticipant(
                                                   participant
-                                                );
+                                                ); // עכשיו participant הוא CartParticipant
+
                                                 setRemoveDialogOpen(true);
                                               }}
                                               deleteIcon={
@@ -1385,68 +1410,115 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
       </Paper>
 
       {/* Cart Details Dialog */}
-      <Dialog
-        open={cartDetailsOpen}
-        onClose={() => setCartDetailsOpen(false)}
-        maxWidth="md"
-        fullWidth
+<Dialog
+  open={cartDetailsOpen}
+  onClose={() => setCartDetailsOpen(false)}
+  maxWidth="md"
+  fullWidth
+>
+  {selectedCart && (
+    <>
+      <DialogTitle 
+        sx={{ 
+          bgcolor: "#16a34a", 
+          color: "white",
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          py: 3
+        }}
       >
-        {selectedCart && (
-          <>
-            <DialogTitle sx={{ bgcolor: "#16a34a", color: "white" }}>
-              {selectedCart.name || "עגלה ללא שם"}
-            </DialogTitle>
-            <DialogContent sx={{ py: 3, mt: 2 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                נוצר בתאריך: {formatDate(selectedCart.createdAt)}
-              </Typography>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {selectedCart.name || "עגלה ללא שם"}
+        </Typography>
+      </DialogTitle>
 
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                תכולת העגלה:
-              </Typography>
+      <DialogContent sx={{ py: 3, mt: 2 }}>
+        {/* Participants Section - Moved to top */}
+        {selectedCart.participants && selectedCart.participants.length > 0 && (
+          <Box sx={{ mb: 4 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600, 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: 1,
+                mb: 2,
+                color: '#16a34a'
+              }}
+            >
+              משתתפים בעגלה
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {selectedCart.participants.map((participant) => (
+                <Chip
+                  key={participant._id}
+                  label={participant.userName || participant.email}
+                  variant="outlined"
+                  sx={{
+                    bgcolor: 'rgba(22, 163, 74, 0.1)',
+                    borderColor: 'rgba(22, 163, 74, 0.3)',
+                    color: '#16a34a',
+                    fontWeight: 500,
+                    '&:hover': {
+                      bgcolor: 'rgba(22, 163, 74, 0.15)',
+                    }
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
 
-              {loadingDetails ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                  <CircularProgress size={30} color="primary" />
-                </Box>
-              ) : (
-                // Show product cards instead of List
-                <Grid container spacing={2}>
-                  {cartItemsWithDetails.length > 0 ? (
-                    cartItemsWithDetails.map((item, index) => {
-                      // Try to find the full product object for this item
-                      const product = allProducts?.find(
-                        (p) => p._id === item.productId
-                      );
-                      if (!product) return null;
-                      return (
-                        <Grid
-                          item
-                          xs={12}
-                          sm={6}
-                          md={4}
-                          key={item.productId || index}
-                        >
-                          <ProductCard
-                            product={product}
-                            onAddToCart={() => {}} // Optional: implement add to cart if needed
-                          />
-                        </Grid>
-                      );
-                    })
-                  ) : (
-                    <Grid item xs={12}>
-                      <Alert severity="info">אין לך עגלות שמורות עדיין</Alert>
-                    </Grid>
-                  )}
-                </Grid>
-              )}
+        <Divider sx={{ mb: 3 }} />
 
-              {/* Cart Chat Section */}
+        {/* Creation Date */}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          נוצר בתאריך: {formatDate(selectedCart.createdAt)}
+        </Typography>
+
+        {/* Cart Contents */}
+        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#16a34a' }}>
+          תכולת העגלה:
+        </Typography>
+
+        {loadingDetails ? (
+          <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+            <CircularProgress size={30} color="primary" />
+          </Box>
+        ) : (
+          <Grid container spacing={2}>
+            {cartItemsWithDetails.length > 0 ? (
+              cartItemsWithDetails.map((item, index) => {
+                const product = allProducts?.find(
+                  (p) => p._id === item.productId
+                );
+                if (!product) return null;
+                return (
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                    md={4}
+                    key={item.productId || index}
+                  >
+                    <ProductCard product={product} onAddToCart={() => {}} />
+                  </Grid>
+                );
+              })
+            ) : (
+              <Grid item xs={12}>
+                <Alert severity="info">אין לך עגלות שמורות עדיין</Alert>
+              </Grid>
+            )}
+          </Grid>
+        )}
+
+              {/* 🔵 Chat Section */}
               {selectedCart && selectedCart._id && (
                 <>
-                  {selectedCart.participants &&
-                  selectedCart.participants.length > 0 ? (
+                  {selectedCart.participants?.length > 0 ? (
                     <Box
                       sx={{
                         mt: 4,
@@ -1496,6 +1568,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
                 </>
               )}
             </DialogContent>
+
             <DialogActions sx={{ p: 2 }}>
               <Button
                 onClick={() => setCartDetailsOpen(false)}
@@ -1555,7 +1628,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         onClose={() => {
           setRemoveDialogOpen(false);
           setSelectedCartForShare(null);
-          setSelectedParticipant("");
+          setSelectedParticipant(null);
         }}
       >
         <DialogTitle sx={{ bgcolor: "error.main", color: "white" }}>
@@ -1563,7 +1636,8 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
         </DialogTitle>
         <DialogContent sx={{ pt: 2, mt: 2 }}>
           <Typography>
-            האם אתה בטוח שברצונך להסיר את המשתמש {selectedParticipant} מהעגלה?
+            האם אתה בטוח שברצונך להסיר את המשתמש {selectedParticipant?.userName}{" "}
+            מהעגלה?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -1571,7 +1645,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
             onClick={() => {
               setRemoveDialogOpen(false);
               setSelectedCartForShare(null);
-              setSelectedParticipant("");
+              setSelectedParticipant(null);
             }}
           >
             ביטול
