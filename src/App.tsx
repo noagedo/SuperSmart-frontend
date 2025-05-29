@@ -14,7 +14,8 @@ import useUsers from "./hooks/useUsers";
 import ProductList from "./components/ProductList";
 import ProductDetails from "./components/ProductDetail";
 import { NotificationProvider } from "./contexts/NotificationContext"; // הוספת ה-provider החדש
-
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 const App: React.FC = () => {
   const { user } = useUsers();
 
@@ -51,6 +52,10 @@ const App: React.FC = () => {
           <Route path="/" element={<HomeBeforeSignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
           <Route path="/sign-in" element={<SignIn />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* Redirect root to home */}
 
           {/* Product routes */}
           <Route path="/products" element={<ProductList />} />
