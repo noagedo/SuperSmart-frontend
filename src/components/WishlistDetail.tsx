@@ -24,7 +24,7 @@ import {
   Store,
   Heart,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import useWishlists from "../hooks/useWishlists";
 import useItems from "../hooks/useItems";
 import useCart from "../hooks/useCart";
@@ -36,7 +36,6 @@ import { getStoreName } from "../utils/storeUtils";
 // just show details of that single wishlist without needing an ID parameter
 
 const WishlistDetail: React.FC = () => {
-  const navigate = useNavigate();
   const { wishlist, isLoading, error, removeProduct } = useWishlists();
   const { items } = useItems();
   const { addItem: addItemToCart } = useCart();

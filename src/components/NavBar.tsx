@@ -40,12 +40,12 @@ const theme = createTheme({
   },
 });
 
-const StyledAppBar = styled(AppBar)(({ theme }) => ({
+const StyledAppBar = styled(AppBar)(({}) => ({
   backgroundColor: "white",
   boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
 }));
 
-const LogoContainer = styled(Box)(({ theme }) => ({
+const LogoContainer = styled(Box)(({}) => ({
   display: "flex",
   alignItems: "center",
   cursor: "pointer",
@@ -55,7 +55,7 @@ const LogoContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const ActionButton = styled(Button)(({ theme }) => ({
+const ActionButton = styled(Button)(({}) => ({
   borderRadius: "9999px",
   padding: "8px 24px",
   fontWeight: 600,

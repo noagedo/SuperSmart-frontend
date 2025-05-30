@@ -15,33 +15,7 @@ const useNotifications = () => {
   const checkIntervalRef = useRef<number | null>(null);
   const hasCheckedRecently = useRef<boolean>(false);
 
-  // Helper function to filter notifications by time and user's wishlist
-  const filterRecentNotifications = useCallback(
-    (notifs: PriceDropNotification[]): PriceDropNotification[] => {
-      if (!user || !user._id) return [];
-
-      // Get 24 hours ago timestamp
-      const oneDayAgo = new Date();
-      oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-
-      // Get user's wishlist ID if available
-      const userWishlistId = wishlist ? wishlist._id : null;
-
-      // Filter by both time and wishlist ownership
-      return notifs.filter((notif) => {
-        // Check if notification is recent (last 24 hours)
-        const isRecent = new Date(notif.changeDate) >= oneDayAgo;
-
-        // Check if belongs to user's wishlist
-        const isUsersWishlist =
-          !notif.wishlistId ||
-          (userWishlistId && notif.wishlistId === userWishlistId);
-
-        return isRecent && isUsersWishlist;
-      });
-    },
-    [user, wishlist]
-  );
+  // Removed unused filterRecentNotifications function
 
   // Helper: Add only unique notifications (by productId+cartId+wishlistId+storeId+newPrice)
   function addUniqueNotifications<T extends PriceDropNotification>(

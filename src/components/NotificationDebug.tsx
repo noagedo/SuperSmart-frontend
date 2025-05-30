@@ -127,7 +127,7 @@ const NotificationDebug: React.FC = () => {
         <Typography variant="body2">
           User ID: {user?._id || "Not logged in"}
         </Typography>
-        <Typography variant="body2">Wishlists: {wishlist.items?.length || 0}</Typography>
+        <Typography variant="body2">Wishlists: {wishlist?.products?.length || 0}</Typography>
         <Typography variant="body2">
           Active Notifications: {notifications.length}
         </Typography>

@@ -1,12 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { getStoreName } from "../utils/storeUtils";
 import {
-  Container,
   Box,
   Typography,
   Grid,
-  Card,
   CardMedia,
   Button,
   Paper,
@@ -31,26 +29,11 @@ import ProductCard from "./ProductCard";
 import useCart from "../hooks/useCart";
 import WishButton from "./WishButton";
 import PriceChart from "./PriceChart";
-import { Item, StorePrice } from "../services/item-service";
+import { Item } from "../services/item-service";
 import itemService from "../services/item-service"; 
-import { gql } from "@apollo/client";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-
-const GET_STORE_BY_ID = gql`
-  query GetStoreById($storeId: ID!) {
-    store(id: $storeId) {
-      name
-    }
-  }
-`;
-interface StoreData {
-  store?: {
-    name?: string;
-  };
-}
 const ProductDetails = () => {
   const { productId: productIdParam } = useParams();
-  const navigate = useNavigate();
   const { items, isLoading } = useItems();
   const { addItem: addItemToCart } = useCart();
   const [showChart, setShowChart] = React.useState(false);
@@ -185,7 +168,7 @@ const ProductDetails = () => {
     // If it's an object, check if it has any meaningful values
     if (typeof product.nutrition === "object") {
       return Object.entries(product.nutrition).some(
-        ([key, value]) => value !== null && value !== undefined && value !== ""
+        ([_, value]) => value !== null && value !== undefined && value !== ""
       );
     }
     
@@ -568,7 +551,7 @@ const ProductDetails = () => {
                             </thead>
                             <tbody>
                               {Object.entries(product.nutrition)
-                                .filter(([key, value]) => value !== null && value !== undefined && value !== "")
+                                .filter(([_, value]) => value !== null && value !== undefined && value !== "")
                                 .map(([key, value]) => (
                                   <tr key={key}>
                                     <td style={{ padding: 8, borderBottom: "1px solid #f0f0f0", color: "#374151" }}>

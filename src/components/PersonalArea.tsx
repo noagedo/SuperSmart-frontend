@@ -259,15 +259,7 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     ).length;
   };
 
-  // Helper: האם יש הודעת צ'אט חדשה בעגלה
-  const hasUnreadChatNotification = (cartId: string) => {
-    const count = getUnreadChatCount(cartId);
-    // לוג לבדיקה
-    if (count > 0) {
-      console.log("🔴 יש", count, "הודעות צ'אט חדשות בעגלה", cartId);
-    }
-    return count > 0;
-  };
+  // Removed unused function: hasUnreadChatNotification
 
   // Fetch user's carts
 useEffect(() => {
@@ -384,10 +376,8 @@ useEffect(() => {
     fetchCartPriceDrops();
   }, [user]);
 
-  // Dismiss a cart notification
-  const dismissCartNotification = (id: string) => {
-    setCartPriceDropNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  // This function can be removed as it's not being used anywhere
+  // If you need to implement notification dismissal later, you can re-add it
 
   // Handle deleting a cart
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
@@ -481,18 +471,26 @@ useEffect(() => {
       );
       await request;
 
-      // Update the cart in the local state
+      // Update the cart in the local state with a proper CartParticipant object
       const updatedCart = {
         ...selectedCartForShare,
         participants: [
           ...selectedCartForShare.participants,
           {
-            userId: "", // אפשר להשאיר ריק זמנית, או להביא מהשרת
+            _id: `temp-${new Date().getTime()}`, // Temporary ID until server response
+            userId: "", 
             email: shareEmail,
-            userName: "משתמש חדש", // אפשר להחליף בשם מתאים
+            userName: "משתמש חדש",
           },
         ],
       };
+
+      // Update the myCarts state with the updated cart
+      setMyCarts((prevCarts) =>
+        prevCarts.map((cart) =>
+          cart._id === selectedCartForShare._id ? updatedCart : cart
+        )
+      );
 
       setShareDialogOpen(false);
       setShareEmail("");
@@ -976,6 +974,16 @@ useEffect(() => {
                       const unreadCount = getUnreadChatCount(cart._id!);
                       return (
                         <Grid item xs={12} md={6} key={cart._id}>
+                          {drops.length > 0 && (
+                            <Tooltip title={`${drops.length} הודעות על ירידות מחירים`}>
+                              <Chip 
+                                size="small"
+                                label={`${drops.length} ירידות מחירים`}
+                                color="error"
+                                sx={{ mb: 1 }}
+                              />
+                            </Tooltip>
+                          )}
                           <CartNotificationTooltip cartId={cart._id!}>
                             <Box sx={{ position: "relative" }}>
                               <CustomChatBadge count={unreadCount} />
@@ -1572,6 +1580,14 @@ useEffect(() => {
             </DialogContent>
 
             <DialogActions sx={{ p: 2 }}>
+              <Button
+                variant="contained"
+                onClick={() => selectedCart && handleLoadCart(selectedCart)}
+                disabled={!selectedCart?.items?.length}
+                sx={{ bgcolor: "#16a34a", "&:hover": { bgcolor: "#15803d" } }}
+              >
+                טען עגלה לקניות
+              </Button>
               <Button
                 onClick={() => setCartDetailsOpen(false)}
                 sx={{ color: "text.secondary" }}

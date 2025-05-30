@@ -14,9 +14,6 @@ import {
   ListItemButton,
   styled,
   Tooltip,
-  Paper,
-  List,
-  ListItem,
   Tabs,
   Tab,
 } from "@mui/material";
@@ -30,11 +27,11 @@ import notificationService, {
   PriceDropNotification,
 } from "../services/notification-service";
 import { getStoreName } from "../utils/storeUtils";
-import { ShoppingBag, Trash2, MessageCircle } from "lucide-react";
+import { ShoppingBag, MessageCircle } from "lucide-react";
 import useItems from "../hooks/useItems";
 import cartService from "../services/cart-service";
 
-const NotificationItem = styled(ListItemButton)(({ theme }) => ({
+const NotificationItem = styled(ListItemButton)(({}) => ({
   borderRadius: "8px",
   margin: "4px 0",
   padding: "8px 12px",
@@ -70,10 +67,6 @@ const NotificationsCenter: React.FC = () => {
   const notifications = [...hookNotifications, ...mockNotifications];
 
   // Filter notifications by type
-  // FIX: Exclude cart notifications from wishlist tab
-  const wishlistNotifications = notifications.filter(
-    (n) => n.wishlistId && !n.cartId
-  );
   const cartNotifications = notifications.filter((n) => n.cartId);
 
   // Filter notifications for current user's wishlist with multiple criteria
@@ -392,7 +385,7 @@ const NotificationsCenter: React.FC = () => {
         {/* Add tabs for different notification types */}
         <Tabs
           value={activeTab}
-          onChange={(e, newValue) => setActiveTab(newValue)}
+          onChange={(_, newValue) => setActiveTab(newValue)}
           variant="fullWidth"
           sx={{ mb: 1 }}
         >

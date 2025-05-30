@@ -291,12 +291,12 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem, participants = [] 
     });
   };
 
-  const getStoreAddress = (storeId: string) => {
-    if (storeId === "shufersal") return "Shufersal, Tel Aviv, Israel";
-    if (storeId === "victory") return "Victory, Tel Aviv, Israel";
-    if (storeId === "yenotbitan") return "Yenot Bitan, Tel Aviv, Israel";
-    return "Israel";
-  };
+  // const getStoreAddress = (storeId: string) => {
+  //   if (storeId === "shufersal") return "Shufersal, Tel Aviv, Israel";
+  //   if (storeId === "victory") return "Victory, Tel Aviv, Israel";
+  //   if (storeId === "yenotbitan") return "Yenot Bitan, Tel Aviv, Israel";
+  //   return "Israel";
+  // };
 
   const getMapStores = (): Supermarket[] => {
     return calculateShopTotals().map(([storeId, { name }]) => {

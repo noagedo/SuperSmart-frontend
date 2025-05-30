@@ -5,7 +5,7 @@ import { MessageCircle } from 'lucide-react';
 interface ChatBadgeProps extends BoxProps {
   count: number;
   showIcon?: boolean;  // האם להציג אייקון של הודעה
-  position?: 'top-right' | 'top-left';  // מיקום ה-Badge
+  badgePosition?: 'top-right' | 'top-left';  // מיקום ה-Badge
 }
 
 /**
@@ -14,13 +14,13 @@ interface ChatBadgeProps extends BoxProps {
 const ChatBadge: React.FC<ChatBadgeProps> = ({ 
   count, 
   showIcon = true, 
-  position = 'top-right',
+  badgePosition = 'top-right',
   ...boxProps 
 }) => {
   if (count <= 0) return null;
 
   // קביעת המיקום לפי הפרופ שהתקבל
-  const positionStyles = position === 'top-right' 
+  const positionStyles = badgePosition === 'top-right' 
     ? { top: 10, right: 10 }
     : { top: 10, left: 10 };
 

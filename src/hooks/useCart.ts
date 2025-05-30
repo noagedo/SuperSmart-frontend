@@ -11,7 +11,6 @@ interface CartState {
 const useCart = () => {
   const [cart, setCart] = useState<CartState>({ items: [] });
   const { user } = useUsers();
-  const [initialized, setInitialized] = useState(false);
 
   // Get user-specific localStorage key
   const getCartKey = useCallback(() => {
