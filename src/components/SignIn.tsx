@@ -12,7 +12,8 @@ import {
   Divider,
   createTheme,
   ThemeProvider,
-  styled
+  styled,
+  Link
 } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import logoGif from '../assets/Animation - 1735911293502.gif';
@@ -245,6 +246,26 @@ const SignIn: React.FC = () => {
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
+
+              <Box sx={{ 
+                mt: 2,
+                textAlign: 'center'
+              }}>
+                <Link
+                  component="button"
+                  variant="body2"
+                  onClick={() => navigate('/forgot-password')}
+                  sx={{
+                    color: '#16a34a',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      textDecoration: 'underline'
+                    }
+                  }}
+                >
+                  שכחת סיסמה?
+                </Link>
+              </Box>
 
               <Box sx={{ 
                 mt: 3,

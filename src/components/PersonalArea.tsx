@@ -270,35 +270,37 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   };
 
   // Fetch user's carts
-  useEffect(() => {
-    const fetchCarts = async () => {
-      if (!user || !user._id) return;
-      setLoadingCarts(true);
-      setCartError(null);
+useEffect(() => {
+  console.log("🧠 useEffect - user?._id =", user?._id); // <-- הוספה כאן
 
-      try {
-        const { request } = cartService.getCartsByUser(user._id);
-        const response = await request;
-        const allCarts = response.data;
+  const fetchCarts = async () => {
+    if (!user?._id) return;
+    setLoadingCarts(true);
+    setCartError(null);
 
-        const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
-        const shared = allCarts.filter(
-          (cart: Cart) =>
-            cart.ownerId !== user._id &&
-            cart.participants.some((p) => p._id === user._id)
-        );
+    try {
+      const { request } = cartService.getCartsByUser(user._id);
+      const response = await request;
+      const allCarts = response.data;
 
-        setMyCarts(my);
-        setSharedCarts(shared);
-      } catch (error) {
-        setCartError("שגיאה בטעינת עגלות");
-      } finally {
-        setLoadingCarts(false);
-      }
-    };
+      const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
+      const shared = allCarts.filter(
+        (cart: Cart) =>
+          cart.ownerId !== user._id &&
+          cart.participants.some((p) => p._id === user._id)
+      );
 
-    fetchCarts();
-  }, [user?._id]);
+      setMyCarts(my);
+      setSharedCarts(shared);
+    } catch (error) {
+      setCartError("שגיאה בטעינת עגלות");
+    } finally {
+      setLoadingCarts(false);
+    }
+  };
+
+  fetchCarts();
+}, [user?._id]);
 
   // Add this useEffect to ensure we're subscribed to cart notifications
   useEffect(() => {

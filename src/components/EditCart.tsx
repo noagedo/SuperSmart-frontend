@@ -42,6 +42,8 @@ import {
 import cartService, { Cart } from '../services/cart-service';
 import useUsers from '../hooks/useUsers';
 import useItems from '../hooks/useItems';
+import { useDebounce } from 'use-debounce';
+
 
 const theme = createTheme({
   palette: {
@@ -71,6 +73,12 @@ const EditCart = () => {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch] = useDebounce(searchQuery, 300);
+  useEffect(() => {
+  console.log("🔍 Debounced search triggered:", debouncedSearch);
+}, [debouncedSearch]);
+
+
 
   // New states for participants management
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
@@ -291,11 +299,14 @@ const EditCart = () => {
   const getProductDetails = (productId: string) => {
     return allProducts?.find(product => product._id === productId);
   };
+const filteredProducts = allProducts?.filter(product =>
+  product.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+  product.category.toLowerCase().includes(debouncedSearch.toLowerCase())
+) || [];
 
-  const filteredProducts = allProducts?.filter(product => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+const isCartOwner = cart?.ownerId === user?._id;
+
+
 
   if (loading) {
     return (
@@ -348,6 +359,9 @@ const EditCart = () => {
             <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main', flexGrow: 1 }}>
               עריכת עגלה
             </Typography>
+            
+               
+            {isCartOwner && (
             <Button
               variant="contained"
               onClick={() => setParticipantDialogOpen(true)}
@@ -360,6 +374,8 @@ const EditCart = () => {
             >
               הוסף משתתף
             </Button>
+            )}
+
             <Button
               variant="contained"
               onClick={() => setSearchDialogOpen(true)}
@@ -407,25 +423,27 @@ const EditCart = () => {
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   {cart.participants.map((participant) => (
   <Chip
-    key={participant._id}
-    label={participant.userName || participant.email}
-    onDelete={() => {
+  key={participant._id}
+  label={participant.userName || participant.email}
+  {...(isCartOwner && {
+    onDelete: () => {
       setParticipantToRemove(participant._id);
       setRemoveParticipantDialogOpen(true);
-    }}
-    deleteIcon={<UserMinus size={16} />}
-    sx={{
-      bgcolor: 'rgba(22, 163, 74, 0.1)',
+    },
+    deleteIcon: <UserMinus size={16} />,
+  })}
+  sx={{
+    bgcolor: 'rgba(22, 163, 74, 0.1)',
+    color: 'primary.main',
+    '& .MuiChip-deleteIcon': {
       color: 'primary.main',
-      '& .MuiChip-deleteIcon': {
-        color: 'primary.main',
-        '&:hover': {
-          color: 'error.main',
-        },
+      '&:hover': {
+        color: 'error.main',
       },
-    }}
-  />
-))}
+    },
+  }}
+/>
+                  ))}
 
                 </Box>
               </Box>
