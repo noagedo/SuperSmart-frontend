@@ -27,7 +27,6 @@ class NotificationService {
   private onChatMessageCallback:
     | ((notification: PriceDropNotification) => void)
     | null = null;
-  private currentUserId: string | null = null;
 
   constructor() {
     this.connectSocket();
@@ -87,9 +86,7 @@ class NotificationService {
   public subscribeToWishlistUpdates(userId: string) {
     if (this.socket) {
       console.log("Subscribing to wishlist updates for user:", userId);
-      this.currentUserId = userId; // Store current user ID
       localStorage.setItem("userId", userId);
-      // Explicitly request to only get events for this user's wishlists
       this.socket.emit("subscribe-to-wishlists", {
         userId: userId,
         onlyUserWishlists: true,

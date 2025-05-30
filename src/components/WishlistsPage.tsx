@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
   Typography,
@@ -8,13 +8,8 @@ import {
   Alert,
   Grid,
   IconButton,
-  TextField,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
 } from "@mui/material";
-import { Heart, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Heart, Trash2, ShoppingCart } from "lucide-react";
 import useWishlists from "../hooks/useWishlists";
 import useItems from "../hooks/useItems";
 import { Link } from "react-router-dom";
@@ -22,7 +17,7 @@ import { BarChart2 } from "lucide-react";
 import useCart from "../hooks/useCart";
 
 const WishlistsPage: React.FC = () => {
-  const { wishlist, isLoading, error, getOrCreateWishlist, removeProduct } =
+  const { wishlist, isLoading, error, removeProduct } =
     useWishlists();
   const { items } = useItems();
   const { addItem: addItemToCart } = useCart();

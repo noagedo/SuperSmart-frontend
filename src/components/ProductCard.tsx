@@ -40,7 +40,7 @@ const ProductContainer = styled(Paper)(({ theme }) => ({
   },
 }));
 
-const ImageContainer = styled(Box)(({ theme }) => ({
+const ImageContainer = styled(Box)(({}) => ({
   position: "relative",
   paddingTop: "75%",
   overflow: "hidden",

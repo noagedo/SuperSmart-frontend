@@ -50,7 +50,7 @@ interface CartChatProps {
 const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [clientId, setClientId] = useState<string>("");
+ const [_, setClientId] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [showScrollButton, setShowScrollButton] = useState<boolean>(false);

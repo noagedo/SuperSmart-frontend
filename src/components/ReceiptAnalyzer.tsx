@@ -23,7 +23,6 @@ import {
   FileText,
   Check,
   ShoppingCart,
-  X,
   Info,
   ExternalLink,
 } from "lucide-react";

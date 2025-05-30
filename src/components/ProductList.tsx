@@ -80,7 +80,7 @@ const CategorySelect = styled(TextField)(({ theme }) => ({
 
 function ProductList() {
   const { items, isLoading, error } = useItems();
-  const { user } = useUsers();
+  useUsers();
   const {
     cart,
     addItem: addItemToCart,

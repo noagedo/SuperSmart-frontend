@@ -34,7 +34,7 @@ const useWishlists = (): UseWishlistResult => {
 
       try {
         setIsLoading(true);
-        const { request, cancel } = getUserWishlist(user._id);
+        const { request } = getUserWishlist(user._id);
         const response = await request;
         setWishlist(response.data);
         setError(null);

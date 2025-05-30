@@ -21,13 +21,13 @@ import notificationService from "../services/notification-service";
 import useWishlists from "../hooks/useWishlists";
 import useUsers from "../hooks/useUsers";
 import cartService from "../services/cart-service";
-import apiClient from "../services/api-client";
+
 
 const PriceCheckDebug: React.FC = () => {
   const [productId, setProductId] = useState("");
   const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const { checkPriceChanges, checkSpecificProducts, checkRecentChanges } =
+  const { checkPriceChanges, checkSpecificProducts } =
     useNotifications();
   const { wishlist } = useWishlists();
   const { user } = useUsers();
@@ -93,8 +93,6 @@ const PriceCheckDebug: React.FC = () => {
 
     setError(null);
     setResponse({ message: "Loading..." });
-
-    const timestamp = new Date(0).toISOString(); // Check from beginning of time
 
     notificationService
       .checkPriceChanges(new Date(0))

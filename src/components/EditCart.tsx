@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -661,7 +661,7 @@ const isCartOwner = cart?.ownerId === user?._id;
           <DialogContent sx={{ mt: 2 }}>
             <Autocomplete
               value={selectedProduct}
-              onChange={(event, newValue) => {
+              onChange={(_, newValue) => {
                 setSelectedProduct(newValue);
               }}
               options={filteredProducts}
