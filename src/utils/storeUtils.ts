@@ -3,7 +3,9 @@
  */
 const STORE_NAMES: Record<string, string> = {
   "65a4e1e1e1e1e1e1e1e1e1e1": "שופרסל",
-  "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",
+  "RamiLevi": "רמי לוי",
+  "Carrefour": "קרפור",
+  "CityMarket":"סיטי מרקט",
   // Add more stores as needed
 };
 
