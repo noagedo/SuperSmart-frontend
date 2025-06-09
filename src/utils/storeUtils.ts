@@ -3,9 +3,9 @@
  */
 const STORE_NAMES: Record<string, string> = {
   "65a4e1e1e1e1e1e1e1e1e1e1": "שופרסל",
-  "RamiLevi": "רמי לוי",
-  "Carrefour": "קרפור",
-  "CityMarket":"סיטי מרקט",
+  "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",
+  "65a4e1e1e1e1e1e1e1e1e1e3": "קרפור",
+  "65a4e1e1e1e1e1e1e1e1e1e4":"סיטי מרקט",
   // Add more stores as needed
 };
 
@@ -14,6 +14,10 @@ const STORE_NAMES: Record<string, string> = {
  * @param storeId The store ID to look up
  * @returns The store name, or a generic store name if not found
  */
-export const getStoreName = (storeId: string): string => {
-  return STORE_NAMES[storeId] || `חנות ${storeId.substring(0, 5)}`;
-};
+export const getStoreName = (storeId: any): string => {
+  const id = String(storeId || "");
+  if (!id) {
+    return "חנות לא ידועה";
+  }
+  return STORE_NAMES[id] || `חנות ${id.substring(0, 5)}`;
+}

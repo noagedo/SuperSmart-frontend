@@ -95,28 +95,41 @@ const formatPriceDataForChart = (item: Item) => {
     return [];
   }
 
-  return item.storePrices.map((storePrice) => {
-    // Sort prices by date (ascending)
-    const sortedPrices = [...storePrice.prices].sort((a, b) => {
-      const dateA = a.date || a.data || "1970-01-01"; // Provide a default date string
-      const dateB = b.date || b.data || "1970-01-01";
-      return new Date(dateA).getTime() - new Date(dateB).getTime();
-    });
+  return item.storePrices
+    .filter(storePrice => storePrice && storePrice.prices && Array.isArray(storePrice.prices))
+    .map((storePrice) => {
+      try {
+        // Sort prices by date (ascending)
+        const sortedPrices = [...storePrice.prices].sort((a, b) => {
+          const dateA = a.date || a.data || "1970-01-01"; // Provide a default date string
+          const dateB = b.date || b.data || "1970-01-01";
+          return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
 
-    // Extract just the price values for the chart
-    const priceValues = sortedPrices.map((p) =>
-      typeof p.price === "string" ? parseFloat(p.price) : p.price
-    );
+        // Extract just the price values for the chart with validation
+        const priceValues = sortedPrices.map((p) => {
+          const price = typeof p.price === "string" ? parseFloat(p.price) : p.price;
+          return isNaN(price) ? 0 : price; // Handle invalid numbers
+        });
 
-    return {
-      curve: "linear",
-      data: priceValues,
-      storeId: storePrice.storeId,
-    };
-  });
+        return {
+          curve: "linear",
+          data: priceValues,
+          storeId: storePrice.storeId,
+        };
+      } catch (error) {
+        console.error(`Error processing prices for store ${storePrice.storeId}:`, error);
+        return {
+          curve: "linear",
+          data: [],
+          storeId: storePrice.storeId,
+        };
+      }
+    })
+    .filter(series => series.data.length > 0); 
 };
 
-// Export using Object.assign instead of spread operator to ensure methods are properly included
+
 export default Object.assign(itemService, {
   analyzeReceipt,
   formatPriceDataForChart,
