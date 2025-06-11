@@ -14,20 +14,26 @@ import {
   Slide,
 } from "@mui/material";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import { useNotifications } from "../contexts/NotificationContext"; // ייבוא ה-context החדש
+import { useNotifications } from "../contexts/NotificationContext";
 
-// יצירת חיבור Socket.IO אחד לכל האפליקציה במקום בכל רנדור של הקומפוננטה
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:3000";
+// Use dynamic URL that respects the protocol (HTTP/HTTPS)
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 
+  (typeof window !== "undefined" && window.location.protocol === 'https:' ? 'https://' : 'http://') + 
+  (typeof window !== "undefined" && window.location.hostname === 'localhost' ? 'localhost:3000' : 
+   typeof window !== "undefined" ? window.location.host : "supersmart.cs.colman.ac.il");
+
 // Socket singleton
 let socket: Socket;
 
-// וודא שיש לנו רק חיבור אחד של Socket
 const getSocket = (): Socket => {
   if (!socket) {
     socket = io(SOCKET_URL, {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      transports: ["websocket", "polling"],
+      secure: window.location.protocol === "https:",
+      forceNew: false, 
     });
   }
   return socket;
@@ -38,7 +44,7 @@ interface ChatMessage {
   message: string;
   timestamp: string;
   clientId?: string;
-  _id?: string; // הוספנו ID מהמסד נתונים
+  _id?: string;
 }
 
 interface CartChatProps {
@@ -50,71 +56,65 @@ interface CartChatProps {
 const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
- const [_, setClientId] = useState<string>("");
+  const [_, setClientId] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [showScrollButton, setShowScrollButton] = useState<boolean>(false);
   const [unreadMessages, setUnreadMessages] = useState<boolean>(false);
+  const [userIsScrolling, setUserIsScrolling] = useState<boolean>(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const prevCartIdRef = useRef<string>("");
   const prevIsOpenRef = useRef<boolean>(false);
-  const mountedRef = useRef<boolean>(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // שימוש ב-context להתראות
   const { markChatNotificationsAsRead } = useNotifications();
 
-  // הוספת פונקציית עזר לשמירה בלוקל סטורג'
   const saveMessagesToLocalStorage = (messages: ChatMessage[]) => {
     if (!cartId) return;
-
     try {
       localStorage.setItem(`chat_messages_${cartId}`, JSON.stringify(messages));
-      console.log(
-        `Saved ${messages.length} messages to localStorage for cart ${cartId}`
-      );
     } catch (error) {
       console.error("Failed to save messages to localStorage:", error);
     }
   };
 
-  // Add component lifecycle logging
-  useEffect(() => {
-    console.log(`CartChat mounted with cartId: ${cartId}, isOpen: ${isOpen}`);
-    mountedRef.current = true;
-
-    // Try to fetch messages immediately on mount
-    if (cartId) {
-      console.log("Fetching messages on component mount");
-      fetchMessages();
+  // Simple message comparison - two messages are the same if they have:
+  // 1. Same _id (if both have _id)
+  // 2. Same sender, message content, and timestamp (within 1 second)
+  const areMessagesEqual = (msg1: ChatMessage, msg2: ChatMessage): boolean => {
+    // If both have _id, compare by _id
+    if (msg1._id && msg2._id) {
+      return msg1._id === msg2._id;
     }
+    
+    // If one has _id and other doesn't, they could still be the same message
+    // Compare by content and timestamp
+    const time1 = new Date(msg1.timestamp).getTime();
+    const time2 = new Date(msg2.timestamp).getTime();
+    const timeDiff = Math.abs(time1 - time2);
+    
+    return (
+      msg1.sender === msg2.sender &&
+      msg1.message === msg2.message &&
+      timeDiff < 2000 // Within 2 seconds
+    );
+  };
 
-    return () => {
-      console.log("CartChat unmounting");
-      mountedRef.current = false;
-      // Save messages to localStorage before unmounting
-      if (messages.length > 0 && cartId) {
-        saveMessagesToLocalStorage(messages);
-      }
-    };
-  }, []);
-
+  // Socket connection setup
   useEffect(() => {
     socketRef.current = getSocket();
 
     socketRef.current.on("connect", () => {
-      console.log("Connected to socket server with ID:", socketRef.current?.id);
       setClientId(socketRef.current?.id || "");
       setError("");
     });
 
-    socketRef.current.on("connect_error", (err) => {
-      console.error("Socket connection error:", err);
+    socketRef.current.on("connect_error", () => {
       setError("בעיית התחברות לשרת. מנסה להתחבר מחדש...");
     });
 
     socketRef.current.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason);
       if (reason === "io server disconnect") {
         socketRef.current?.connect();
       }
@@ -129,619 +129,225 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     };
   }, []);
 
+  // Socket message listeners - only when chat is open
+   // Socket message listeners - only when chat is open
   useEffect(() => {
-    if (!socketRef.current) return;
+  if (!socketRef.current || !cartId || !isOpen) return;
 
-    const handleReceiveMessage = (msg: ChatMessage) => {
-      console.log("Received message:", msg);
-      if (msg.clientId === socketRef.current?.id) return;
+  socketRef.current.off("receive-message");
+  socketRef.current.off("new-chat-notification");
 
-      setMessages((prevMessages) => {
-        // בדיקת כפילויות
-        if (msg._id && prevMessages.some((m) => m._id === msg._id)) {
-          return prevMessages;
-        }
+  const handleReceiveMessage = (msg: ChatMessage) => {
+    if (msg.clientId === socketRef.current?.id) return;
 
-        // עדכון סט ההודעות
-        const updatedMessages = [...prevMessages, msg];
+    setMessages((prevMessages) => {
+      const exists = prevMessages.some(existingMsg => 
+        (existingMsg._id && msg._id && existingMsg._id === msg._id) ||
+        (existingMsg.sender === msg.sender && 
+         existingMsg.message === msg.message && 
+         Math.abs(new Date(existingMsg.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 5000)
+      );
+      if (exists) return prevMessages;
 
-        // שמירת ההודעות המעודכנות ב-localStorage
-        if (cartId) {
-          try {
-            saveMessagesToLocalStorage(updatedMessages);
-          } catch (error) {
-            console.error("Failed to save messages to localStorage:", error);
-          }
-        }
+      const updatedMessages = [...prevMessages, msg];
+      saveMessagesToLocalStorage(updatedMessages);
+      return updatedMessages;
+    });
+  };
 
-        return updatedMessages;
+  socketRef.current.on("receive-message", handleReceiveMessage);
+  socketRef.current.on("new-chat-notification", (data) => {
+    if (data.clientId === socketRef.current?.id) return;
+    if (data.cartId === cartId) {
+      handleReceiveMessage({
+        sender: data.sender,
+        message: data.message,
+        timestamp: data.timestamp,
+        clientId: data.clientId,
+        _id: data._id
       });
-    };
+    }
+  });
 
-    socketRef.current.on("receive-message", handleReceiveMessage);
-
-    return () => {
-      socketRef.current?.off("receive-message", handleReceiveMessage);
-    };
-  }, [cartId]); // הוספת cartId לרשימת התלויות כדי שההודעות יישמרו לעגלה הנכונה
-
+  return () => {
+    socketRef.current?.off("receive-message", handleReceiveMessage);
+    socketRef.current?.off("new-chat-notification");
+  };
+}, [cartId, isOpen]);
+  
   useEffect(() => {
     if (!cartId || !socketRef.current) return;
 
     if (prevCartIdRef.current && prevCartIdRef.current !== cartId) {
       socketRef.current.emit("leave-cart", prevCartIdRef.current);
     }
-
     socketRef.current.emit("join-cart", cartId);
     prevCartIdRef.current = cartId;
-
-    fetchMessages(); // Always fetch when cartId changes
   }, [cartId]);
 
-  // Add effect to handle isOpen changes
+  
   useEffect(() => {
-    // Check if isOpen changed from false to true
-    if (isOpen && !prevIsOpenRef.current && cartId) {
-      console.log("Chat became visible, fetching messages for cart:", cartId);
-      fetchMessages();
-    }
+    const container = chatContainerRef.current;
+    if (!container) return;
 
-    // Update previous isOpen state
-    prevIsOpenRef.current = isOpen;
-  }, [isOpen, cartId]);
+    const handleScroll = () => {
+      setUserIsScrolling(true);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => setUserIsScrolling(false), 1000);
+      const isScrolledToBottom =
+        container.scrollHeight - container.clientHeight <= container.scrollTop + 20;
+      setShowScrollButton(!isScrolledToBottom);
+      if (isScrolledToBottom) setUnreadMessages(false);
+    };
 
-  // עדכון useEffect כדי לסמן הודעות כנקראו כאשר הצ'אט נפתח
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
   useEffect(() => {
-    // סמן הודעות צ'אט כנקראו כשהצ'אט פתוח
-    if (isOpen && cartId) {
-      markChatNotificationsAsRead(cartId);
-
-      // גם נגלול לתחתית הצ'אט כשהוא נפתח כדי לראות הודעות חדשות
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
+    if (!messages.length || !chatContainerRef.current) return;
+    const container = chatContainerRef.current;
+    const isNearBottom = 
+      container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
+    if (isNearBottom && !userIsScrolling) {
+      requestAnimationFrame(() => scrollToBottom());
+    } else if (!isNearBottom && !userIsScrolling) {
+      setUnreadMessages(true);
     }
-  }, [isOpen, cartId, markChatNotificationsAsRead]);
+  }, [messages, userIsScrolling]);
 
-  // Load messages from localStorage on mount and when cartId changes
+  
   useEffect(() => {
-    if (!cartId) return;
+    setMessages([]);
+  }, [cartId]);
 
-    // נסה לטעון מ-localStorage לפני פנייה לשרת
-    try {
-      const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
-      if (cachedMessages) {
-        const parsedMessages = JSON.parse(cachedMessages);
-        if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
-          console.log(
-            `Loaded ${parsedMessages.length} messages from localStorage for cart ${cartId}`
-          );
-          setMessages(parsedMessages);
-          // אל תבטל את הטעינה כי אנחנו רוצים לוודא שאנחנו מסונכרנים עם השרת
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load messages from localStorage:", error);
-    }
-
-    // טען הודעות מהשרת בכל מקרה כדי לקבל את ההודעות העדכניות ביותר
+  
+  useEffect(() => {
+  if (isOpen && !prevIsOpenRef.current && cartId) {
+    // Clear messages first before fetching to prevent duplicates
+    setMessages([]);  // Add this line
     fetchMessages();
-  }, [cartId]);
+    markChatNotificationsAsRead(cartId);
+    setTimeout(() => scrollToBottom(), 200);
+  } else if (!isOpen && prevIsOpenRef.current) {
+    // Chat is being closed - clear messages to prevent duplicates
+    setMessages([]);
+  }
+  prevIsOpenRef.current = isOpen;
+}, [isOpen, cartId, markChatNotificationsAsRead]);
 
-  // הוספת האזנה לשינויי localStorage מחלונות/טאבים אחרים
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (!cartId) return;
-
-      const key = `chat_messages_${cartId}`;
-      if (e.key === key && e.newValue) {
-        try {
-          const storedMessages = JSON.parse(e.newValue);
-          if (Array.isArray(storedMessages)) {
-            console.log(
-              `Syncing ${storedMessages.length} messages from another tab/window for cart ${cartId}`
-            );
-
-            // בדוק אם יש הודעות חדשות שלא קיימות אצלנו
-            setMessages((currentMessages) => {
-              // יצירת set של ID הודעות קיימות לבדיקת כפילויות מהירה יותר
-              const existingIds = new Set(
-                currentMessages
-                  .filter((m) => m._id) // רק הודעות עם ID
-                  .map((m) => m._id)
-              );
-
-              // בדיקת הודעות חדשות שאין לנו
-              const newMessages = storedMessages.filter(
-                (storedMsg) => storedMsg._id && !existingIds.has(storedMsg._id)
-              );
-
-              if (newMessages.length === 0) {
-                return currentMessages; // אין הודעות חדשות
-              }
-
-              console.log(
-                `Found ${newMessages.length} new messages from other tab/window`
-              );
-              return [...currentMessages, ...newMessages];
-            });
-          }
-        } catch (error) {
-          console.error(
-            "Error processing stored messages from another tab:",
-            error
-          );
-        }
-      }
-    };
-
-    // הוספת מאזין לשינויים ב-localStorage
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [cartId]);
-
-  // שיפור ה-fetchMessages כדי לשמור הודעות ב-localStorage גם אם הצ'אט לא פתוח
+   // Fetch messages from server only - simpler approach
   const fetchMessages = async () => {
-    if (!cartId) {
-      console.warn("Cannot fetch messages: No cartId provided");
-      return;
-    }
-
+    if (!cartId) return;
     setIsLoading(true);
     setError("");
 
-    console.log(`Fetching messages for cart ${cartId}...`);
-
     try {
-      // קודם כל ננסה לטעון מהזיכרון המקומי כדי להציג משהו מהר
-      const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
-      let localMessages: ChatMessage[] = [];
-
-      if (cachedMessages) {
-        try {
-          localMessages = JSON.parse(cachedMessages);
-          if (Array.isArray(localMessages) && localMessages.length > 0) {
-            console.log(
-              `Loaded ${localMessages.length} messages from localStorage for cart ${cartId}`
-            );
-            setMessages(localMessages);
-            setError("");
-          }
-        } catch (e) {
-          console.error("Failed to parse cached messages:", e);
-        }
-      }
-
-      // שליפה מהשרת
       const res = await axios.get(`/chat/${cartId}`);
-      console.log("Chat API response:", res);
-
       if (Array.isArray(res.data)) {
-        console.log(
-          `Successfully loaded ${res.data.length} messages for cart ${cartId} from server`
+        const serverMessages = res.data.sort((a: ChatMessage, b: ChatMessage) => 
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
+        
+        // Compare with existing messages to avoid duplicates
+        setMessages(prevMessages => {
+  const safePrevMessages = prevMessages || [];  
+  const uniqueMessages = serverMessages.filter(newMsg => 
+    !safePrevMessages.some(existingMsg => areMessagesEqual(existingMsg, newMsg))
+  );
 
-        // סינכרון - מזג את ההודעות מהשרת עם ההודעות המקומיות
-        const serverMessages = res.data;
-
-        // אם יש הודעות מהשרת, מזג אותן עם ההודעות המקומיות
-        if (serverMessages.length > 0) {
-          // מזג את ההודעות מהשרת עם ההודעות המקומיות (הסר כפילויות)
-          const mergedMessages = mergeMessages(localMessages, serverMessages);
-
-          // שמור את התוצאה ב-localStorage
-          localStorage.setItem(
-            `chat_messages_${cartId}`,
-            JSON.stringify(mergedMessages)
-          );
-
-          // עדכן את המצב
-          setMessages(mergedMessages);
-        }
-        // אם אין הודעות מהשרת אבל יש הודעות מקומיות, השתמש בהודעות המקומיות
-        else if (localMessages.length > 0) {
-          setMessages(localMessages);
-        }
-        // אין הודעות בכלל
-        else {
-          setMessages([]);
-        }
+  const mergedMessages = [...safePrevMessages, ...uniqueMessages];
+  saveMessagesToLocalStorage(mergedMessages);
+  return mergedMessages;
+});
       } else {
         console.warn("Server returned non-array for chat messages:", res.data);
-
-        // אם יש לנו כבר הודעות מהזיכרון המקומי, השאר אותן
-        if (localMessages.length === 0) {
-          setMessages([]);
-        }
+        setMessages([]);
       }
     } catch (err: any) {
-      console.error("Failed to fetch chat messages:", err);
       setError(`שגיאה בטעינת הודעות הצ'אט: ${err.message || "Unknown error"}`);
-
-      // השתמש בהודעות מהזיכרון המקומי אם יש שגיאה
-      const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
-      if (cachedMessages) {
-        try {
-          const parsedMessages = JSON.parse(cachedMessages);
-          if (Array.isArray(parsedMessages)) {
-            console.log(
-              `Using ${parsedMessages.length} cached messages as fallback`
-            );
-            setMessages(parsedMessages);
-            setError(""); // נקה את השגיאה כי נמצאו הודעות מטמון
+      // Try to load from localStorage as fallback
+      try {
+        const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
+        if (cachedMessages) {
+          const localMessages = JSON.parse(cachedMessages);
+          if (Array.isArray(localMessages)) {
+            setMessages(localMessages);
           }
-        } catch (e) {
-          console.error("Failed to parse cached messages:", e);
         }
+      } catch (cacheErr) {
+        console.error("Failed to load cached messages:", cacheErr);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Debug the API endpoint being used
-  useEffect(() => {
-    console.log("Current API endpoint for chat:", `/chat/${cartId}`);
-
-    // This will help debug if the correct API is being called
-    if (process.env.NODE_ENV === "development") {
-      const baseURL = axios.defaults.baseURL || window.location.origin;
-      console.log("Full chat API URL:", `${baseURL}/chat/${cartId}`);
-    }
-  }, [cartId]);
-
-  // Add useEffect to check if socket is connected and messages are empty
-  useEffect(() => {
-    // If we have a socket connection but no messages, try fetching
-    if (
-      socketRef.current?.connected &&
-      messages.length === 0 &&
-      cartId &&
-      !isLoading
-    ) {
-      console.log("Connected with 0 messages, fetching messages");
-      fetchMessages();
-    }
-  }, [socketRef.current?.connected, cartId, messages.length, isLoading]);
-
-  // Modify the useEffect for scrolling to handle unread messages
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      const container = chatContainerRef.current;
-      const isScrolledToBottom =
-        container.scrollHeight - container.clientHeight <=
-        container.scrollTop + 20;
-
-      if (isScrolledToBottom) {
-        container.scrollTop = container.scrollHeight;
-        setUnreadMessages(false);
-      } else if (messages.length > 0) {
-        setUnreadMessages(true);
-      }
-    }
-  }, [messages]);
-
-  // Add scroll event listener to show/hide scroll button
-  useEffect(() => {
-    const handleScroll = () => {
-      if (chatContainerRef.current) {
-        const container = chatContainerRef.current;
-        const isScrolledToBottom =
-          container.scrollHeight - container.clientHeight <=
-          container.scrollTop + 20;
-
-        setShowScrollButton(!isScrolledToBottom);
-        if (isScrolledToBottom) {
-          setUnreadMessages(false);
-        }
-      }
-    };
-
-    const container = chatContainerRef.current;
-    if (container) {
-      container.addEventListener("scroll", handleScroll);
-      return () => container.removeEventListener("scroll", handleScroll);
-    }
-  }, []);
-
-  // Add a function to scroll to the bottom
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
       setUnreadMessages(false);
     }
   };
 
-  // עדכון פונקציית שליחת ההודעה להוספת שם המשתמש למידע שנשלח
   const handleSend = async () => {
     if (!newMessage.trim() || !cartId || !socketRef.current) return;
-
+    
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const payload: ChatMessage = {
       sender: userName,
       message: newMessage.trim(),
       timestamp: new Date().toISOString(),
       clientId: socketRef.current.id,
+      _id: tempId
     };
 
     try {
-      // Add message to local state first
-      setMessages((prev) => {
+      setNewMessage("");
+      
+      // Add to local state immediately
+      setMessages(prev => {
         const updatedMessages = [...prev, payload];
-        saveMessagesToLocalStorage(updatedMessages);
         return updatedMessages;
       });
 
-      setNewMessage("");
-
-      // Emit to socket server - שליחת שם המשתמש בנוסף למזהה
+      // Send via socket
       socketRef.current.emit("send-message", {
         ...payload,
         cartId,
-        userName, // שליחת שם המשתמש כדי לעזור בסינון הודעות
+        userName,
       });
 
-      // Save to API with retry logic
-      const saveToAPI = async (retries = 3) => {
-        try {
-          const response = await axios.post(`/chat/${cartId}`, payload);
-          console.log("Message saved via API, response:", response.data);
-
-          // אם יש ID בתשובה מהשרת, עדכן את ההודעה במצב המקומי כדי למנוע כפילויות בעתיד
-          if (response.data && response.data._id) {
-            setMessages((prev) => {
-              const updatedMessages = prev.map((msg) =>
-                // החלף את ההודעה המקומית הזמנית בהודעה עם ID מהשרת
-                msg.timestamp === payload.timestamp &&
-                msg.message === payload.message &&
-                msg.sender === payload.sender
-                  ? { ...msg, _id: response.data._id }
-                  : msg
-              );
-
-              saveMessagesToLocalStorage(updatedMessages);
-              return updatedMessages;
-            });
-          }
-        } catch (apiErr) {
-          console.error(
-            `Failed to save message via API (attempt ${4 - retries}/3):`,
-            apiErr
-          );
-          if (retries > 0) {
-            console.log(
-              `Retrying API save in 1 second... (${retries} retries left)`
+      // Save to API
+      try {
+        const response = await axios.post(`/chat/${cartId}`, payload);
+        if (response.data && response.data._id) {
+          // Update with real ID from server
+          setMessages(prev => {
+            const updatedMessages = prev.map(msg =>
+              msg._id === tempId ? { ...msg, _id: response.data._id } : msg
             );
-            setTimeout(() => saveToAPI(retries - 1), 1000);
-          }
+            saveMessagesToLocalStorage(updatedMessages);
+            return updatedMessages;
+          });
         }
-      };
-
-      saveToAPI();
+      } catch (apiErr) {
+        console.error("Failed to save message to API:", apiErr);
+        // Message is already in local state, so user can still see it
+      }
     } catch (err) {
-      console.error("Failed to send message:", err);
       setError("שגיאה בשליחת ההודעה");
     }
   };
 
-  // לחיצה על Enter לשליחת הודעה
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  };
-
-  // הוספת מאזין להודעות חדשות גם כשהצ'אט לא פתוח
-  useEffect(() => {
-    if (!socketRef.current) return;
-
-    const handleReceiveMessage = (msg: ChatMessage) => {
-      console.log(`Received message for cart ${cartId}:`, msg);
-      if (msg.clientId === socketRef.current?.id) return;
-
-      // שמירת ההודעה במצב המקומי ובלוקל סטורג' גם כשהצ'אט לא פתוח
-      setMessages((prevMessages) => {
-        // בדיקת כפילויות
-        if (msg._id && prevMessages.some((m) => m._id === msg._id)) {
-          return prevMessages;
-        }
-
-        // עדכון סט ההודעות
-        const updatedMessages = [...prevMessages, msg];
-
-        // שמירת ההודעות המעודכנות ב-localStorage
-        if (cartId) {
-          try {
-            localStorage.setItem(
-              `chat_messages_${cartId}`,
-              JSON.stringify(updatedMessages)
-            );
-            console.log(
-              `Saved ${updatedMessages.length} messages to localStorage after receiving new message`
-            );
-          } catch (error) {
-            console.error("Failed to save messages to localStorage:", error);
-          }
-        }
-
-        return updatedMessages;
-      });
-    };
-
-    socketRef.current.on("receive-message", handleReceiveMessage);
-
-    return () => {
-      socketRef.current?.off("receive-message", handleReceiveMessage);
-    };
-  }, [cartId]); // הוספת cartId לרשימת התלויות
-
-  // שיפור useEffect כדי להצטרף לחדר הצ'אט מיד עם טעינת הקומפוננטה ולא רק כאשר הוא נפתח
-  useEffect(() => {
-    if (!cartId || !socketRef.current) return;
-
-    console.log(`Joining cart room ${cartId} regardless of visibility`);
-
-    if (prevCartIdRef.current && prevCartIdRef.current !== cartId) {
-      console.log(`Leaving previous cart room: ${prevCartIdRef.current}`);
-      socketRef.current.emit("leave-cart", prevCartIdRef.current);
-    }
-
-    socketRef.current.emit("join-cart", cartId);
-    prevCartIdRef.current = cartId;
-
-    // טען הודעות גם כשרכיב הצ'אט נטען (לא רק כשהוא נפתח)
-    fetchMessages();
-
-    // בעת עזיבת החדר (כאשר הקומפוננטה מתפרקת)
-    return () => {
-      if (socketRef.current && cartId) {
-        console.log(`Leaving cart room ${cartId} on component unmount`);
-        socketRef.current.emit("leave-cart", cartId);
-      }
-    };
-  }, [cartId]);
-
-  // הוספת סנכרון הודעות כאשר הצ'אט נפתח/נסגר
-  useEffect(() => {
-    console.log(`Chat isOpen changed to: ${isOpen} for cart: ${cartId}`);
-
-    // אם הצ'אט נפתח, טען הודעות מחדש
-    if (isOpen && cartId) {
-      console.log(`Chat opened for cart ${cartId}, fetching messages...`);
-      fetchMessages();
-    }
-
-    // אם הצ'אט נסגר, שמור את ההודעות
-    if (!isOpen && cartId && messages.length > 0) {
-      console.log(
-        `Chat closed for cart ${cartId}, saving ${messages.length} messages to localStorage`
-      );
-      try {
-        localStorage.setItem(
-          `chat_messages_${cartId}`,
-          JSON.stringify(messages)
-        );
-      } catch (error) {
-        console.error(
-          "Failed to save messages to localStorage on chat close:",
-          error
-        );
-      }
-    }
-  }, [isOpen, cartId]);
-
-  // נוסיף מאזין להודעות צ'אט חדשות כאשר הצ'אט לא פתוח
-  useEffect(() => {
-    if (!socketRef.current || !cartId) return;
-
-    // האזנה לאירוע new-chat-notification ושמירה בלוקל סטורג'
-    const handleNewChatNotification = (data: any) => {
-      // וודא שההודעה שייכת לעגלה שלנו
-      if (data.cartId !== cartId) return;
-
-      // בדוק אם ההודעה היא מהמשתמש הנוכחי (אין צורך להתריע על הודעות משלך)
-      if (data.sender === userName || data.clientId === socketRef.current?.id) {
-        console.log("Ignoring own chat notification in CartChat component");
-        return;
-      }
-
-      console.log("Received new-chat-notification for cart", cartId, ":", data);
-
-      // המר את נתוני הצ'אט למבנה הודעה
-      const chatMessage: ChatMessage = {
-        sender: data.sender,
-        message: data.message,
-        timestamp: data.timestamp,
-        clientId: data.clientId || "",
-        _id:
-          data._id ||
-          new Date().getTime().toString() +
-            Math.random().toString(36).substring(2, 9), // יצירת ID ייחודי אם אין
-      };
-
-      try {
-        const localStorageKey = `chat_messages_${cartId}`;
-        const existingMessagesStr = localStorage.getItem(localStorageKey);
-        let existingMessages: ChatMessage[] = [];
-
-        if (existingMessagesStr) {
-          existingMessages = JSON.parse(existingMessagesStr);
-        }
-
-        // בדוק אם ההודעה כבר קיימת (לפי תוכן והשולח)
-        const isDuplicate = existingMessages.some(
-          (msg) =>
-            msg.sender === chatMessage.sender &&
-            msg.message === chatMessage.message &&
-            msg.timestamp === chatMessage.timestamp
-        );
-
-        if (!isDuplicate) {
-          // הוסף את ההודעה החדשה ושמור ב-localStorage תמיד
-          const updatedMessages = [...existingMessages, chatMessage];
-          localStorage.setItem(
-            localStorageKey,
-            JSON.stringify(updatedMessages)
-          );
-          console.log(
-            `Saved new chat message to localStorage for cart ${cartId} (total: ${updatedMessages.length} messages)`
-          );
-
-          // עדכן את מצב הקומפוננטה רק אם הצ'אט פתוח
-          if (isOpen) {
-            setMessages(updatedMessages);
-          }
-        }
-      } catch (error) {
-        console.error("Error processing new chat notification:", error);
-      }
-    };
-
-    // רישום לאירוע חדש
-    socketRef.current.on("new-chat-notification", handleNewChatNotification);
-
-    return () => {
-      socketRef.current?.off(
-        "new-chat-notification",
-        handleNewChatNotification
-      );
-    };
-  }, [cartId, isOpen, userName]); // הוסף את userName כתלות
-
-  // פונקציית עזר למיזוג הודעות ללא כפילויות
-  const mergeMessages = (
-    localMessages: ChatMessage[],
-    serverMessages: ChatMessage[]
-  ): ChatMessage[] => {
-    // צור מיפוי של הודעות מקומיות לפי ID או לפי תוכן+שולח+זמן
-    const existingMessageMap = new Map<string, ChatMessage>();
-
-    localMessages.forEach((msg) => {
-      const key = msg._id || `${msg.sender}-${msg.message}-${msg.timestamp}`;
-      existingMessageMap.set(key, msg);
-    });
-
-    // הוסף את ההודעות מהשרת שאינן קיימות כבר
-    serverMessages.forEach((serverMsg) => {
-      const serverKey =
-        serverMsg._id ||
-        `${serverMsg.sender}-${serverMsg.message}-${serverMsg.timestamp}`;
-      if (!existingMessageMap.has(serverKey)) {
-        existingMessageMap.set(serverKey, serverMsg);
-      }
-    });
-
-    // המר בחזרה למערך ומיין לפי זמן
-    const mergedMessages = Array.from(existingMessageMap.values());
-    return mergedMessages.sort((a, b) => {
-      const dateA = new Date(a.timestamp).getTime();
-      const dateB = new Date(b.timestamp).getTime();
-      return dateA - dateB;
-    });
   };
 
   return (
@@ -757,12 +363,11 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
         </Alert>
       )}
 
-      {/* Increase maximum height for better visibility */}
       <Box sx={{ position: "relative" }}>
         <Box
           ref={chatContainerRef}
           sx={{
-            height: 250, // Increased from maxHeight: 250
+            height: 250,
             overflowY: "auto",
             mb: 2,
             bgcolor: "#ffffff",
@@ -787,7 +392,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
           ) : (
             messages.map((msg, i) => (
               <Box
-                key={msg._id || i}
+                key={msg._id || `${msg.sender}-${msg.timestamp}-${i}`}
                 sx={{
                   mb: 1.5,
                   p: 1,
