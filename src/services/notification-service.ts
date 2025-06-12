@@ -38,7 +38,7 @@ class NotificationService {
 
   private connectSocket() {
     // Get the base URL from the API client or use a fallback
-    const apiUrl = apiClient.defaults.baseURL || "http://localhost:3000";
+    const apiUrl = apiClient.defaults.baseURL || "https://supersmart.cs.colman.ac.il";
     console.log("Attempting to connect socket to:", apiUrl);
 
     // Make sure to disconnect any existing socket
