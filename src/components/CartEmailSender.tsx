@@ -120,7 +120,7 @@ const CartEmailSender: React.FC<CartEmailSenderProps> = ({
     setSending(true);
 
     try {
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://supersmart.cs.colman.ac.il';
+      const API_BASE_URL = 'https://supersmart.cs.colman.ac.il';
       await axios.post(`${API_BASE_URL}/send-cart-email`, {
         email: user.email,
         cart: cartItems.map(item => ({

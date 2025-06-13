@@ -19,5 +19,5 @@ export const getStoreName = (storeId: any): string => {
   if (!id) {
     return "חנות לא ידועה";
   }
-  return STORE_NAMES[id] || `חנות ${id.substring(0, 5)}`;
+  return STORE_NAMES[id];
 }
