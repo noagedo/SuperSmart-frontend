@@ -17,10 +17,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { useNotifications } from "../contexts/NotificationContext";
 
 // Use dynamic URL that respects the protocol (HTTP/HTTPS)
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 
-  (typeof window !== "undefined" && window.location.protocol === 'https:' ? 'https://' : 'http://') + 
-  (typeof window !== "undefined" && window.location.hostname === 'localhost' ? 'localhost:3000' : 
-   typeof window !== "undefined" ? window.location.host : "supersmart.cs.colman.ac.il");
+const SOCKET_URL = 'https://supersmart.cs.colman.ac.il';
 
 // Socket singleton
 let socket: Socket;
@@ -129,9 +126,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     };
   }, []);
 
-  // Socket message listeners - only when chat is open
-   // Socket message listeners - only when chat is open
-  useEffect(() => {
+useEffect(() => {
   if (!socketRef.current || !cartId || !isOpen) return;
 
   socketRef.current.off("receive-message");
@@ -141,13 +136,10 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     if (msg.clientId === socketRef.current?.id) return;
 
     setMessages((prevMessages) => {
-      const exists = prevMessages.some(existingMsg => 
-        (existingMsg._id && msg._id && existingMsg._id === msg._id) ||
-        (existingMsg.sender === msg.sender && 
-         existingMsg.message === msg.message && 
-         Math.abs(new Date(existingMsg.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 5000)
-      );
-      if (exists) return prevMessages;
+      // Use areMessagesEqual function for duplicate detection
+      const isDuplicate = prevMessages.some(existingMsg => areMessagesEqual(existingMsg, msg));
+      
+      if (isDuplicate) return prevMessages;
 
       const updatedMessages = [...prevMessages, msg];
       saveMessagesToLocalStorage(updatedMessages);
@@ -170,11 +162,10 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
   });
 
   return () => {
-    socketRef.current?.off("receive-message", handleReceiveMessage);
+    socketRef.current?.off("receive-message");
     socketRef.current?.off("new-chat-notification");
   };
 }, [cartId, isOpen]);
-  
   useEffect(() => {
     if (!cartId || !socketRef.current) return;
 
@@ -236,53 +227,61 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
   prevIsOpenRef.current = isOpen;
 }, [isOpen, cartId, markChatNotificationsAsRead]);
 
-   // Fetch messages from server only - simpler approach
-  const fetchMessages = async () => {
-    if (!cartId) return;
-    setIsLoading(true);
-    setError("");
+   const fetchMessages = async () => {
+  if (!cartId) return;
+  setIsLoading(true);
+  setError("");
 
-    try {
-      const res = await axios.get(`/chat/${cartId}`);
-      if (Array.isArray(res.data)) {
-        const serverMessages = res.data.sort((a: ChatMessage, b: ChatMessage) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-        
-        // Compare with existing messages to avoid duplicates
-        setMessages(prevMessages => {
-  const safePrevMessages = prevMessages || [];  
-  const uniqueMessages = serverMessages.filter(newMsg => 
-    !safePrevMessages.some(existingMsg => areMessagesEqual(existingMsg, newMsg))
-  );
-
-  const mergedMessages = [...safePrevMessages, ...uniqueMessages];
-  saveMessagesToLocalStorage(mergedMessages);
-  return mergedMessages;
-});
-      } else {
-        console.warn("Server returned non-array for chat messages:", res.data);
-        setMessages([]);
-      }
-    } catch (err: any) {
-      setError(`שגיאה בטעינת הודעות הצ'אט: ${err.message || "Unknown error"}`);
-      // Try to load from localStorage as fallback
-      try {
-        const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
-        if (cachedMessages) {
-          const localMessages = JSON.parse(cachedMessages);
-          if (Array.isArray(localMessages)) {
-            setMessages(localMessages);
-          }
+  try {
+    const res = await axios.get(`/chat/${cartId}`);
+    if (Array.isArray(res.data)) {
+      const serverMessages = res.data.sort((a: ChatMessage, b: ChatMessage) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      
+      // Use a Set to track unique messages (by _id)
+      const uniqueMessages = [];
+      const messageIds = new Set();
+      
+      // First add messages that have IDs to ensure uniqueness
+      for (const msg of serverMessages) {
+        if (msg._id && !messageIds.has(msg._id)) {
+          uniqueMessages.push(msg);
+          messageIds.add(msg._id);
         }
-      } catch (cacheErr) {
-        console.error("Failed to load cached messages:", cacheErr);
       }
-    } finally {
-      setIsLoading(false);
+      
+      // Then add messages without IDs if they don't match existing messages
+      for (const msg of serverMessages) {
+        if (!msg._id && !uniqueMessages.some(existingMsg => areMessagesEqual(existingMsg, msg))) {
+          uniqueMessages.push(msg);
+        }
+      }
+      
+      setMessages(uniqueMessages);
+      saveMessagesToLocalStorage(uniqueMessages);
+    } else {
+      console.warn("Server returned non-array for chat messages:", res.data);
+      setMessages([]);
     }
-  };
-
+  } catch (err: any) {
+    setError(`שגיאה בטעינת הודעות הצ'אט: ${err.message || "Unknown error"}`);
+    // Try to load from localStorage as fallback
+    try {
+      const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
+      if (cachedMessages) {
+        const localMessages = JSON.parse(cachedMessages);
+        if (Array.isArray(localMessages)) {
+          setMessages(localMessages);
+        }
+      }
+    } catch (cacheErr) {
+      console.error("Failed to load cached messages:", cacheErr);
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
