@@ -5,8 +5,8 @@ const STORE_NAMES: Record<string, string> = {
   "65a4e1e1e1e1e1e1e1e1e1e1": "שופרסל",
   "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",
   "65a4e1e1e1e1e1e1e1e1e1e3": "קרפור",
-  "65a4e1e1e1e1e1e1e1e1e1e4":"סיטי מרקט",
-  // Add more stores as needed
+  "65a4e1e1e1e1e1e1e1e1e1e4": "סיטי מרקט",
+
 };
 
 /**
@@ -19,5 +19,5 @@ export const getStoreName = (storeId: any): string => {
   if (!id) {
     return "חנות לא ידועה";
   }
-  return STORE_NAMES[id];
+  return STORE_NAMES[id] || `חנות ${id.substring(0, 5)}`;
 }
