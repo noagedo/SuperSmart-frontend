@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { io, Socket } from "socket.io-client";
 import axios from "axios";
 import {
   Box,
@@ -15,26 +14,7 @@ import {
 } from "@mui/material";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { useNotifications } from "../contexts/NotificationContext";
-
-// Use dynamic URL that respects the protocol (HTTP/HTTPS)
-const SOCKET_URL = 'https://supersmart.cs.colman.ac.il';
-
-// Socket singleton
-let socket: Socket;
-
-const getSocket = (): Socket => {
-  if (!socket) {
-    socket = io(SOCKET_URL, {
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      transports: ["websocket", "polling"],
-      secure: window.location.protocol === "https:",
-      forceNew: false, 
-    });
-  }
-  return socket;
-};
+import notificationService from "../services/notification-service";
 
 interface ChatMessage {
   sender: string;
@@ -53,14 +33,12 @@ interface CartChatProps {
 const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [_, setClientId] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [showScrollButton, setShowScrollButton] = useState<boolean>(false);
   const [unreadMessages, setUnreadMessages] = useState<boolean>(false);
   const [userIsScrolling, setUserIsScrolling] = useState<boolean>(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
   const prevCartIdRef = useRef<string>("");
   const prevIsOpenRef = useRef<boolean>(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,13 +62,13 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     if (msg1._id && msg2._id) {
       return msg1._id === msg2._id;
     }
-    
+
     // If one has _id and other doesn't, they could still be the same message
     // Compare by content and timestamp
     const time1 = new Date(msg1.timestamp).getTime();
     const time2 = new Date(msg2.timestamp).getTime();
     const timeDiff = Math.abs(time1 - time2);
-    
+
     return (
       msg1.sender === msg2.sender &&
       msg1.message === msg2.message &&
@@ -98,85 +76,93 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     );
   };
 
-  // Socket connection setup
+  // Socket connection setup - use shared socket from NotificationService
   useEffect(() => {
-    socketRef.current = getSocket();
+    const socket = notificationService.socket;
+    if (!socket) {
+      setError("בעיית התחברות לשרת");
+      return;
+    }
 
-    socketRef.current.on("connect", () => {
-      setClientId(socketRef.current?.id || "");
+    const handleConnect = () => {
       setError("");
-    });
+    };
 
-    socketRef.current.on("connect_error", () => {
+    const handleConnectError = () => {
       setError("בעיית התחברות לשרת. מנסה להתחבר מחדש...");
-    });
+    };
 
-    socketRef.current.on("disconnect", (reason) => {
+    const handleDisconnect = (reason: string) => {
       if (reason === "io server disconnect") {
-        socketRef.current?.connect();
+        socket.connect();
+      }
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleConnectError);
+    socket.on("disconnect", handleDisconnect);
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("disconnect", handleDisconnect);
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = notificationService.socket;
+    if (!socket || !cartId || !isOpen) return;
+
+    socket.off("receive-message");
+    socket.off("new-chat-notification");
+
+    const handleReceiveMessage = (msg: ChatMessage) => {
+      if (msg.clientId === socket.id) return;
+
+      setMessages((prevMessages) => {
+        // Use areMessagesEqual function for duplicate detection
+        const isDuplicate = prevMessages.some(existingMsg => areMessagesEqual(existingMsg, msg));
+
+        if (isDuplicate) return prevMessages;
+
+        const updatedMessages = [...prevMessages, msg];
+        saveMessagesToLocalStorage(updatedMessages);
+        return updatedMessages;
+      });
+    };
+
+    socket.on("receive-message", handleReceiveMessage);
+    socket.on("new-chat-notification", (data: any) => {
+      if (data.clientId === socket.id) return;
+      if (data.cartId === cartId) {
+        handleReceiveMessage({
+          sender: data.sender,
+          message: data.message,
+          timestamp: data.timestamp,
+          clientId: data.clientId,
+          _id: data._id
+        });
       }
     });
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.off("connect");
-        socketRef.current.off("connect_error");
-        socketRef.current.off("disconnect");
-      }
+      socket.off("receive-message", handleReceiveMessage);
+      socket.off("new-chat-notification");
     };
-  }, []);
+  }, [cartId, isOpen]);
 
-useEffect(() => {
-  if (!socketRef.current || !cartId || !isOpen) return;
-
-  socketRef.current.off("receive-message");
-  socketRef.current.off("new-chat-notification");
-
-  const handleReceiveMessage = (msg: ChatMessage) => {
-    if (msg.clientId === socketRef.current?.id) return;
-
-    setMessages((prevMessages) => {
-      // Use areMessagesEqual function for duplicate detection
-      const isDuplicate = prevMessages.some(existingMsg => areMessagesEqual(existingMsg, msg));
-      
-      if (isDuplicate) return prevMessages;
-
-      const updatedMessages = [...prevMessages, msg];
-      saveMessagesToLocalStorage(updatedMessages);
-      return updatedMessages;
-    });
-  };
-
-  socketRef.current.on("receive-message", handleReceiveMessage);
-  socketRef.current.on("new-chat-notification", (data) => {
-    if (data.clientId === socketRef.current?.id) return;
-    if (data.cartId === cartId) {
-      handleReceiveMessage({
-        sender: data.sender,
-        message: data.message,
-        timestamp: data.timestamp,
-        clientId: data.clientId,
-        _id: data._id
-      });
-    }
-  });
-
-  return () => {
-    socketRef.current?.off("receive-message");
-    socketRef.current?.off("new-chat-notification");
-  };
-}, [cartId, isOpen]);
   useEffect(() => {
-    if (!cartId || !socketRef.current) return;
+    const socket = notificationService.socket;
+    if (!cartId || !socket) return;
 
     if (prevCartIdRef.current && prevCartIdRef.current !== cartId) {
-      socketRef.current.emit("leave-cart", prevCartIdRef.current);
+      socket.emit("leave-cart", prevCartIdRef.current);
     }
-    socketRef.current.emit("join-cart", cartId);
+    socket.emit("join-cart", cartId);
     prevCartIdRef.current = cartId;
   }, [cartId]);
 
-  
+
   useEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
@@ -198,7 +184,7 @@ useEffect(() => {
   useEffect(() => {
     if (!messages.length || !chatContainerRef.current) return;
     const container = chatContainerRef.current;
-    const isNearBottom = 
+    const isNearBottom =
       container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
     if (isNearBottom && !userIsScrolling) {
       requestAnimationFrame(() => scrollToBottom());
@@ -207,81 +193,81 @@ useEffect(() => {
     }
   }, [messages, userIsScrolling]);
 
-  
+
   useEffect(() => {
     setMessages([]);
   }, [cartId]);
 
-  
+
   useEffect(() => {
-  if (isOpen && !prevIsOpenRef.current && cartId) {
-    // Clear messages first before fetching to prevent duplicates
-    setMessages([]);  // Add this line
-    fetchMessages();
-    markChatNotificationsAsRead(cartId);
-    setTimeout(() => scrollToBottom(), 200);
-  } else if (!isOpen && prevIsOpenRef.current) {
-    // Chat is being closed - clear messages to prevent duplicates
-    setMessages([]);
-  }
-  prevIsOpenRef.current = isOpen;
-}, [isOpen, cartId, markChatNotificationsAsRead]);
-
-   const fetchMessages = async () => {
-  if (!cartId) return;
-  setIsLoading(true);
-  setError("");
-
-  try {
-    const res = await axios.get(`/chat/${cartId}`);
-    if (Array.isArray(res.data)) {
-      const serverMessages = res.data.sort((a: ChatMessage, b: ChatMessage) => 
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      
-      // Use a Set to track unique messages (by _id)
-      const uniqueMessages = [];
-      const messageIds = new Set();
-      
-      // First add messages that have IDs to ensure uniqueness
-      for (const msg of serverMessages) {
-        if (msg._id && !messageIds.has(msg._id)) {
-          uniqueMessages.push(msg);
-          messageIds.add(msg._id);
-        }
-      }
-      
-      // Then add messages without IDs if they don't match existing messages
-      for (const msg of serverMessages) {
-        if (!msg._id && !uniqueMessages.some(existingMsg => areMessagesEqual(existingMsg, msg))) {
-          uniqueMessages.push(msg);
-        }
-      }
-      
-      setMessages(uniqueMessages);
-      saveMessagesToLocalStorage(uniqueMessages);
-    } else {
-      console.warn("Server returned non-array for chat messages:", res.data);
+    if (isOpen && !prevIsOpenRef.current && cartId) {
+      // Clear messages first before fetching to prevent duplicates
+      setMessages([]);  // Add this line
+      fetchMessages();
+      markChatNotificationsAsRead(cartId);
+      setTimeout(() => scrollToBottom(), 200);
+    } else if (!isOpen && prevIsOpenRef.current) {
+      // Chat is being closed - clear messages to prevent duplicates
       setMessages([]);
     }
-  } catch (err: any) {
-    setError(`שגיאה בטעינת הודעות הצ'אט: ${err.message || "Unknown error"}`);
-    // Try to load from localStorage as fallback
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, cartId, markChatNotificationsAsRead]);
+
+  const fetchMessages = async () => {
+    if (!cartId) return;
+    setIsLoading(true);
+    setError("");
+
     try {
-      const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
-      if (cachedMessages) {
-        const localMessages = JSON.parse(cachedMessages);
-        if (Array.isArray(localMessages)) {
-          setMessages(localMessages);
+      const res = await axios.get(`/chat/${cartId}`);
+      if (Array.isArray(res.data)) {
+        const serverMessages = res.data.sort((a: ChatMessage, b: ChatMessage) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+
+        // Use a Set to track unique messages (by _id)
+        const uniqueMessages = [];
+        const messageIds = new Set();
+
+        // First add messages that have IDs to ensure uniqueness
+        for (const msg of serverMessages) {
+          if (msg._id && !messageIds.has(msg._id)) {
+            uniqueMessages.push(msg);
+            messageIds.add(msg._id);
+          }
         }
+
+        // Then add messages without IDs if they don't match existing messages
+        for (const msg of serverMessages) {
+          if (!msg._id && !uniqueMessages.some(existingMsg => areMessagesEqual(existingMsg, msg))) {
+            uniqueMessages.push(msg);
+          }
+        }
+
+        setMessages(uniqueMessages);
+        saveMessagesToLocalStorage(uniqueMessages);
+      } else {
+        console.warn("Server returned non-array for chat messages:", res.data);
+        setMessages([]);
       }
-    } catch (cacheErr) {
-      console.error("Failed to load cached messages:", cacheErr);
+    } catch (err: any) {
+      setError(`שגיאה בטעינת הודעות הצ'אט: ${err.message || "Unknown error"}`);
+      // Try to load from localStorage as fallback
+      try {
+        const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
+        if (cachedMessages) {
+          const localMessages = JSON.parse(cachedMessages);
+          if (Array.isArray(localMessages)) {
+            setMessages(localMessages);
+          }
+        }
+      } catch (cacheErr) {
+        console.error("Failed to load cached messages:", cacheErr);
+      }
+    } finally {
+      setIsLoading(false);
     }
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
@@ -293,20 +279,21 @@ useEffect(() => {
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !cartId || !socketRef.current) return;
-    
+    const socket = notificationService.socket;
+    if (!newMessage.trim() || !cartId || !socket) return;
+
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const payload: ChatMessage = {
       sender: userName,
       message: newMessage.trim(),
       timestamp: new Date().toISOString(),
-      clientId: socketRef.current.id,
+      clientId: socket.id,
       _id: tempId
     };
 
     try {
       setNewMessage("");
-      
+
       // Add to local state immediately
       setMessages(prev => {
         const updatedMessages = [...prev, payload];
@@ -314,7 +301,7 @@ useEffect(() => {
       });
 
       // Send via socket
-      socketRef.current.emit("send-message", {
+      socket.emit("send-message", {
         ...payload,
         cartId,
         userName,
@@ -461,7 +448,7 @@ useEffect(() => {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={!socketRef.current?.connected}
+          disabled={!notificationService.socket?.connected}
           multiline
           maxRows={3}
           sx={{ direction: "rtl" }}
@@ -469,7 +456,7 @@ useEffect(() => {
         <Button
           variant="contained"
           onClick={handleSend}
-          disabled={!newMessage.trim() || !socketRef.current?.connected}
+          disabled={!newMessage.trim() || !notificationService.socket?.connected}
         >
           שלח
         </Button>

@@ -14,16 +14,43 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
 
   const chartData = itemService.formatPriceDataForChart(item);
 
-  // Generate labels for the x-axis (dates)
-  const xLabels =
-    item.storePrices.length > 0 && item.storePrices[0].prices.length > 0
-      ? item.storePrices[0].prices.map((p) => {
-          const dateString = p.date || p.data || "";
-          if (!dateString) return "";
-          const date = new Date(dateString);
-          return `${date.getDate()}/${date.getMonth() + 1}`;
-        })
-      : [];
+  // Generate complete date range from first price date to today
+  const generateDateRange = () => {
+    if (!item.storePrices || item.storePrices.length === 0) return [];
+
+    // Get all dates from all stores
+    const allDates: Date[] = [];
+    item.storePrices.forEach(storePrice => {
+      if (storePrice.prices) {
+        storePrice.prices.forEach(price => {
+          const dateString = price.date || price.data || "";
+          if (dateString) {
+            allDates.push(new Date(dateString));
+          }
+        });
+      }
+    });
+
+    if (allDates.length === 0) return [];
+
+    // Sort dates and get the first and last dates
+    allDates.sort((a, b) => a.getTime() - b.getTime());
+    const startDate = allDates[0];
+    const endDate = new Date(); // Today
+
+    // Generate all dates from start to end
+    const dateRange: string[] = [];
+    const currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      dateRange.push(`${currentDate.getDate()}/${currentDate.getMonth() + 1}`);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return dateRange;
+  };
+
+  const xLabels = generateDateRange();
 
   return (
     <Modal
