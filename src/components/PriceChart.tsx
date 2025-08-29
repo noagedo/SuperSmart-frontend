@@ -12,7 +12,6 @@ interface PriceChartProps {
 const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
   if (!item) return null;
 
-  // Generate weekly price data with trend indicators
   const generateWeeklyPriceData = () => {
     if (!item.storePrices || item.storePrices.length === 0) return { chartData: [], xLabels: [] };
 
@@ -34,27 +33,23 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
     const startDate = allDates[0];
     const endDate = new Date();
 
-    // Generate weekly intervals instead of daily
     const weeklyDates: Date[] = [];
 
     const currentDate = new Date(startDate);
 
-    // Start from the beginning of the week
     currentDate.setDate(currentDate.getDate() - currentDate.getDay());
 
     while (currentDate <= endDate) {
       weeklyDates.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 14); // Bi-weekly intervals
+      currentDate.setDate(currentDate.getDate() + 14);
     }
 
-    // Create labels for the chart
     const xLabels = weeklyDates.map(date => {
       const day = date.getDate().toString().padStart(2, '0');
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       return `${day}/${month}`;
     });
 
-    // Group stores and remove duplicates
     const storeMap = new Map<string, any>();
     item.storePrices
       .filter(storePrice => storePrice && storePrice.prices && Array.isArray(storePrice.prices))
@@ -63,14 +58,12 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
         if (!storeMap.has(storeId)) {
           storeMap.set(storeId, {
             ...storePrice,
-            prices: [...storePrice.prices] // Create a copy of prices array
+            prices: [...storePrice.prices] 
           });
         } else {
-          // Merge prices if we have duplicate store entries and remove duplicates
           const existing = storeMap.get(storeId);
           const allPrices = [...existing.prices, ...storePrice.prices];
 
-          // Remove duplicate prices based on date
           const uniquePrices = allPrices.filter((price, index, array) => {
             const currentDate = price.date || price.data || "1970-01-01";
             return array.findIndex(p => (p.date || p.data || "1970-01-01") === currentDate) === index;
@@ -81,11 +74,9 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
         }
       });
 
-    // Process each unique store
     const chartData = Array.from(storeMap.values())
       .map((storePrice) => {
         try {
-          // Sort prices by date
           const sortedPrices = [...storePrice.prices]
             .sort((a, b) => {
               const dateA = a.date || a.data || "1970-01-01";
@@ -93,7 +84,6 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               return new Date(dateA).getTime() - new Date(dateB).getTime();
             });
 
-          // Get the closest price for each weekly interval
           const priceValues: (number | null)[] = [];
 
           weeklyDates.forEach(weekDate => {
@@ -104,7 +94,6 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
               const priceDate = new Date(price.date || price.data || "1970-01-01");
               const timeDiff = Math.abs(priceDate.getTime() - weekDate.getTime());
 
-              // Only consider prices within 2 weeks of the target date
               if (timeDiff <= 14 * 24 * 60 * 60 * 1000 && timeDiff < minTimeDiff) {
                 const priceValue = typeof price.price === "string"
                   ? parseFloat(price.price)
@@ -166,7 +155,6 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
           הצגת מחירים כל שבועיים - 🔴 עלייה במחיר | 🟢 ירידה במחיר
         </Typography>
 
-        {/* Price trend summary */}
         {chartData.length > 0 && (
           <Box sx={{ mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
@@ -214,7 +202,6 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
           {chartData.length > 0 ? (
             <LineChart
               series={chartData.map((series) => {
-                // Calculate trend for color coding
                 const validPrices = series.data.filter(price => price !== null) as number[];
                 const isIncreasing = validPrices.length > 1 &&
                   validPrices[validPrices.length - 1] > validPrices[0];
@@ -223,7 +210,7 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
                   curve: "linear" as const,
                   data: series.data,
                   label: getStoreName(series.storeId),
-                  color: isIncreasing ? '#ef4444' : '#22c55e', // Red for increase, green for decrease
+                  color: isIncreasing ? '#ef4444' : '#22c55e',
                   connectNulls: false,
                 };
               })}
