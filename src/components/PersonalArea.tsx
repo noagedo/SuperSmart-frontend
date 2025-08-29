@@ -52,7 +52,7 @@ import notificationService, {
 } from "../services/notification-service";
 import ProductCard from "./ProductCard";
 import CartEmailSender from "./CartEmailSender";
-import { useNotifications } from "../contexts/NotificationContext"; 
+import { useNotifications } from "../contexts/NotificationContext";
 import { CartParticipant } from "../services/cart-service";
 interface PersonalAreaProps {
   user: User;
@@ -89,7 +89,7 @@ const CustomChatBadge = ({ count }: { count: number }) => {
         fontSize: "0.75rem",
         fontWeight: "bold",
         boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-        animation: "pulse 1.5s infinite", 
+        animation: "pulse 1.5s infinite",
         "@keyframes pulse": {
           "0%": {
             boxShadow: "0 0 0 0 rgba(239, 68, 68, 0.7)",
@@ -239,43 +239,45 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   >([]);
 
   const getUnreadChatCount = (cartId: string) => {
-    return chatNotifications.filter(
+    const count = chatNotifications.filter(
       (n) => n.type === "chat" && n.cartId === cartId && !n.isRead
     ).length;
+    console.log(`💬 Unread chat count for cart ${cartId}:`, count);
+    return count;
   };
 
 
-useEffect(() => {
-  console.log("🧠 useEffect - user?._id =", user?._id);
+  useEffect(() => {
+    console.log("🧠 useEffect - user?._id =", user?._id);
 
-  const fetchCarts = async () => {
-    if (!user?._id) return;
-    setLoadingCarts(true);
-    setCartError(null);
+    const fetchCarts = async () => {
+      if (!user?._id) return;
+      setLoadingCarts(true);
+      setCartError(null);
 
-    try {
-      const { request } = cartService.getCartsByUser(user._id);
-      const response = await request;
-      const allCarts = response.data;
+      try {
+        const { request } = cartService.getCartsByUser(user._id);
+        const response = await request;
+        const allCarts = response.data;
 
-      const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
-      const shared = allCarts.filter(
-        (cart: Cart) =>
-          cart.ownerId !== user._id &&
-          cart.participants.some((p) => p._id === user._id)
-      );
+        const my = allCarts.filter((cart: Cart) => cart.ownerId === user._id);
+        const shared = allCarts.filter(
+          (cart: Cart) =>
+            cart.ownerId !== user._id &&
+            cart.participants.some((p) => p._id === user._id)
+        );
 
-      setMyCarts(my);
-      setSharedCarts(shared);
-    } catch (error) {
-      setCartError("שגיאה בטעינת עגלות");
-    } finally {
-      setLoadingCarts(false);
-    }
-  };
+        setMyCarts(my);
+        setSharedCarts(shared);
+      } catch (error) {
+        setCartError("שגיאה בטעינת עגלות");
+      } finally {
+        setLoadingCarts(false);
+      }
+    };
 
-  fetchCarts();
-}, [user?._id]);
+    fetchCarts();
+  }, [user?._id]);
 
   useEffect(() => {
     if (myCarts.length > 0 && user) {
@@ -351,7 +353,7 @@ useEffect(() => {
     fetchCartPriceDrops();
   }, [user]);
 
- 
+
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     if (!confirm("האם אתה בטוח שברצונך למחוק את העגלה?")) return;
@@ -373,7 +375,7 @@ useEffect(() => {
     clearCart();
 
     if (cart.items && cart.items.length > 0) {
-      navigate("/Products"); 
+      navigate("/Products");
     }
   };
 
@@ -440,8 +442,8 @@ useEffect(() => {
         participants: [
           ...selectedCartForShare.participants,
           {
-            _id: `temp-${new Date().getTime()}`, 
-            userId: "", 
+            _id: `temp-${new Date().getTime()}`,
+            userId: "",
             email: shareEmail,
             userName: "משתמש חדש",
           },
@@ -542,9 +544,8 @@ useEffect(() => {
 
       setSnackbar({
         open: true,
-        message: `התרעות ${
-          response.data.notifications ? "הופעלו" : "כובו"
-        } בהצלחה`,
+        message: `התרעות ${response.data.notifications ? "הופעלו" : "כובו"
+          } בהצלחה`,
         severity: "success",
       });
     } catch (error) {
@@ -924,7 +925,7 @@ useEffect(() => {
                         <Grid item xs={12} md={6} key={cart._id}>
                           {drops.length > 0 && (
                             <Tooltip title={`${drops.length} הודעות על ירידות מחירים`}>
-                              <Chip 
+                              <Chip
                                 size="small"
                                 label={`${drops.length} ירידות מחירים`}
                                 color="error"
@@ -985,7 +986,7 @@ useEffect(() => {
                                         <IconButton
                                           size="small"
                                           onClick={(e) => {
-                                            e.stopPropagation(); 
+                                            e.stopPropagation();
                                           }}
                                           sx={{
                                             color: "#16a34a",
@@ -1060,9 +1061,8 @@ useEffect(() => {
                                   </Typography>
                                   <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                                     <Chip
-                                      label={`${
-                                        cart.items?.length || 0
-                                      } פריטים`}
+                                      label={`${cart.items?.length || 0
+                                        } פריטים`}
                                       size="small"
                                       sx={{
                                         bgcolor: "rgba(22, 163, 74, 0.1)",
@@ -1117,7 +1117,7 @@ useEffect(() => {
                                                       objectFit: "cover",
                                                     }}
                                                   />
-                                                ) : undefined 
+                                                ) : undefined
                                               }
                                               size="small"
                                               onDelete={(e) => {
@@ -1275,12 +1275,12 @@ useEffect(() => {
                                       {cart.name || "עגלה ללא שם"}
                                     </Typography>
                                     <Box>
-                                     
+
                                       <Tooltip title="שלח עגלה למייל">
                                         <IconButton
                                           size="small"
                                           onClick={(e) => {
-                                            e.stopPropagation(); 
+                                            e.stopPropagation();
                                           }}
                                           sx={{
                                             color: "#16a34a",
@@ -1363,107 +1363,107 @@ useEffect(() => {
         </Box>
       </Paper>
 
-<Dialog
-  open={cartDetailsOpen}
-  onClose={() => setCartDetailsOpen(false)}
-  maxWidth="md"
-  fullWidth
->
-  {selectedCart && (
-    <>
-      <DialogTitle 
-        sx={{ 
-          bgcolor: "#16a34a", 
-          color: "white",
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          py: 3
-        }}
+      <Dialog
+        open={cartDetailsOpen}
+        onClose={() => setCartDetailsOpen(false)}
+        maxWidth="md"
+        fullWidth
       >
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          {selectedCart.name || "עגלה ללא שם"}
-        </Typography>
-      </DialogTitle>
-
-      <DialogContent sx={{ py: 3, mt: 2 }}>
-        {selectedCart.participants && selectedCart.participants.length > 0 && (
-          <Box sx={{ mb: 4 }}>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 600, 
-                display: 'flex', 
+        {selectedCart && (
+          <>
+            <DialogTitle
+              sx={{
+                bgcolor: "#16a34a",
+                color: "white",
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                gap: 1,
-                mb: 2,
-                color: '#16a34a'
+                py: 3
               }}
             >
-              משתתפים בעגלה
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {selectedCart.participants.map((participant) => (
-                <Chip
-                  key={participant._id}
-                  label={participant.userName || participant.email}
-                  variant="outlined"
-                  sx={{
-                    bgcolor: 'rgba(22, 163, 74, 0.1)',
-                    borderColor: 'rgba(22, 163, 74, 0.3)',
-                    color: '#16a34a',
-                    fontWeight: 500,
-                    '&:hover': {
-                      bgcolor: 'rgba(22, 163, 74, 0.15)',
-                    }
-                  }}
-                />
-              ))}
-            </Box>
-          </Box>
-        )}
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                {selectedCart.name || "עגלה ללא שם"}
+              </Typography>
+            </DialogTitle>
 
-        <Divider sx={{ mb: 3 }} />
-
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          נוצר בתאריך: {formatDate(selectedCart.createdAt)}
-        </Typography>
-
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#16a34a' }}>
-          תכולת העגלה:
-        </Typography>
-
-        {loadingDetails ? (
-          <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-            <CircularProgress size={30} color="primary" />
-          </Box>
-        ) : (
-          <Grid container spacing={2}>
-            {cartItemsWithDetails.length > 0 ? (
-              cartItemsWithDetails.map((item, index) => {
-                const product = allProducts?.find(
-                  (p) => p._id === item.productId
-                );
-                if (!product) return null;
-                return (
-                  <Grid
-                    item
-                    xs={12}
-                    sm={6}
-                    md={4}
-                    key={item.productId || index}
+            <DialogContent sx={{ py: 3, mt: 2 }}>
+              {selectedCart.participants && selectedCart.participants.length > 0 && (
+                <Box sx={{ mb: 4 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      mb: 2,
+                      color: '#16a34a'
+                    }}
                   >
-                    <ProductCard product={product} onAddToCart={() => {}} />
-                  </Grid>
-                );
-              })
-            ) : (
-              <Grid item xs={12}>
-                <Alert severity="info">אין לך עגלות שמורות עדיין</Alert>
-              </Grid>
-            )}
-          </Grid>
-        )}
+                    משתתפים בעגלה
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {selectedCart.participants.map((participant) => (
+                      <Chip
+                        key={participant._id}
+                        label={participant.userName || participant.email}
+                        variant="outlined"
+                        sx={{
+                          bgcolor: 'rgba(22, 163, 74, 0.1)',
+                          borderColor: 'rgba(22, 163, 74, 0.3)',
+                          color: '#16a34a',
+                          fontWeight: 500,
+                          '&:hover': {
+                            bgcolor: 'rgba(22, 163, 74, 0.15)',
+                          }
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              <Divider sx={{ mb: 3 }} />
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                נוצר בתאריך: {formatDate(selectedCart.createdAt)}
+              </Typography>
+
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#16a34a' }}>
+                תכולת העגלה:
+              </Typography>
+
+              {loadingDetails ? (
+                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                  <CircularProgress size={30} color="primary" />
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {cartItemsWithDetails.length > 0 ? (
+                    cartItemsWithDetails.map((item, index) => {
+                      const product = allProducts?.find(
+                        (p) => p._id === item.productId
+                      );
+                      if (!product) return null;
+                      return (
+                        <Grid
+                          item
+                          xs={12}
+                          sm={6}
+                          md={4}
+                          key={item.productId || index}
+                        >
+                          <ProductCard product={product} onAddToCart={() => { }} />
+                        </Grid>
+                      );
+                    })
+                  ) : (
+                    <Grid item xs={12}>
+                      <Alert severity="info">אין לך עגלות שמורות עדיין</Alert>
+                    </Grid>
+                  )}
+                </Grid>
+              )}
 
               {selectedCart && selectedCart._id && (
                 <>
