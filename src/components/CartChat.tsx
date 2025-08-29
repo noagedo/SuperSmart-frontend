@@ -54,17 +54,14 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     }
   };
 
-  // Simple message comparison - two messages are the same if they have:
-  // 1. Same _id (if both have _id)
-  // 2. Same sender, message content, and timestamp (within 1 second)
+  
   const areMessagesEqual = (msg1: ChatMessage, msg2: ChatMessage): boolean => {
-    // If both have _id, compare by _id
+    
     if (msg1._id && msg2._id) {
       return msg1._id === msg2._id;
     }
 
-    // If one has _id and other doesn't, they could still be the same message
-    // Compare by content and timestamp
+    
     const time1 = new Date(msg1.timestamp).getTime();
     const time2 = new Date(msg2.timestamp).getTime();
     const timeDiff = Math.abs(time1 - time2);
@@ -76,7 +73,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     );
   };
 
-  // Socket connection setup - use shared socket from NotificationService
+  
   useEffect(() => {
     const socket = notificationService.socket;
     if (!socket) {
@@ -120,7 +117,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
       if (msg.clientId === socket.id) return;
 
       setMessages((prevMessages) => {
-        // Use areMessagesEqual function for duplicate detection
+        
         const isDuplicate = prevMessages.some(existingMsg => areMessagesEqual(existingMsg, msg));
 
         if (isDuplicate) return prevMessages;
@@ -201,13 +198,13 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
 
   useEffect(() => {
     if (isOpen && !prevIsOpenRef.current && cartId) {
-      // Clear messages first before fetching to prevent duplicates
-      setMessages([]);  // Add this line
+      
+      setMessages([]);  
       fetchMessages();
       markChatNotificationsAsRead(cartId);
       setTimeout(() => scrollToBottom(), 200);
     } else if (!isOpen && prevIsOpenRef.current) {
-      // Chat is being closed - clear messages to prevent duplicates
+      
       setMessages([]);
     }
     prevIsOpenRef.current = isOpen;
@@ -225,11 +222,11 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
-        // Use a Set to track unique messages (by _id)
+        
         const uniqueMessages = [];
         const messageIds = new Set();
 
-        // First add messages that have IDs to ensure uniqueness
+        
         for (const msg of serverMessages) {
           if (msg._id && !messageIds.has(msg._id)) {
             uniqueMessages.push(msg);
@@ -237,7 +234,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
           }
         }
 
-        // Then add messages without IDs if they don't match existing messages
+        
         for (const msg of serverMessages) {
           if (!msg._id && !uniqueMessages.some(existingMsg => areMessagesEqual(existingMsg, msg))) {
             uniqueMessages.push(msg);
@@ -252,7 +249,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
       }
     } catch (err: any) {
       setError(`שגיאה בטעינת הודעות הצ'אט: ${err.message || "Unknown error"}`);
-      // Try to load from localStorage as fallback
+      
       try {
         const cachedMessages = localStorage.getItem(`chat_messages_${cartId}`);
         if (cachedMessages) {
@@ -294,24 +291,24 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
     try {
       setNewMessage("");
 
-      // Add to local state immediately
+      
       setMessages(prev => {
         const updatedMessages = [...prev, payload];
         return updatedMessages;
       });
 
-      // Send via socket
+      
       socket.emit("send-message", {
         ...payload,
         cartId,
         userName,
       });
 
-      // Save to API
+      
       try {
         const response = await axios.post(`/chat/${cartId}`, payload);
         if (response.data && response.data._id) {
-          // Update with real ID from server
+          
           setMessages(prev => {
             const updatedMessages = prev.map(msg =>
               msg._id === tempId ? { ...msg, _id: response.data._id } : msg
@@ -322,7 +319,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
         }
       } catch (apiErr) {
         console.error("Failed to save message to API:", apiErr);
-        // Message is already in local state, so user can still see it
+        
       }
     } catch (err) {
       setError("שגיאה בשליחת ההודעה");
@@ -414,7 +411,7 @@ const CartChat: React.FC<CartChatProps> = ({ cartId, userName, isOpen }) => {
           )}
         </Box>
 
-        {/* Scroll to bottom button */}
+        
         <Slide
           direction="up"
           in={showScrollButton || unreadMessages}

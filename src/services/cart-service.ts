@@ -78,7 +78,7 @@ const removeParticipant = (cartId: string, userIdToRemove: string) => {
   return { request, cancel: () => controller.abort() };
 };
 
-// Transforms the frontend cart items to the format expected by the backend
+
 const transformCartItems = (items: CartItem[]) => {
   return items.map((item) => ({
     productId: item._id,

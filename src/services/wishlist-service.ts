@@ -4,26 +4,26 @@ import apiClient from "./api-client";
 
 const wishlistService = createHttpService<Wishlist>("/wishlists");
 
-// Get or create a user's wishlist - using existing API endpoints!
+
 export const getUserWishlist = (userId: string) => {
   const controller = new AbortController();
   console.log(`Getting wishlist for user: ${userId}`);
 
-  // שינוי כאן - במקום /wishlists/user/${userId} אנחנו משתמשים ב-endpoint הקיים
-  // שמחזיר את כל הרשימות של המשתמש ולוקחים את הראשונה כרשימה היחידה
+  
+  
   const request = apiClient
     .get(`/wishlists`, {
       params: { userId: userId },
       signal: controller.signal,
     })
     .then(async (response) => {
-      // בדוק אם יש רשימות קיימות
+      
       if (response.data && response.data.length > 0) {
         console.log("Found existing wishlist:", response.data[0]);
         return { data: response.data[0] };
       }
 
-      // אם אין רשימות, צור רשימה חדשה
+      
       console.log("No wishlist found, creating a new one");
       const createResponse = await apiClient.post("/wishlists", {
         name: "המועדפים שלי",
@@ -42,12 +42,12 @@ export const getUserWishlist = (userId: string) => {
   return { request, cancel: () => controller.abort() };
 };
 
-// Add product to user's wishlist - no need to specify wishlist ID since it's a single wishlist
+
 export const addProductToWishlist = (wishlistId: string, productId: string) => {
   const controller = new AbortController();
   console.log(`Adding product ${productId} to wishlist ${wishlistId}`);
 
-  // Make sure we have a valid wishlistId
+  
   if (!wishlistId) {
     console.error("Attempted to add product without a valid wishlist ID");
     return {
@@ -75,7 +75,7 @@ export const addProductToWishlist = (wishlistId: string, productId: string) => {
   return { request, cancel: () => controller.abort() };
 };
 
-// Remove product from user's wishlist - no need to specify wishlist ID
+
 export const removeProductFromWishlist = (
   wishlistId: string,
   productId: string
@@ -83,7 +83,7 @@ export const removeProductFromWishlist = (
   const controller = new AbortController();
   console.log(`Removing product ${productId} from wishlist ${wishlistId}`);
 
-  // Make sure we have a valid wishlistId
+  
   if (!wishlistId) {
     console.error("Attempted to remove product without a valid wishlist ID");
     return {

@@ -1,4 +1,4 @@
-/* ...existing code... */
+
 @import "leaflet/dist/leaflet.css";
 
 body {
@@ -24,11 +24,10 @@ body {
   text-align: right;
 }
 
-/* Override Material UI direction for specific components */
+
 .MuiFormControl-root,
 .MuiTextField-root,
 .MuiAutocomplete-root {
   direction: rtl;
 }
 
-/* ...existing code... */

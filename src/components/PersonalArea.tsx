@@ -52,7 +52,7 @@ import notificationService, {
 } from "../services/notification-service";
 import ProductCard from "./ProductCard";
 import CartEmailSender from "./CartEmailSender";
-import { useNotifications } from "../contexts/NotificationContext"; // ייבוא ה-context החדש
+import { useNotifications } from "../contexts/NotificationContext"; 
 import { CartParticipant } from "../services/cart-service";
 interface PersonalAreaProps {
   user: User;
@@ -70,8 +70,6 @@ const SectionHeader = styled(Box)(({ theme }) => ({
   justifyContent: "space-between",
 }));
 
-// CustomChatBadge - הצגת אייקון צ'אט עם מספר ההודעות
-// שיפור חזותי של הבאדג' של הצ'אט - אנימציה ובליטות
 const CustomChatBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
 
@@ -91,7 +89,7 @@ const CustomChatBadge = ({ count }: { count: number }) => {
         fontSize: "0.75rem",
         fontWeight: "bold",
         boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-        animation: "pulse 1.5s infinite", // הוספת אנימצית פעימה
+        animation: "pulse 1.5s infinite", 
         "@keyframes pulse": {
           "0%": {
             boxShadow: "0 0 0 0 rgba(239, 68, 68, 0.7)",
@@ -111,7 +109,6 @@ const CustomChatBadge = ({ count }: { count: number }) => {
   );
 };
 
-// הוסף רכיב חדש להצגת כל התראות הצ'אט עבור עגלה ספציפית
 const CartNotificationTooltip = ({
   cartId,
   children,
@@ -124,7 +121,6 @@ const CartNotificationTooltip = ({
 
   if (notifications.length === 0) return <>{children}</>;
 
-  // מציג 5 הודעות אחרונות לכל היותר
   const lastNotifications = notifications
     .sort(
       (a, b) =>
@@ -184,7 +180,6 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const navigate = useNavigate();
   const { clearCart } = useCart();
 
-  // Add states for carts
   const [myCarts, setMyCarts] = useState<Cart[]>([]);
   const [sharedCarts, setSharedCarts] = useState<Cart[]>([]);
   const [loadingCarts, setLoadingCarts] = useState(false);
@@ -192,19 +187,16 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const [selectedCart, setSelectedCart] = useState<Cart | null>(null);
   const [cartDetailsOpen, setCartDetailsOpen] = useState(false);
 
-  // Share dialog states
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [selectedCartForShare, setSelectedCartForShare] = useState<Cart | null>(
     null
   );
 
-  // Remove participant dialog states
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedParticipant, setSelectedParticipant] =
     useState<CartParticipant | null>(null);
 
-  // Add state for cart items with product details
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState<
     Array<{
       productId: string;
@@ -216,13 +208,10 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
     }>
   >([]);
 
-  // Add loading state for product details
   const [loadingDetails, setLoadingDetails] = useState(false);
 
-  // Get items hook to access products data
   const { items: allProducts } = useItems();
 
-  // 🔒 Password change
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -231,7 +220,6 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Add new state for Snackbar
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -244,26 +232,21 @@ const PersonalArea: React.FC<PersonalAreaProps> = ({ user }) => {
 
   const { chatNotifications, markChatNotificationsAsRead } = useNotifications();
 
-  // Filter notifications for carts
   const cartNotifications = chatNotifications.filter((n) => n.cartId);
 
-  // Add state for cart price drop notifications
   const [cartPriceDropNotifications, setCartPriceDropNotifications] = useState<
     PriceDropNotification[]
   >([]);
 
-  // Helper: ספירת הודעות צ'אט חדשות בעגלה
   const getUnreadChatCount = (cartId: string) => {
     return chatNotifications.filter(
       (n) => n.type === "chat" && n.cartId === cartId && !n.isRead
     ).length;
   };
 
-  // Removed unused function: hasUnreadChatNotification
 
-  // Fetch user's carts
 useEffect(() => {
-  console.log("🧠 useEffect - user?._id =", user?._id); // <-- הוספה כאן
+  console.log("🧠 useEffect - user?._id =", user?._id);
 
   const fetchCarts = async () => {
     if (!user?._id) return;
@@ -294,7 +277,6 @@ useEffect(() => {
   fetchCarts();
 }, [user?._id]);
 
-  // Add this useEffect to ensure we're subscribed to cart notifications
   useEffect(() => {
     if (myCarts.length > 0 && user) {
       console.log("Subscribing to cart notifications for user carts");
@@ -304,7 +286,6 @@ useEffect(() => {
         }
       });
 
-      // Update localStorage with latest cart IDs
       localStorage.setItem(
         "userCarts",
         JSON.stringify(
@@ -316,18 +297,15 @@ useEffect(() => {
     }
   }, [myCarts, user]);
 
-  // Fetch cart price drops (last 24 hours) on mount
   useEffect(() => {
     const fetchCartPriceDrops = async () => {
       if (!user || !user._id) return;
 
       try {
-        // Fetch all carts for the user
         const { request } = cartService.getCartsByUser(user._id);
         const responseCarts = await request;
         const carts = responseCarts.data || [];
 
-        // Map productId -> cartId(s)
         const productToCartIds: Record<string, string[]> = {};
         carts.forEach((cart) => {
           if (cart.items && typeof cart._id === "string" && cart._id) {
@@ -340,15 +318,12 @@ useEffect(() => {
           }
         });
 
-        // Fetch price drops from API
         const response = await notificationService.getCartPriceDrops();
         const drops = Array.isArray(response.data) ? response.data : [];
 
-        // Only keep drops from last 24 hours
         const oneDayAgo = new Date();
         oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
-        // For each drop, create a notification for each cart it belongs to
         const notifications: PriceDropNotification[] = [];
         drops.forEach((drop: any) => {
           const cartIds = productToCartIds[drop.productId] || [];
@@ -376,10 +351,7 @@ useEffect(() => {
     fetchCartPriceDrops();
   }, [user]);
 
-  // This function can be removed as it's not being used anywhere
-  // If you need to implement notification dismissal later, you can re-add it
-
-  // Handle deleting a cart
+ 
   const handleDeleteCart = async (cartId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     if (!confirm("האם אתה בטוח שברצונך למחוק את העגלה?")) return;
@@ -394,20 +366,17 @@ useEffect(() => {
     }
   };
 
-  // Handle loading a saved cart
   const handleLoadCart = async (cart: Cart) => {
     setSelectedCart(null);
     setCartDetailsOpen(false);
 
-    // Navigate to products page with cart loaded
-    clearCart(); // Clear current cart first
+    clearCart();
 
     if (cart.items && cart.items.length > 0) {
-      navigate("/Products"); // Navigate to products page
+      navigate("/Products"); 
     }
   };
 
-  // Format date for display
   const formatDate = (dateString?: Date) => {
     if (!dateString) return "Unknown date";
     const date = new Date(dateString);
@@ -420,19 +389,16 @@ useEffect(() => {
     }).format(date);
   };
 
-  // View cart details
   const handleViewCartDetails = async (cart: Cart) => {
     setSelectedCart(cart);
     setCartDetailsOpen(true);
     setLoadingDetails(true);
 
-    // סמן את כל הודעות הצ'אט בעגלה הזו כנקראו
     if (cart._id) {
       markChatNotificationsAsRead(cart._id);
     }
 
     try {
-      // If we already have all products loaded, use them to get details
       if (Array.isArray(allProducts) && allProducts.length > 0) {
         const itemsWithDetails = cart.items.map((item) => {
           const productDetails = allProducts.find(
@@ -448,7 +414,6 @@ useEffect(() => {
         });
         setCartItemsWithDetails(itemsWithDetails);
       } else {
-        // Fallback to using just the IDs and quantities
         setCartItemsWithDetails(cart.items);
       }
     } catch (error) {
@@ -458,7 +423,6 @@ useEffect(() => {
     }
   };
 
-  // Handle sharing a cart
   const handleShareCart = async () => {
     if (!shareEmail || !selectedCartForShare?._id) {
       return;
@@ -471,13 +435,12 @@ useEffect(() => {
       );
       await request;
 
-      // Update the cart in the local state with a proper CartParticipant object
       const updatedCart = {
         ...selectedCartForShare,
         participants: [
           ...selectedCartForShare.participants,
           {
-            _id: `temp-${new Date().getTime()}`, // Temporary ID until server response
+            _id: `temp-${new Date().getTime()}`, 
             userId: "", 
             email: shareEmail,
             userName: "משתמש חדש",
@@ -485,7 +448,6 @@ useEffect(() => {
         ],
       };
 
-      // Update the myCarts state with the updated cart
       setMyCarts((prevCarts) =>
         prevCarts.map((cart) =>
           cart._id === selectedCartForShare._id ? updatedCart : cart
@@ -496,7 +458,6 @@ useEffect(() => {
       setShareEmail("");
       setSelectedCartForShare(null);
 
-      // Show success message
       setSnackbar({
         open: true,
         message: "העגלה שותפה בהצלחה",
@@ -512,7 +473,7 @@ useEffect(() => {
     }
   };
 
-  // Handle removing a participant
+
   const handleRemoveParticipant = async () => {
     console.log("📣 handleRemoveParticipant נקראה");
 
@@ -565,7 +526,6 @@ useEffect(() => {
     }
   };
 
-  // Handle closing the snackbar
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
@@ -576,7 +536,6 @@ useEffect(() => {
       const { request } = cartService.updateCart(cart._id!, updatedCart);
       const response = await request;
 
-      // Update the cart in the local state
       setMyCarts((prevCarts) =>
         prevCarts.map((c) => (c._id === cart._id ? response.data : c))
       );
@@ -598,18 +557,14 @@ useEffect(() => {
     }
   };
 
-  // Add a helper to get price drops for a specific cart, including product details
   const getCartPriceDropsForCart = (cartId: string) => {
-    // Combine both notification sources (socket + API)
     const allCartNotifications = [
       ...cartNotifications,
       ...cartPriceDropNotifications,
     ];
-    // Filter for this cart
     return allCartNotifications
       .filter((n) => n.cartId === cartId)
       .map((notif) => {
-        // Try to enrich with product details if missing
         if (!notif.productName || !notif.image) {
           const product =
             allProducts?.find((p) => p._id === notif.productId) || {};
@@ -655,7 +610,6 @@ useEffect(() => {
     }
   }
 
-  // Handle file change
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const files = event.target.files;
     if (files && files[0]) {
@@ -663,7 +617,6 @@ useEffect(() => {
     }
   }
 
-  // Handle saving profile changes - Fix for the properties that don't exist
   async function handleSave(
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ): Promise<void> {
@@ -692,7 +645,6 @@ useEffect(() => {
         profilePicture: avatarUrl,
       };
 
-      // Use the updateUser from the hook instead of directly from the service
       const result = await updateUser(updatedUser);
 
       if (result.success) {
@@ -739,7 +691,6 @@ useEffect(() => {
           </Typography>
         </Box>
 
-        {/* Profile content */}
         <Box sx={{ p: 4 }}>
           <Box
             sx={{
@@ -841,7 +792,6 @@ useEffect(() => {
             </Box>
           </Box>
 
-          {/* Actions */}
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
             <Button
               variant="outlined"
@@ -955,7 +905,6 @@ useEffect(() => {
             </Box>
           ) : (
             <>
-              {/* 🟢 העגלות שלי */}
               {myCarts.length > 0 && (
                 <>
                   <SectionHeader>
@@ -969,7 +918,6 @@ useEffect(() => {
 
                   <Grid container spacing={3} sx={{ mb: 4 }}>
                     {myCarts.map((cart) => {
-                      // Get price drop notifications for this cart
                       const drops = getCartPriceDropsForCart(cart._id!);
                       const unreadCount = getUnreadChatCount(cart._id!);
                       return (
@@ -998,7 +946,6 @@ useEffect(() => {
                                   height: "100%",
                                   display: "flex",
                                   flexDirection: "column",
-                                  // שיפור החיווי הויזואלי להודעות לא-נקראות
                                   ...(unreadCount > 0 && {
                                     border: "2px solid #ef4444",
                                     position: "relative",
@@ -1034,12 +981,11 @@ useEffect(() => {
                                       {cart.name || "עגלה ללא שם"}
                                     </Typography>
                                     <Box>
-                                      {/* Add the cart email sender here */}
                                       <Tooltip title="שלח עגלה למייל">
                                         <IconButton
                                           size="small"
                                           onClick={(e) => {
-                                            e.stopPropagation(); // Prevent card click
+                                            e.stopPropagation(); 
                                           }}
                                           sx={{
                                             color: "#16a34a",
@@ -1179,7 +1125,7 @@ useEffect(() => {
                                                 setSelectedCartForShare(cart);
                                                 setSelectedParticipant(
                                                   participant
-                                                ); // עכשיו participant הוא CartParticipant
+                                                );
 
                                                 setRemoveDialogOpen(true);
                                               }}
@@ -1264,7 +1210,6 @@ useEffect(() => {
                 </>
               )}
 
-              {/* 🟣 עגלות ששיתפו איתי */}
               {sharedCarts.length > 0 && (
                 <>
                   <SectionHeader>
@@ -1295,7 +1240,6 @@ useEffect(() => {
                                   height: "100%",
                                   display: "flex",
                                   flexDirection: "column",
-                                  // שיפור החיווי הויזואלי להודעות לא-נקראות
                                   ...(unreadCount > 0 && {
                                     border: "2px solid #ef4444",
                                     position: "relative",
@@ -1331,12 +1275,12 @@ useEffect(() => {
                                       {cart.name || "עגלה ללא שם"}
                                     </Typography>
                                     <Box>
-                                      {/* Add the cart email sender here */}
+                                     
                                       <Tooltip title="שלח עגלה למייל">
                                         <IconButton
                                           size="small"
                                           onClick={(e) => {
-                                            e.stopPropagation(); // Prevent card click
+                                            e.stopPropagation(); 
                                           }}
                                           sx={{
                                             color: "#16a34a",
@@ -1419,7 +1363,6 @@ useEffect(() => {
         </Box>
       </Paper>
 
-      {/* Cart Details Dialog */}
 <Dialog
   open={cartDetailsOpen}
   onClose={() => setCartDetailsOpen(false)}
@@ -1444,7 +1387,6 @@ useEffect(() => {
       </DialogTitle>
 
       <DialogContent sx={{ py: 3, mt: 2 }}>
-        {/* Participants Section - Moved to top */}
         {selectedCart.participants && selectedCart.participants.length > 0 && (
           <Box sx={{ mb: 4 }}>
             <Typography 
@@ -1483,12 +1425,10 @@ useEffect(() => {
 
         <Divider sx={{ mb: 3 }} />
 
-        {/* Creation Date */}
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           נוצר בתאריך: {formatDate(selectedCart.createdAt)}
         </Typography>
 
-        {/* Cart Contents */}
         <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#16a34a' }}>
           תכולת העגלה:
         </Typography>
@@ -1525,7 +1465,6 @@ useEffect(() => {
           </Grid>
         )}
 
-              {/* 🔵 Chat Section */}
               {selectedCart && selectedCart._id && (
                 <>
                   {selectedCart.participants?.length > 0 ? (
@@ -1599,7 +1538,6 @@ useEffect(() => {
         )}
       </Dialog>
 
-      {/* Share Cart Dialog */}
       <Dialog
         open={shareDialogOpen}
         onClose={() => {
@@ -1640,7 +1578,6 @@ useEffect(() => {
         </DialogActions>
       </Dialog>
 
-      {/* Remove Participant Dialog */}
       <Dialog
         open={removeDialogOpen}
         onClose={() => {
@@ -1754,7 +1691,6 @@ useEffect(() => {
         </DialogActions>
       </Dialog>
 
-      {/* Add Snackbar component at the end */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

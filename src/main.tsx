@@ -2,11 +2,11 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import ThemeProvider from "./Theme.tsx"; // Use default import
+import ThemeProvider from "./Theme.tsx"; 
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
-// Replace the placeholder with your actual Google Client ID
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID";
+
+const GOOGLE_CLIENT_ID = "282222794573-ck2v9clpo95rrb2pd3r49k3l1vncsd30.apps.googleusercontent.com";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

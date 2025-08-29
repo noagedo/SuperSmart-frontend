@@ -43,7 +43,7 @@ export interface CartItem extends Item {
 }
 
 export interface PricePredictionResponse {
-  prediction: string; // Adjust the type based on your backend's response
+  prediction: string; 
 }
 
 const itemService = {
@@ -54,7 +54,7 @@ const itemService = {
 const analyzeReceipt = (receiptImage: FormData) => {
   const controller = new AbortController();
   const request = apiClient.post("/items/analyze-receipt", receiptImage, {
-    // Use the full endpoint
+    
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -63,7 +63,7 @@ const analyzeReceipt = (receiptImage: FormData) => {
   return { request, cancel: () => controller.abort() };
 };
 
-// Add getItemById method to fetch a single item by its ID
+
 const getItemById = (id: string) => {
   const controller = new AbortController();
   const request = apiClient.get(`/items/${id}`, {
@@ -74,9 +74,8 @@ const getItemById = (id: string) => {
 
 const predictPriceChange = (productId: string, storeId: string) => {
   const controller = new AbortController();
-  console.log("Predicting price change for productId:", productId, "and storeId:", storeId); // Log parameters
-
-  // Encode the productId to handle special characters
+  console.log("Predicting price change for productId:", productId, "and storeId:", storeId); 
+  
   const encodedProductId = encodeURIComponent(productId);
   const endpoint = `/items/${encodedProductId}/predict`;
   console.log("Making POST request to:", endpoint);
@@ -86,7 +85,7 @@ const predictPriceChange = (productId: string, storeId: string) => {
 
   const request = apiClient.post<PricePredictionResponse>(
     endpoint,
-    { storeId, productId }, // Send both productId and storeId in the request body
+    { storeId, productId }, 
     {
       signal: controller.signal,
     }
@@ -100,7 +99,7 @@ const predictPriceChange = (productId: string, storeId: string) => {
   return { request, cancel: () => controller.abort() };
 };
 
-// Test function to verify routing works
+
 const testRoute = (productId: string) => {
   const controller = new AbortController();
   const encodedProductId = encodeURIComponent(productId);
@@ -123,7 +122,7 @@ const formatPriceDataForChart = (item: Item) => {
     return [];
   }
 
-  // Get complete date range from first price to today
+  
   const getAllDates = () => {
     const allDates: Date[] = [];
     item.storePrices.forEach(storePrice => {
@@ -157,7 +156,7 @@ const formatPriceDataForChart = (item: Item) => {
   const completeDateRange = getAllDates();
   if (completeDateRange.length === 0) return [];
 
-  // Group store prices by storeId to handle duplicates
+  
   const storeMap = new Map<string, any>();
 
   item.storePrices
@@ -167,7 +166,7 @@ const formatPriceDataForChart = (item: Item) => {
       if (!storeMap.has(storeId)) {
         storeMap.set(storeId, storePrice);
       } else {
-        // Merge prices if we have duplicate store entries
+        
         const existing = storeMap.get(storeId);
         existing.prices = [...existing.prices, ...storePrice.prices];
         storeMap.set(storeId, existing);
@@ -177,14 +176,14 @@ const formatPriceDataForChart = (item: Item) => {
   return Array.from(storeMap.values())
     .map((storePrice) => {
       try {
-        // Sort prices by date (ascending) and remove duplicates
+        
         const sortedPrices = [...storePrice.prices]
           .sort((a, b) => {
             const dateA = a.date || a.data || "1970-01-01";
             const dateB = b.date || b.data || "1970-01-01";
             return new Date(dateA).getTime() - new Date(dateB).getTime();
           })
-          // Remove duplicate prices on the same date
+          
           .filter((price, index, array) => {
             if (index === 0) return true;
             const currentDate = price.date || price.data || "1970-01-01";
@@ -192,14 +191,14 @@ const formatPriceDataForChart = (item: Item) => {
             return currentDate !== prevDate;
           });
 
-        // Create price array aligned with complete date range
+        
         const priceValues: (number | null)[] = [];
         let priceIndex = 0;
         let lastKnownPrice: number | null = null;
         let hasAnyPrice = false;
 
         completeDateRange.forEach(targetDate => {
-          // Check if we have a price for this date
+          
           let foundPrice = false;
 
           while (priceIndex < sortedPrices.length) {
@@ -208,7 +207,7 @@ const formatPriceDataForChart = (item: Item) => {
             const priceDateOnly = new Date(priceDate.getFullYear(), priceDate.getMonth(), priceDate.getDate());
 
             if (priceDateOnly.getTime() === targetDateOnly.getTime()) {
-              // Found exact date match
+              
               const price = typeof sortedPrices[priceIndex].price === "string"
                 ? parseFloat(sortedPrices[priceIndex].price)
                 : sortedPrices[priceIndex].price;
@@ -223,7 +222,7 @@ const formatPriceDataForChart = (item: Item) => {
               foundPrice = true;
               break;
             } else if (priceDateOnly < targetDateOnly) {
-              // This price is for an earlier date, update last known price and continue
+              
               const price = typeof sortedPrices[priceIndex].price === "string"
                 ? parseFloat(sortedPrices[priceIndex].price)
                 : sortedPrices[priceIndex].price;
@@ -233,18 +232,18 @@ const formatPriceDataForChart = (item: Item) => {
               }
               priceIndex++;
             } else {
-              // This price is for a future date, break
+              
               break;
             }
           }
 
           if (!foundPrice) {
-            // No price for this date
+            
             if (hasAnyPrice && lastKnownPrice !== null) {
-              // Use last known price only if we have had at least one real price
+              
               priceValues.push(lastKnownPrice);
             } else {
-              // No price data available yet, use null
+              
               priceValues.push(null);
             }
           }
@@ -271,7 +270,7 @@ const formatPriceDataForChart = (item: Item) => {
 export default Object.assign(itemService, {
   analyzeReceipt,
   formatPriceDataForChart,
-  getItemById, // Add the new method to the exported object
-  predictPriceChange, // Add the predictPriceChange method
-  testRoute, // Add the testRoute method
+  getItemById, 
+  predictPriceChange, 
+  testRoute, 
 });

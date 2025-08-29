@@ -1,6 +1,3 @@
-/**
- * Central mapping of store IDs to store names
- */
 const STORE_NAMES: Record<string, string> = {
   "65a4e1e1e1e1e1e1e1e1e1e1": "שופרסל",
   "65a4e1e1e1e1e1e1e1e1e1e2": "רמי לוי",

@@ -82,7 +82,7 @@ const NavBar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
-  // השימוש ב-context להתראות
+  
   const { unreadChatCount } = useNotifications();
 
   const handleNavigation = (path: string) => {
@@ -142,7 +142,7 @@ const NavBar: React.FC = () => {
 
           {user._id && <NotificationsCenter />}
 
-          {/* הוספת Badge עם מספר ההתראות לאיקון האזור האישי */}
+          
           <Badge
             badgeContent={unreadChatCount}
             color="error"

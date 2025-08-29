@@ -4,13 +4,11 @@ import { MessageCircle } from 'lucide-react';
 
 interface ChatBadgeProps extends BoxProps {
   count: number;
-  showIcon?: boolean;  // האם להציג אייקון של הודעה
-  badgePosition?: 'top-right' | 'top-left';  // מיקום ה-Badge
+  showIcon?: boolean;  
+  badgePosition?: 'top-right' | 'top-left';  
 }
 
-/**
- * רכיב שמציג התראת מספר ההודעות הלא נקראות
- */
+
 const ChatBadge: React.FC<ChatBadgeProps> = ({ 
   count, 
   showIcon = true, 
@@ -19,7 +17,7 @@ const ChatBadge: React.FC<ChatBadgeProps> = ({
 }) => {
   if (count <= 0) return null;
 
-  // קביעת המיקום לפי הפרופ שהתקבל
+
   const positionStyles = badgePosition === 'top-right' 
     ? { top: 10, right: 10 }
     : { top: 10, left: 10 };

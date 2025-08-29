@@ -37,9 +37,9 @@ const ProductDetails = () => {
   const { items, isLoading } = useItems();
   const { addItem: addItemToCart } = useCart();
   const [showChart, setShowChart] = React.useState(false);
-  const [prediction, setPrediction] = useState<string | null>(null); // State for the prediction
-  const [predictionLoading, setPredictionLoading] = useState<boolean>(false); // Loading state for prediction
-  const [predictionError, setPredictionError] = useState<string | null>(null); // Error state for prediction
+  const [prediction, setPrediction] = useState<string | null>(null); 
+  const [predictionLoading, setPredictionLoading] = useState<boolean>(false); 
+  const [predictionError, setPredictionError] = useState<string | null>(null);
   const [cheapestStoreId, setCheapestStoreId] = useState<string | null>(null);
   const productId = productIdParam as string | undefined;
 
@@ -89,7 +89,6 @@ const ProductDetails = () => {
   const handleAddToCart = () => {
     if (!product) return;
 
-    // Find the store with the lowest price
     const prices = product.storePrices.flatMap((store) =>
       store.prices.map((p) => ({ storeId: store.storeId, price: p.price }))
     );
@@ -110,7 +109,6 @@ const ProductDetails = () => {
     });
   };
 
-  // Create a wrapper function that matches ProductCard's expected signature
   const handleAddToCartFromCard = (
     product: Item,
     storePrice: { storeId: string; price: number }
@@ -156,16 +154,13 @@ const ProductDetails = () => {
     }
   };
 
-  // Helper function to check if nutrition data exists and is meaningful
   const hasNutritionData = (() => {
     if (!product?.nutrition) return false;
     
-    // If it's a string, check if it's non-empty
     if (typeof product.nutrition === "string") {
       return (product.nutrition as string).trim() !== "";
     }
     
-    // If it's an object, check if it has any meaningful values
     if (typeof product.nutrition === "object") {
       return Object.entries(product.nutrition).some(
         ([_, value]) => value !== null && value !== undefined && value !== ""
@@ -254,7 +249,6 @@ const ProductDetails = () => {
           mb: 4,
         }}
       >
-        {/* Breadcrumbs */}
         <Box sx={{ p: 2, bgcolor: "#f9fafb" }}>
           <Breadcrumbs>
             <Link
@@ -273,7 +267,6 @@ const ProductDetails = () => {
           </Breadcrumbs>
         </Box>
 
-        {/* Header */}
         <Box
           sx={{
             bgcolor: "#16a34a",
@@ -309,7 +302,6 @@ const ProductDetails = () => {
           </Button>
         </Box>
 
-        {/* Product Details */}
         <Box sx={{ p: 4 }}>
           <Grid container spacing={4}>
             <Grid item xs={12} md={5}>
@@ -462,7 +454,7 @@ const ProductDetails = () => {
                       onClick={handlePredictPrice}
                       disabled={predictionLoading || !cheapestStoreId}
                       sx={{
-                        bgcolor: "#0d6efd", // Example blue color
+                        bgcolor: "#0d6efd", 
                         color: "white",
                         py: 1.5,
                         px: 4,
@@ -496,7 +488,6 @@ const ProductDetails = () => {
                   </Alert>
                 )}
                 
-                {/* Nutrition Section */}
                 {hasNutritionData && (
                   <Accordion
                     sx={{
@@ -573,7 +564,6 @@ const ProductDetails = () => {
             </Grid>
           </Grid>
 
-          {/* Cheaper Products Section */}
           <Box sx={{ mt: 6 }}>
             <Paper
               elevation={2}
@@ -625,7 +615,6 @@ const ProductDetails = () => {
         </Box>
       </Paper>
 
-      {/* Price Chart Dialog */}
       {product && (
         <PriceChart
           item={product}

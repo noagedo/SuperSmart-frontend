@@ -33,13 +33,13 @@ export default function SuperMap({
   const [supers, setSupers] = useState<Supermarket[]>(stores);
 
   useEffect(() => {
-    // If stores are provided as props, use them
+    
     if (stores.length > 0) {
       setSupers(stores);
       return;
     }
 
-    // Otherwise fetch from API as fallback
+    
     fetch('/mapSupermarkets')
       .then((res) => res.json())
       .then((data) => setSupers(data));

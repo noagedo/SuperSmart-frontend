@@ -1,4 +1,4 @@
-// 📁 hooks/useCart.ts
+
 import { useState, useEffect, useCallback } from "react";
 import { CartItem } from "../services/item-service";
 import cartService from "../services/cart-service";
@@ -12,7 +12,7 @@ const useCart = () => {
   const [cart, setCart] = useState<CartState>({ items: [] });
   const { user } = useUsers();
 
-  // Get user-specific localStorage key
+
   const getCartKey = useCallback(() => {
     if (!user || !user._id) {
       return null;
@@ -20,7 +20,7 @@ const useCart = () => {
     return `cart_${user._id}`;
   }, [user]);
 
-  // Load cart from localStorage when user changes
+  
   useEffect(() => {
     const cartKey = getCartKey();
     console.log("Loading cart for key:", cartKey);
@@ -47,7 +47,7 @@ const useCart = () => {
     }
   }, [user, getCartKey]);
 
-  // Save cart to localStorage whenever it changes
+  
   useEffect(() => {
     const cartKey = getCartKey();
     if (!cartKey) return;
@@ -61,7 +61,7 @@ const useCart = () => {
     }
   }, [cart.items, getCartKey]);
 
-  // Simplified manual save function
+  
   const save = () => {
     const cartKey = getCartKey();
     if (!cartKey) return;
@@ -75,7 +75,7 @@ const useCart = () => {
     }
   };
 
-  // Add item to cart
+  
   const addItem = (item: CartItem) => {
     setCart((prevCart) => {
       const existingItemIndex = prevCart.items.findIndex(
@@ -83,20 +83,20 @@ const useCart = () => {
       );
 
       if (existingItemIndex >= 0) {
-        // Item exists, update quantity
+        
         const updatedItems = [...prevCart.items];
         updatedItems[existingItemIndex].quantity =
           (updatedItems[existingItemIndex].quantity || 0) +
           (item.quantity || 1);
         return { items: updatedItems };
       } else {
-        // Add new item
+        
         return { items: [...prevCart.items, item] };
       }
     });
   };
 
-  // Update item quantity
+  
   const updateQuantity = (id: string, quantity: number) => {
     setCart((prevCart) => {
       const updatedItems = prevCart.items.map((item) =>
@@ -106,7 +106,7 @@ const useCart = () => {
     });
   };
 
-  // Remove item from cart (simplified)
+  
   const removeItem = (id: string) => {
     console.log(`Removing item with ID: ${id}`);
 
@@ -117,7 +117,7 @@ const useCart = () => {
     });
   };
 
-  // Save cart to backend
+  
   const saveCart = async (name?: string) => {
     if (!user) {
       throw new Error("User must be logged in to save cart");
@@ -138,7 +138,7 @@ const useCart = () => {
     }
   };
 
-  // Clear cart
+  
   const clearCart = () => {
     setCart({ items: [] });
   };

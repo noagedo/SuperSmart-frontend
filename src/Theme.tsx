@@ -8,13 +8,13 @@ import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
 import { prefixer } from "stylis";
 
-// צור תצורת המטמון עבור RTL
+
 const cacheRtl = createCache({
   key: "muirtl",
   stylisPlugins: [prefixer, rtlPlugin],
 });
 
-// יצירת ערכת נושא מותאמת לעברית
+
 export const theme = createTheme({
   direction: "rtl",
   typography: {
@@ -102,7 +102,7 @@ interface ThemeProviderProps {
   children: React.ReactNode;
 }
 
-// Export the component as default to resolve the import error
+
 const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   return (
     <CacheProvider value={cacheRtl}>

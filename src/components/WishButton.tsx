@@ -18,18 +18,18 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
   const isInWishlist = isProductInWishlist(product._id);
 
   const handleToggleWishlist = async (event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent click from bubbling up
+    event.stopPropagation(); 
 
-    if (!user) return; // User should be logged in
+    if (!user) return; 
 
     try {
       setIsSubmitting(true);
 
       if (isInWishlist) {
-        // Remove from wishlist
+        
         await removeProduct(product._id);
       } else {
-        // Add to wishlist
+        
         await addProduct(product._id);
       }
     } catch (error) {
@@ -40,14 +40,14 @@ const WishButton: React.FC<WishButtonProps> = ({ product }) => {
   };
 
   if (!user) {
-    // Return a button that links to sign in
+    
     return (
       <Tooltip title="התחבר כדי להוסיף למועדפים">
         <IconButton
           component={Link}
           to="/sign-in"
           size="small"
-          onClick={(e) => e.stopPropagation()} // Prevent click from bubbling up
+          onClick={(e) => e.stopPropagation()} 
           sx={{
             position: "absolute",
             top: 8,

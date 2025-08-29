@@ -24,8 +24,8 @@ const useUsers = () => {
       setUser(response.data);
 
       localStorage.setItem("user", JSON.stringify(response.data));
-      localStorage.setItem("token", response.data.accessToken!); // 🛠️ assert בטוח
-      localStorage.setItem("refreshToken", response.data.refreshToken!); // ✅ חדש
+      localStorage.setItem("token", response.data.accessToken!); 
+      localStorage.setItem("refreshToken", response.data.refreshToken!); 
 
       return { success: true };
     } catch (err) {
@@ -86,8 +86,8 @@ const useUsers = () => {
       const response = await request;
       setUser(response.data);
       localStorage.setItem("user", JSON.stringify(response.data));
-      localStorage.setItem("token", response.data.accessToken!); // 🛠️ assert בטוח
-      localStorage.setItem("refreshToken", response.data.refreshToken!); // ✅ חדש
+      localStorage.setItem("token", response.data.accessToken!); 
+      localStorage.setItem("refreshToken", response.data.refreshToken!); 
 
     } catch (err) {
       setError("Failed to sign up. Please try again.");
@@ -101,7 +101,7 @@ const useUsers = () => {
     try {
       const refreshToken = localStorage.getItem("refreshToken");
       if (refreshToken) {
-        await userService.logout(refreshToken); // ← קריאה לשרת
+        await userService.logout(refreshToken); 
       }
     } catch (err) {
       console.error("Logout failed:", err);

@@ -52,7 +52,7 @@ const NotificationsCenter: React.FC = () => {
   const [mockNotifications, setMockNotifications] = useState<
     PriceDropNotification[]
   >([]);
-  const { wishlist } = useWishlists(); // Get the single wishlist
+  const { wishlist } = useWishlists(); 
   const { user } = useUsers();
   const { items: allProducts } = useItems();
   const [cartNames, setCartNames] = useState<Record<string, string>>({});
@@ -63,20 +63,16 @@ const NotificationsCenter: React.FC = () => {
   >("disconnected");
   const [activeTab, setActiveTab] = useState(0);
 
-  // Combine notifications from the hook and mock notifications
+
   const notifications = [...hookNotifications, ...mockNotifications];
 
-  // Filter notifications by type
   const cartNotifications = notifications.filter((n) => n.cartId);
 
-  // Filter notifications for current user's wishlist with multiple criteria
   const filteredNotifications = React.useMemo(() => {
     if (!user || !user._id) return [];
 
-    // Get user's wishlist ID
     const userWishlistId = wishlist ? wishlist._id : null;
 
-    // Calculate date 24 hours ago
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
@@ -85,23 +81,18 @@ const NotificationsCenter: React.FC = () => {
       `Total notifications before filtering: ${notifications.length}`
     );
 
-    // Multi-level filtering:
     return notifications.filter((notification) => {
-      // Exclude cart notifications from wishlist tab!
       if (notification.cartId) return false;
 
-      // Check if notification is recent (within last 24 hours)
       const isRecent = new Date(notification.changeDate) >= oneDayAgo;
       if (!isRecent) {
         return false;
       }
 
-      // 1. Check explicit userId if present
       if (notification.userId && notification.userId !== user._id) {
         return false;
       }
 
-      // 2. Check wishlistId ownership
       if (
         notification.wishlistId &&
         (!userWishlistId || notification.wishlistId !== userWishlistId)
@@ -109,7 +100,6 @@ const NotificationsCenter: React.FC = () => {
         return false;
       }
 
-      // 3. We can also check the product - only show drops for products in user's wishlist
       if (notification.productId && wishlist) {
         const productInUserWishlist = wishlist.products.includes(
           notification.productId
@@ -123,14 +113,12 @@ const NotificationsCenter: React.FC = () => {
     });
   }, [notifications, user, wishlist]);
 
-  // הצג התראות עגלות מה-24 שעות האחרונות בלבד
   const cartTabNotifications = React.useMemo(() => {
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
     const filtered = notifications.filter(
       (n) => n.cartId && new Date(n.changeDate) >= oneDayAgo
     );
-    // Log cart notifications for debugging
     console.log("🛒 [NotificationsCenter] Cart tab notifications:", filtered);
     if (filtered.length === 0) {
       console.warn(
@@ -140,11 +128,9 @@ const NotificationsCenter: React.FC = () => {
     return filtered;
   }, [notifications]);
 
-  // Set badge count to include both types of notifications
   const totalNotificationCount =
     filteredNotifications.length + cartTabNotifications.length;
 
-  // Add debugging to see filtering results
   useEffect(() => {
     if (user && user._id) {
       console.log(
@@ -153,9 +139,7 @@ const NotificationsCenter: React.FC = () => {
     }
   }, [filteredNotifications.length, notifications.length, user]);
 
-  // Check for price changes on component mount with a forced refresh
   useEffect(() => {
-    // Force a check by removing the timestamp
     localStorage.removeItem("lastPriceCheckTimestamp");
 
     const timer = setTimeout(() => {
@@ -165,7 +149,6 @@ const NotificationsCenter: React.FC = () => {
     return () => clearTimeout(timer);
   }, [checkRecentChanges]);
 
-  // Better socket connection status monitoring
   useEffect(() => {
     const socket = (window as any).socket;
     if (!socket) {
@@ -189,17 +172,14 @@ const NotificationsCenter: React.FC = () => {
       setConnectionStatus("error");
     };
 
-    // Check current connection status immediately
     console.log("Current socket connected status:", socket.connected);
     setConnectionStatus(socket.connected ? "connected" : "disconnected");
 
-    // Set up event listeners
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("error", onError);
     socket.on("connect_error", onError);
 
-    // Clean up event listeners
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
@@ -208,7 +188,6 @@ const NotificationsCenter: React.FC = () => {
     };
   }, []);
 
-  // Fetch cart names for mapping cartId -> cartName
   useEffect(() => {
     const fetchCartNames = async () => {
       if (!user || !user._id) return;
@@ -247,36 +226,29 @@ const NotificationsCenter: React.FC = () => {
     return Math.round(((oldPrice - newPrice) / oldPrice) * 100);
   };
 
-  // Add manual reconnect functionality to refresh button
   const handleRefresh = () => {
     setIsRefreshing(true);
 
-    // Force reconnect the socket
     notificationService.reconnect();
 
-    // Force refresh by removing the timestamp
     localStorage.removeItem("lastPriceCheckTimestamp");
 
     if (user && user._id && wishlist) {
-      // Check for recent price drops in current user's wishlist products
       const allWishlistProductIds = wishlist.products;
 
       console.log(
         `Manually checking ${allWishlistProductIds.length} products from user's wishlist`
       );
 
-      // If user has wishlist products, check them specifically
       if (allWishlistProductIds.length > 0) {
         checkSpecificProducts(allWishlistProductIds);
       } else {
-        // For testing: If no wishlist products, add mock data that are within 24 hours
         import("../services/price-history-service").then(
           ({ getMockPriceDrops }) => {
             const mockDrops = getMockPriceDrops();
-            // Make sure mock drops have recent dates (within last 24 hours)
             const recentMockDrops = mockDrops.map((drop) => ({
               ...drop,
-              changeDate: new Date(), // Set to current time to ensure they're recent
+              changeDate: new Date(), 
             }));
 
             console.log(
@@ -293,14 +265,12 @@ const NotificationsCenter: React.FC = () => {
               wishlistName: drop.wishlistName || "רשימת מועדפים לדוגמא",
             }));
 
-            // Use properly typed state update
             setMockNotifications((prev) => [...prev, ...newMockNotifications]);
           }
         );
       }
     }
 
-    // Check for recent changes
     setTimeout(() => {
       checkRecentChanges();
       setIsRefreshing(false);
@@ -382,7 +352,6 @@ const NotificationsCenter: React.FC = () => {
 
         <Divider />
 
-        {/* Add tabs for different notification types */}
         <Tabs
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}
@@ -413,7 +382,6 @@ const NotificationsCenter: React.FC = () => {
           />
         </Tabs>
 
-        {/* Wishlist notifications tab panel */}
         {activeTab === 0 && (
           <>
             {filteredNotifications.length === 0 ? (
@@ -429,7 +397,6 @@ const NotificationsCenter: React.FC = () => {
             ) : (
               filteredNotifications.map((notification) => (
                 <NotificationItem key={notification.id}>
-                  {/* Existing notification item content */}
                   <ListItemAvatar>
                     <Avatar
                       src={notification.image}
@@ -494,7 +461,6 @@ const NotificationsCenter: React.FC = () => {
           </>
         )}
 
-        {/* Cart notifications tab panel */}
         {activeTab === 1 && (
           <>
             {cartTabNotifications.length === 0 ? (
@@ -509,19 +475,15 @@ const NotificationsCenter: React.FC = () => {
               </MenuItem>
             ) : (
               cartTabNotifications.map((notification) => {
-                // מצא את המוצר המלא
                 const product = allProducts?.find(
                   (p) => p._id === notification.productId
                 );
 
-                // שם העגלה
                 const cartName = notification.cartId
                   ? cartNames[notification.cartId] || notification.cartId
                   : "";
 
-                // הצג תוכן שונה לפי סוג ההתראה
                 if (notification.type === "chat") {
-                  // עבור התראות צ'אט, הצג מידע רלוונטי לצ'אט בלבד
                   return (
                     <NotificationItem
                       key={notification.id}
@@ -570,7 +532,6 @@ const NotificationsCenter: React.FC = () => {
                     </NotificationItem>
                   );
                 } else {
-                  // עבור התראות ירידות מחירים, המשך להציג את המחירים
                   const discount =
                     notification.oldPrice && notification.newPrice
                       ? Math.round(

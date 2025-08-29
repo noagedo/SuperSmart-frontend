@@ -45,7 +45,7 @@ const Footer: React.FC = () => {
             </Typography>
           </Box>
 
-          {/* Links */}
+          
           <Box 
             sx={{ 
               display: "flex", 
@@ -95,7 +95,7 @@ const Footer: React.FC = () => {
             </Link>
           </Box>
 
-          {/* Social Media Icons */}
+          
           <Box sx={{ display: "flex", gap: 1 }}>
             <IconButton 
               href="https://facebook.com" 
@@ -156,7 +156,7 @@ const Footer: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Copyright */}
+        
         <Typography 
           variant="body2" 
           sx={{ 

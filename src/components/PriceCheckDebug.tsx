@@ -32,7 +32,7 @@ const PriceCheckDebug: React.FC = () => {
   const { wishlist } = useWishlists();
   const { user } = useUsers();
 
-  // Add state for cart notifications testing
+  
   const [carts, setCarts] = useState<any[]>([]);
   const [selectedCartId, setSelectedCartId] = useState("");
   const [oldPrice, setOldPrice] = useState("100");
@@ -40,7 +40,7 @@ const PriceCheckDebug: React.FC = () => {
   const [socketRooms, setSocketRooms] = useState<string[]>([]);
   const [productName, setProductName] = useState("מוצר לדוגמה");
 
-  // Fetch user's carts
+  
   useEffect(() => {
     if (user && user._id) {
       const fetchCarts = async () => {
@@ -51,7 +51,7 @@ const PriceCheckDebug: React.FC = () => {
           const { request } = cartService.getCartsByUser(user._id);
           const response = await request;
           setCarts(response.data);
-          // Ensure cartId is a string before setting it
+          
           if (response.data.length > 0 && response.data[0]._id) {
             setSelectedCartId(response.data[0]._id);
           }
@@ -137,7 +137,6 @@ const PriceCheckDebug: React.FC = () => {
       message: "Checking price changes for all wishlist products...",
     });
 
-    // Fix: Handle wishlist correctly based on type
     const allProductIds = wishlist ? wishlist.products : [];
 
     if (allProductIds.length === 0) {
@@ -151,7 +150,7 @@ const PriceCheckDebug: React.FC = () => {
     });
   };
 
-  // New handlers for cart notifications
+  
   const handleGetActiveRooms = () => {
     setError(null);
     setResponse({ message: "Getting active socket rooms..." });
@@ -188,11 +187,11 @@ const PriceCheckDebug: React.FC = () => {
       productName: productName || "מוצר לדוגמה",
       oldPrice: parseFloat(oldPrice),
       newPrice: parseFloat(newPrice),
-      storeId: "1", // Using a dummy store ID
+      storeId: "1", 
       changeDate: new Date(),
     };
 
-    // Using the socket directly to send a test notification
+    
     if (notificationService.socket) {
       notificationService.socket.emit("testCartNotification", testNotification);
       setResponse({
@@ -216,7 +215,7 @@ const PriceCheckDebug: React.FC = () => {
 
     setResponse({ message: `Rejoined ${carts.length} cart rooms` });
 
-    // Update the list of joined rooms
+    
     setTimeout(handleGetActiveRooms, 1000);
   };
 
@@ -282,7 +281,7 @@ const PriceCheckDebug: React.FC = () => {
         </Button>
       </Box>
 
-      {/* New Cart Notifications Testing Section */}
+      
       <Paper
         elevation={3}
         sx={{ p: 2, mb: 3, bgcolor: "rgba(0, 128, 128, 0.05)" }}

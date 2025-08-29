@@ -9,12 +9,10 @@ export interface PriceChange {
   storeId: string;
   changeDate: Date;
   image?: string;
-  wishlistName?: string; // Add wishlist name to PriceChange interface
+  wishlistName?: string; 
 }
 
-/**
- * Checks if a product has a price drop in its most recent prices
- */
+
 export const checkForPriceDrops = (item: Item): PriceChange[] => {
   const priceChanges: PriceChange[] = [];
 
@@ -23,20 +21,20 @@ export const checkForPriceDrops = (item: Item): PriceChange[] => {
   for (const storePrice of item.storePrices) {
     if (!storePrice.prices || storePrice.prices.length < 2) continue;
 
-    // Sort by date descending (newest first)
+    
     const sortedPrices = [...storePrice.prices].sort((a, b) => {
       const dateA = new Date(a.date || a.data || "1970-01-01").getTime();
       const dateB = new Date(b.date || b.data || "1970-01-01").getTime();
       return dateB - dateA;
     });
 
-    // Get the latest two prices
+    
     const latestPrice = sortedPrices[0];
     const previousPrice = sortedPrices[1];
 
     if (!latestPrice || !previousPrice) continue;
 
-    // Check if it's a price drop
+    
     const latest =
       typeof latestPrice.price === "string"
         ? parseFloat(latestPrice.price)
@@ -64,9 +62,7 @@ export const checkForPriceDrops = (item: Item): PriceChange[] => {
   return priceChanges;
 };
 
-/**
- * Gets items with their price history from the backend
- */
+
 export const getProductsWithPriceHistory = (productIds: string[]) => {
   if (!productIds.length) return Promise.resolve({ data: [] });
 
@@ -77,9 +73,7 @@ export const getProductsWithPriceHistory = (productIds: string[]) => {
   });
 };
 
-/**
- * Uses mock data to show price drops (for testing without backend)
- */
+
 export const getMockPriceDrops = (): PriceChange[] => {
   return [
     {
@@ -96,9 +90,7 @@ export const getMockPriceDrops = (): PriceChange[] => {
   ];
 };
 
-/**
- * Gets items with price drops for specific wishlist products
- */
+
 export const getWishlistProductPriceChanges = (productIds: string[]) => {
   if (!productIds.length) return Promise.resolve({ data: [] });
 

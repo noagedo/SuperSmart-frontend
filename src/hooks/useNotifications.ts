@@ -4,20 +4,19 @@ import notificationService, {
 } from "../services/notification-service";
 import useUsers from "./useUsers";
 import useWishlists from "./useWishlists";
-import cartService from "../services/cart-service"; // Import cartService
+import cartService from "../services/cart-service"; 
 
 const useNotifications = () => {
   const [notifications, setNotifications] = useState<PriceDropNotification[]>(
     []
   );
   const { user } = useUsers();
-  const { wishlist } = useWishlists(); // Correctly get the single wishlist
+  const { wishlist } = useWishlists(); 
   const checkIntervalRef = useRef<number | null>(null);
   const hasCheckedRecently = useRef<boolean>(false);
 
-  // Removed unused filterRecentNotifications function
+  
 
-  // Helper: Add only unique notifications (by productId+cartId+wishlistId+storeId+newPrice)
   function addUniqueNotifications<T extends PriceDropNotification>(
     prev: T[],
     newNotifs: T[]
@@ -38,7 +37,7 @@ const useNotifications = () => {
     ];
   }
 
-  // Setup notification listener for real-time updates (wishlist + cart)
+  
   useEffect(() => {
     console.log("Setting up unified notification listener");
 
@@ -48,14 +47,14 @@ const useNotifications = () => {
         return;
       }
 
-      // Log every incoming notification for debugging
+      
       console.log(
         "🔔 [handlePriceDrop] Received price-drop notification:",
         notification
       );
 
       setNotifications((prev) => {
-        // Wishlist notification (wishlistId) or cart notification (cartId)
+        
         const isDuplicate = notification.cartId
           ? prev.some(
               (n) =>
@@ -96,11 +95,11 @@ const useNotifications = () => {
     };
   }, [user]);
 
-  // Add this new effect to subscribe to cart updates with improved reconnection
+  
   useEffect(() => {
     if (!user || !user._id) return;
 
-    // Get cart IDs from localStorage or fetch them
+    
     const fetchAndSubscribeToCarts = async () => {
       try {
         console.log("Fetching carts for user", user._id);
@@ -110,10 +109,10 @@ const useNotifications = () => {
 
         console.log(`Fetched ${carts.length} carts for user`);
 
-        // Join all cart rooms with notification enabled
+        
         carts.forEach((cart) => {
           if (cart._id) {
-            // Only subscribe if notifications are enabled for this cart
+          
             if (cart.notifications !== false) {
               console.log(
                 `Joining cart room for cart: ${cart._id} (notifications enabled)`
@@ -127,7 +126,7 @@ const useNotifications = () => {
           }
         });
 
-        // Store cart IDs in localStorage for reconnection
+        
         localStorage.setItem(
           "userCarts",
           JSON.stringify(
@@ -144,11 +143,11 @@ const useNotifications = () => {
     fetchAndSubscribeToCarts();
 
     return () => {
-      // Clean up cart subscriptions if needed
+      
       const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
       cartIds.forEach((cartId: string) => {
         if (cartId) {
-          // Ensure cartId is not undefined
+          
           notificationService.leaveCartRoom(cartId);
         }
       });
@@ -165,13 +164,13 @@ const useNotifications = () => {
           user._id
         );
 
-        // Fetch all carts for the user to map productId -> cartId(s)
+        
         const { request } = cartService.getCartsByUser(user._id);
         const responseCarts = await request;
         const carts = responseCarts.data || [];
         console.log("🔔 [Cart Drops] User carts:", carts);
 
-        // Log all products in all carts
+        
         carts.forEach((cart) => {
           if (Array.isArray(cart.items)) {
             console.log(
@@ -181,7 +180,7 @@ const useNotifications = () => {
           }
         });
 
-        // Map productId -> cartId(s)
+        
         const productToCartIds: Record<string, string[]> = {};
         carts.forEach((cart) => {
           if (
@@ -213,24 +212,24 @@ const useNotifications = () => {
         });
         console.log("🔔 [Cart Drops] productToCartIds:", productToCartIds);
 
-        // Fetch cart price drops from the API
+        
         const response = await notificationService.getCartPriceDrops();
         const drops = Array.isArray(response.data) ? response.data : [];
         console.log("🔔 [Cart Drops] Raw drops from API:", drops);
 
-        // Only keep drops from last 24 hours
+        
         const oneDayAgo = new Date();
         oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
-        // For each cart, check if any of its products had a price drop and create a cart-level notification
+        
         const cartLevelDrops: PriceDropNotification[] = [];
         carts.forEach((cart) => {
           if (!Array.isArray(cart.items) || !cart._id) return;
-          // Find all drops for products in this cart
+          
           const dropsForCart = drops.filter((drop: any) =>
             cart.items.some((item: any) => item.productId === drop.productId)
           );
-          // אל תיצור התראת סכימה אם יש רק מוצר אחד
+          
           if (dropsForCart.length <= 1) return;
           const products = dropsForCart
             .map((drop: any) => drop.productName)
@@ -253,7 +252,7 @@ const useNotifications = () => {
           cartLevelDrops.push(notification);
         });
 
-        // Add cart-level notifications to state (avoid duplicates)
+        
         setNotifications((prev) =>
           addUniqueNotifications(prev, cartLevelDrops)
         );
@@ -268,7 +267,7 @@ const useNotifications = () => {
     fetchCartPriceDrops();
   }, [user]);
 
-  // Fetch cart price drops via API on mount (for persistence after refresh)
+  
   useEffect(() => {
     const fetchCartPriceDrops = async () => {
       try {
@@ -279,13 +278,13 @@ const useNotifications = () => {
           user._id
         );
 
-        // Fetch all carts for the user to map productId -> cartId(s)
+        
         const { request } = cartService.getCartsByUser(user._id);
         const responseCarts = await request;
         const carts = responseCarts.data || [];
         console.log("🔔 [Cart Drops] User carts:", carts);
 
-        // Map productId -> cartId(s)
+        
         const productToCartIds: Record<string, string[]> = {};
         carts.forEach((cart) => {
           if (
@@ -317,16 +316,16 @@ const useNotifications = () => {
         });
         console.log("🔔 [Cart Drops] productToCartIds:", productToCartIds);
 
-        // Fetch cart price drops from the API
+        
         const response = await notificationService.getCartPriceDrops();
         const drops = Array.isArray(response.data) ? response.data : [];
         console.log("🔔 [Cart Drops] Raw drops from API:", drops);
 
-        // Only keep drops from last 24 hours
+        
         const oneDayAgo = new Date();
         oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
-        // For each drop, create a notification for each cart it belongs to
+        
         const cartDrops: PriceDropNotification[] = [];
         drops.forEach((drop: any) => {
           const cartIds = productToCartIds[drop.productId] || [];
@@ -339,15 +338,15 @@ const useNotifications = () => {
               console.log("🔔 [Cart Drops] Drop too old:", drop);
               return;
             }
-            // Always set wishlistId and wishlistName to empty for cart notifications
+            
             const cartNotification: PriceDropNotification = {
               ...drop,
               cartId,
               id:
                 new Date().getTime().toString() +
                 Math.random().toString(36).substring(2, 9),
-              wishlistId: "", // <-- force empty for cart notifications
-              wishlistName: "", // <-- force empty for cart notifications
+              wishlistId: "", 
+              wishlistName: "", 
             };
             console.log(
               "🔔 [Cart Drops] Creating cart notification:",
@@ -362,7 +361,7 @@ const useNotifications = () => {
           cartDrops
         );
 
-        // Avoid duplicates
+        
         setNotifications((prev) => addUniqueNotifications(prev, cartDrops));
       } catch (error) {
         console.error(
@@ -375,7 +374,7 @@ const useNotifications = () => {
     fetchCartPriceDrops();
   }, [user]);
 
-  // Create a stable checkRecentChanges function with useCallback
+  
   const checkRecentChanges = useCallback(() => {
     if (!user || !user._id || !wishlist || !wishlist.products.length) return;
 
@@ -388,11 +387,11 @@ const useNotifications = () => {
           if (response.data) {
             console.log("Response from price check:", response.data);
 
-            // Create a safer parsing function
+            
             const parsePriceChanges = (data: any) => {
               if (!data || typeof data !== "object") return [];
 
-              // Handle array or object response
+              
               const items = Array.isArray(data)
                 ? data
                 : data.items || data.priceChanges || [];
@@ -407,7 +406,7 @@ const useNotifications = () => {
               return items
                 .filter((change: any) => !!change)
                 .map((change: any) => {
-                  // Create a notification with required fields or defaults
+                  
                   const oldPrice = parseFloat(
                     change.oldPrice || change.previousPrice || 0
                   );
@@ -415,7 +414,7 @@ const useNotifications = () => {
                     change.newPrice || change.currentPrice || 0
                   );
 
-                  // Skip if not a price drop
+                  
                   if (newPrice >= oldPrice) return null;
 
                   return {
@@ -435,10 +434,10 @@ const useNotifications = () => {
                     wishlistName: change.wishlistName || "רשימת מועדפים",
                   };
                 })
-                .filter(Boolean); // Remove null items
+                .filter(Boolean); 
             };
 
-            // Get user's wishlist IDs for filtering
+            
             const userWishlists = [wishlist].filter(
               (w) => w && w.userId === user?._id
             );
@@ -447,7 +446,7 @@ const useNotifications = () => {
               .filter((id) => id !== null && id !== undefined);
 
             const priceChanges = parsePriceChanges(response.data);
-            // Filter changes to only include user's wishlists
+            
             const userPriceChanges = priceChanges.filter(
               (change: PriceDropNotification) =>
                 change.wishlistId && userWishlistIds.includes(change.wishlistId)
@@ -459,7 +458,7 @@ const useNotifications = () => {
                 userPriceChanges
               );
               setNotifications((prev) => {
-                // Filter out duplicates
+                
                 const newChanges = userPriceChanges.filter(
                   (newChange: PriceDropNotification) =>
                     !prev.some(
@@ -486,7 +485,7 @@ const useNotifications = () => {
       });
   }, [user, wishlist]);
 
-  // Subscribe to updates when user is available
+  
   useEffect(() => {
     if (user && user._id) {
       console.log(
@@ -494,30 +493,30 @@ const useNotifications = () => {
         user._id
       );
 
-      // Store userId in localStorage for reconnection purposes
+      
       localStorage.setItem("userId", user._id);
 
-      // Force reconnect the socket to ensure fresh connection
+      
       notificationService.reconnect();
 
-      // Subscribe to user's wishlist updates after a small delay to ensure connection
+      
       setTimeout(() => {
         if (user._id) {
           notificationService.subscribeToWishlistUpdates(user._id);
         }
       }, 1000);
 
-      // Start periodic checks
+      
       startPeriodicChecks();
 
-      // Force check recent changes immediately on login
+      
       localStorage.removeItem("lastPriceCheckTimestamp");
       checkRecentChanges();
 
-      // Clear old notifications when user logs in
+      
       cleanOldNotifications();
     }
-    // Stop checks if user logs out
+    
     if (!user || !user._id) {
       if (checkIntervalRef.current) {
         window.clearInterval(checkIntervalRef.current);
@@ -525,7 +524,7 @@ const useNotifications = () => {
       }
       hasCheckedRecently.current = false;
 
-      // Clear all notifications when user logs out
+      
       setNotifications([]);
     }
 
@@ -536,40 +535,40 @@ const useNotifications = () => {
     };
   }, [user, checkRecentChanges]);
 
-  // Check for price changes when wishlist changes
+  
   useEffect(() => {
     if (user && user._id && wishlist) {
       console.log(
         `Checking ${wishlist.products.length} products in user's wishlist`
       );
 
-      // Extract all product IDs from user wishlist
+      
       const allProductIds = wishlist.products;
 
-      // Create a map of product ID to wishlist name for notification display
+      
       const productWishlistMap: { [key: string]: string } = {};
       allProductIds.forEach((productId) => {
         productWishlistMap[productId] = "המועדפים שלי";
       });
 
-      // Store the map in localStorage for reference
+      
       localStorage.setItem(
         "productWishlistMap",
         JSON.stringify(productWishlistMap)
       );
 
-      // Check at once
+      
       if (allProductIds.length > 0) {
         console.log(`Checking ${allProductIds.length} products from wishlist`);
         checkSpecificProducts(allProductIds);
       }
 
-      // Cleanup old notifications when wishlist changes
+      
       cleanOldNotifications();
     }
   }, [user, wishlist]);
 
-  // Function to clean old notifications (older than 24 hours)
+  
   const cleanOldNotifications = useCallback(() => {
     console.log("Cleaning old notifications (older than 24 hours)");
     const oneDayAgo = new Date();
@@ -582,11 +581,11 @@ const useNotifications = () => {
     );
   }, []);
 
-  // Periodically clean old notifications (every hour)
+  
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       cleanOldNotifications();
-    }, 60 * 60 * 1000); // Every hour
+    }, 60 * 60 * 1000); 
 
     return () => clearInterval(cleanupInterval);
   }, [cleanOldNotifications]);
@@ -596,7 +595,7 @@ const useNotifications = () => {
       window.clearInterval(checkIntervalRef.current);
     }
 
-    // Check every 5 minutes (300000 ms)
+    
     checkIntervalRef.current = window.setInterval(() => {
       console.log("Running periodic price check");
       checkPriceChanges();
@@ -606,7 +605,7 @@ const useNotifications = () => {
   const checkPriceChanges = () => {
     if (!user || !user._id) return;
 
-    // Get last checked timestamp from localStorage or use a very old date
+    
     const lastCheckedStr = localStorage.getItem("lastPriceCheckTimestamp");
     const lastChecked = lastCheckedStr ? new Date(lastCheckedStr) : new Date(0);
 
@@ -656,7 +655,7 @@ const useNotifications = () => {
           console.log("No price changes found");
         }
 
-        // Update last checked timestamp
+        
         localStorage.setItem(
           "lastPriceCheckTimestamp",
           new Date().toISOString()
@@ -667,14 +666,14 @@ const useNotifications = () => {
       });
   };
 
-  // Filter to make sure we only process products from current user's wishlist
+  
   const checkSpecificProducts = (productIds: string[]) => {
     if (!productIds.length || !user || !user._id) return;
 
-    // Get all products that are in the user's wishlist
+    
     const userProductIds = wishlist ? wishlist.products : [];
 
-    // Only check products that are in the user's wishlist
+    
     const filteredProductIds = productIds.filter((id) =>
       userProductIds.includes(id)
     );
@@ -692,13 +691,13 @@ const useNotifications = () => {
       .checkProductPrices(filteredProductIds)
       .then((response) => {
         if (response.data && Array.isArray(response.data)) {
-          // Process the items differently since we're using a different endpoint
+          
           console.log("Items retrieved from wishlists:", response.data);
 
-          // Get items with their latest prices
+          
           const priceChanges: PriceDropNotification[] = [];
 
-          // Get the wishlist map from localStorage
+          
           let productWishlistMap: { [key: string]: string } = {};
           try {
             const mapString = localStorage.getItem("productWishlistMap");
@@ -715,18 +714,18 @@ const useNotifications = () => {
             for (const storePrice of item.storePrices) {
               if (!storePrice.prices || storePrice.prices.length < 2) continue;
 
-              // Sort by date descending
+              
               const sortedPrices = [...storePrice.prices].sort((a, b) => {
                 const dateA = new Date(a.date || a.data || "1970-01-01");
                 const dateB = new Date(b.date || b.data || "1970-01-01");
                 return dateB.getTime() - dateA.getTime();
               });
 
-              // Get the latest two prices
+              
               const latestPrice = sortedPrices[0];
               const previousPrice = sortedPrices[1];
 
-              // Skip if not a price drop
+              
               if (
                 !latestPrice ||
                 !previousPrice ||
@@ -734,11 +733,11 @@ const useNotifications = () => {
               )
                 continue;
 
-              // Find which wishlist this product belongs to
+              
               const wishlistName =
                 productWishlistMap[item._id] || "רשימת מועדפים";
 
-              // It's a price drop in a wishlist product! Add to notifications
+              
               priceChanges.push({
                 id:
                   new Date().getTime() +
@@ -752,8 +751,8 @@ const useNotifications = () => {
                   latestPrice.date || latestPrice.data || new Date()
                 ),
                 image: item.image,
-                wishlistId: "", // We don't have the exact wishlist ID
-                wishlistName: wishlistName, // But we do have the name
+                wishlistId: "", 
+                wishlistName: wishlistName, 
               });
             }
           });
@@ -772,9 +771,9 @@ const useNotifications = () => {
       });
   };
 
-  // Helper function to add new notifications while avoiding duplicates
+  
   const addNewNotifications = (newNotifications: PriceDropNotification[]) => {
-    // First filter to keep only recent notifications (last 24 hours)
+    
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
@@ -788,7 +787,7 @@ const useNotifications = () => {
     }
 
     setNotifications((prev) => {
-      // Filter out duplicates
+      
       const uniqueNewChanges = recentNotifications.filter(
         (newChange) =>
           !prev.some(
@@ -813,7 +812,7 @@ const useNotifications = () => {
     setNotifications([]);
   };
 
-  // Add log to see all notifications in state, and split by type
+  
   useEffect(() => {
     const wishlistNotifs = notifications.filter(
       (n) => n.wishlistId && !n.cartId
@@ -822,7 +821,7 @@ const useNotifications = () => {
     console.log("🔔 [All Notifications in useNotifications]:", notifications);
     console.log("⭐ [Wishlist Notifications]:", wishlistNotifs);
     console.log("🛒 [Cart Notifications]:", cartNotifs);
-    // Extra: log cart notifications for debugging NotificationsCenter
+    
     if (cartNotifs.length === 0) {
       console.warn(
         "🛒 [DEBUG] No cart notifications in state. If you expect cart notifications, check that:"
@@ -835,37 +834,15 @@ const useNotifications = () => {
     }
   }, [notifications]);
 
-  // --- FIX: Filter out cart notifications from wishlist tab and prevent duplicates ---
-  // Helper: Add only unique notifications (by productId+cartId+wishlistId+storeId+newPrice)
-
-  // Replace all setNotifications([...prev, ...newNotifs]) with addUniqueNotifications(prev, newNotifs)
-  // Example for cart notifications:
-  // setNotifications((prev) => [
-  //   ...prev,
-  //   ...cartDrops.filter(...),
-  // ]);
-  // =>
-  // setNotifications((prev) => addUniqueNotifications(prev, cartDrops));
-
-  // --- Replace in both cart-level and drop-level notifications ---
-  // In all setNotifications for cart drops:
-  // ...existing code...
-  // ...existing code...
-  // ...existing code...
-
-  // --- When filtering for wishlist notifications, exclude those with cartId ---
-  // (This is already done in NotificationsCenter, but if you use filteredNotifications elsewhere, ensure this logic)
-  // ...existing code...
-
-  // Listen for chat notifications (new-chat-notification)
+  
   useEffect(() => {
     const handleChatNotification = (notification: PriceDropNotification) => {
       console.log("🔔 [handleChatNotification]", notification);
       if (!notification.cartId) return;
 
-      // בדוק אם ההודעה היא מהמשתמש הנוכחי לפי השם (אין צורך להתריע על הודעות משלך)
+      
       const currentUserName = user?.userName;
-      // הסר את "הודעה חדשה מעגלה: " מתחילת השם
+      
       const senderName = notification.productName?.replace(
         "הודעה חדשה מעגלה: ",
         ""
@@ -873,11 +850,11 @@ const useNotifications = () => {
 
       if (currentUserName && senderName === currentUserName) {
         console.log("Ignoring own chat message notification from:", senderName);
-        return; // דלג על התראות להודעות שנשלחו מהמשתמש הנוכחי
+        return; 
       }
 
       setNotifications((prev) => {
-        // Avoid duplicates (by cartId, type, timestamp)
+        
         const isDuplicate = prev.some(
           (n) =>
             n.type === "chat" &&
@@ -888,18 +865,18 @@ const useNotifications = () => {
         return [...prev, notification];
       });
 
-      // שמירת הודעת צ'אט בלוקל סטורג'
+      
       try {
-        // קריאה להודעות קיימות מהמטמון
+        
         const localStorageKey = `chat_messages_${notification.cartId}`;
         const existingMessagesStr = localStorage.getItem(localStorageKey);
 
-        // Extract sender name from the notification
+        
         const senderName = notification.productName
           ? notification.productName.replace("הודעה חדשה מעגלה: ", "")
           : "Unknown User";
 
-        // המרת ההתראה להודעת צ'אט
+        
         const chatMessage = {
           sender: senderName,
           message: notification.message || "",
@@ -909,12 +886,12 @@ const useNotifications = () => {
           _id: notification.id,
         };
 
-        // אם יש הודעות קיימות, הוסף את ההודעה החדשה
+        
         if (existingMessagesStr) {
           try {
             const existingMessages = JSON.parse(existingMessagesStr);
 
-            // בדוק אם ההודעה כבר קיימת
+            
             const isDuplicate = existingMessages.some(
               (msg: any) =>
                 msg.sender === chatMessage.sender &&
@@ -939,7 +916,7 @@ const useNotifications = () => {
             );
           }
         } else {
-          // אין הודעות קיימות, צור מערך חדש עם ההודעה הנוכחית
+          
           localStorage.setItem(localStorageKey, JSON.stringify([chatMessage]));
           console.log(
             `[handleChatNotification] Created new chat cache for cart ${notification.cartId}`
@@ -958,9 +935,9 @@ const useNotifications = () => {
     return () => {
       notificationService.onChatMessage(() => {});
     };
-  }, [user?.userName]); // הוסף את שם המשתמש כתלות
+  }, [user?.userName]); 
 
-  // Mark all chat notifications for a cart as read
+  
   const markChatNotificationsAsRead = (cartId: string) => {
     setNotifications((prev) =>
       prev.map((n) =>
@@ -976,7 +953,7 @@ const useNotifications = () => {
     checkPriceChanges,
     checkRecentChanges,
     checkSpecificProducts,
-    markChatNotificationsAsRead, // <-- expose this
+    markChatNotificationsAsRead, 
   };
 };
 

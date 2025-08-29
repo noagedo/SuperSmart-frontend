@@ -9,8 +9,8 @@ interface NotificationContextType {
   chatNotifications: PriceDropNotification[];
   markChatNotificationsAsRead: (cartId: string) => void;
   addChatNotification: (notification: PriceDropNotification) => void;
-  getUnreadChatCountForCart: (cartId: string) => number; // הוספת פונקציה חדשה
-  getChatNotificationsForCart: (cartId: string) => PriceDropNotification[]; // הוספת פונקציה חדשה
+  getUnreadChatCountForCart: (cartId: string) => number; 
+  getChatNotificationsForCart: (cartId: string) => PriceDropNotification[];
 }
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -32,15 +32,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   >([]);
   const { user } = useUsers();
 
-  // חישוב של מספר ההודעות שלא נקראו
+ 
   const unreadChatCount = chatNotifications.filter(
     (n) => n.type === "chat" && !n.isRead
   ).length;
 
-  // להוסיף התראת צ'אט חדשה
+  
   const addChatNotification = (notification: PriceDropNotification) => {
     setChatNotifications((prev) => {
-      // בדוק אם ההתראה כבר קיימת
+      
       const isDuplicate = prev.some(
         (n) =>
           n.cartId === notification.cartId &&
@@ -52,7 +52,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  // סימון של התראות צ'אט כנקראו עבור עגלה מסוימת
+  
   const markChatNotificationsAsRead = (cartId: string) => {
     setChatNotifications((prev) =>
       prev.map((n) =>
@@ -60,7 +60,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       )
     );
 
-    // שמירה ב-localStorage למקרה של רענון הדף
+    
     try {
       const lastReadData = JSON.parse(
         localStorage.getItem("lastReadChatNotifications") || "{}"
@@ -75,14 +75,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // האזנה להודעות צ'אט חדשות
+  
   useEffect(() => {
     if (!user) return;
 
     const handleChatNotification = (notification: PriceDropNotification) => {
       console.log("🔔 [Global Chat Notification]", notification);
 
-      // בדיקה אם ההודעה היא מהמשתמש הנוכחי
+      
       const currentUserName = user?.userName;
       const senderName = notification.productName?.replace(
         "הודעה חדשה מעגלה: ",
@@ -97,7 +97,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       addChatNotification(notification);
     };
 
-    // רישום להתראות חדשות
+    
     notificationService.onChatMessage(handleChatNotification);
 
     return () => {
@@ -105,7 +105,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user]);
 
-  // טעינת מצב התראות שמורות מ-localStorage בעת טעינת האפליקציה
+  
   useEffect(() => {
     try {
       const lastReadData = localStorage.getItem("lastReadChatNotifications");
@@ -116,7 +116,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         setChatNotifications(parsedNotifications);
       }
 
-      // סימון הודעות כנקראות על בסיס מידע שמור
+      
       if (lastReadData) {
         const lastReadMap = JSON.parse(lastReadData);
 
@@ -138,7 +138,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // שמירת התראות ב-localStorage כשהן משתנות
+ 
   useEffect(() => {
     if (chatNotifications.length > 0) {
       localStorage.setItem(
@@ -148,14 +148,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [chatNotifications]);
 
-  // פונקציה חדשה לקבלת מספר התראות צ'אט שלא נקראו עבור עגלה ספציפית
+  
   const getUnreadChatCountForCart = (cartId: string): number => {
     return chatNotifications.filter(
       (n) => n.type === "chat" && n.cartId === cartId && !n.isRead
     ).length;
   };
 
-  // פונקציה חדשה לקבלת כל התראות הצ'אט עבור עגלה ספציפית
+  
   const getChatNotificationsForCart = (
     cartId: string
   ): PriceDropNotification[] => {

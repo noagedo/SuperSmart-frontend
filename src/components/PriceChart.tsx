@@ -16,7 +16,6 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
   const generateWeeklyPriceData = () => {
     if (!item.storePrices || item.storePrices.length === 0) return { chartData: [], xLabels: [] };
 
-    // Get all dates from all stores and find the date range
     const allDates: Date[] = [];
     item.storePrices.forEach(storePrice => {
       if (storePrice.prices) {
@@ -37,6 +36,7 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
 
     // Generate weekly intervals instead of daily
     const weeklyDates: Date[] = [];
+
     const currentDate = new Date(startDate);
 
     // Start from the beginning of the week
@@ -156,7 +156,7 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
           borderRadius: 2,
           outline: "none",
           overflow: "auto",
-          direction: "rtl", // Support right-to-left layout
+          direction: "rtl", 
         }}
       >
         <Typography variant="h5" gutterBottom>

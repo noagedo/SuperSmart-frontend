@@ -89,7 +89,7 @@ const useWishlists = (): UseWishlistResult => {
 
       console.log(`Starting to add product ${productId} to wishlist`);
 
-      // אם אין עדיין wishlist, נסה לקבל או ליצור אחת
+      
       if (!wishlist || !wishlist._id) {
         console.log("No wishlist exists, getting or creating one");
 
@@ -98,7 +98,7 @@ const useWishlists = (): UseWishlistResult => {
           throw new Error("User must be logged in");
         }
 
-        // קבלת או יצירת רשימה
+        
         try {
           const { request } = getUserWishlist(user._id);
           console.log(`Fetching/creating wishlist for user ${user._id}`);
@@ -107,10 +107,10 @@ const useWishlists = (): UseWishlistResult => {
           console.log("Wishlist response:", response);
 
           if (response && response.data) {
-            // עדכון המצב עם הרשימה שהתקבלה
+            
             setWishlist(response.data);
 
-            // עכשיו הוסף את המוצר לרשימה החדשה
+            
             if (response.data._id) {
               console.log(
                 `Adding product ${productId} to wishlist ${response.data._id}`
@@ -130,7 +130,7 @@ const useWishlists = (): UseWishlistResult => {
           throw err;
         }
       } else {
-        // יש לנו wishlist, פשוט הוסף את המוצר
+        
         console.log(
           `Adding product ${productId} to existing wishlist ${wishlist._id}`
         );

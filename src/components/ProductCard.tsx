@@ -82,11 +82,10 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const [showChart, setShowChart] = useState(false);
-  const navigate = useNavigate(); // Initialize the navigate function
+  const navigate = useNavigate(); 
 
   const getLatestPrice = (storePrice: StorePrice) => {
     const latestPrice = storePrice.prices.reduce((latest, current) => {
-      // Get date from either 'date' or 'data' property with a fallback
       const latestDate = new Date(latest.date || latest.data || "1970-01-01");
       const currentDate = new Date(
         current.date || current.data || "1970-01-01"
@@ -95,7 +94,6 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
       return currentDate > latestDate ? current : latest;
     });
 
-    // Make sure to convert price to number if it's a string
     return typeof latestPrice.price === "string"
       ? parseFloat(latestPrice.price)
       : latestPrice.price;
@@ -105,20 +103,17 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
   const lowestPrice = Math.min(...prices);
   const highestPrice = Math.max(...prices);
 
-  // Handler for navigating to the product details page
   const handleCardClick = () => {
-    navigate(`/products/${product._id}`); // Ensure it's /products/:productId
+    navigate(`/products/${product._id}`);
   };
 
-  // Prevent the card's click handler from being triggered when the button is clicked
   const handleAddToCartClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent click from bubbling up to the card click handler
+    e.stopPropagation();
     onAddToCart(product, { storeId: "", price: lowestPrice });
   };
 
-  // Handle the graph button click and prevent the event from propagating to the card
   const handleGraphButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent click from bubbling up to the card click handler
+    e.stopPropagation(); 
     setShowChart(true);
   };
 
@@ -128,13 +123,12 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         <ImageContainer>
           <GraphButton
             aria-label="הצג גרף מחירים"
-            onClick={handleGraphButtonClick} // Use the new handler
+            onClick={handleGraphButtonClick} 
             size="small"
           >
             <BarChart2 size={18} />
           </GraphButton>
 
-          {/* Add WishButton component */}
           <WishButton product={product} />
 
           <Box
@@ -193,7 +187,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
             variant="contained"
             fullWidth
             startIcon={<ShoppingCart size={18} />}
-            onClick={handleAddToCartClick} // Ensure event propagation is stopped here
+            onClick={handleAddToCartClick} 
             sx={{
               bgcolor: "primary.main",
               color: "white",

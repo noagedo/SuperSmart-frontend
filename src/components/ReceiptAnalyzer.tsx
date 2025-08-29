@@ -92,10 +92,8 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
     {}
   );
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
-  // Track the current step in the process
   const [activeStep, setActiveStep] = useState<number>(0);
 
-  // Reset selected items when analysis result changes
   useEffect(() => {
     if (
       analysisResult &&
@@ -103,14 +101,13 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
       analysisResult.cartItems
     ) {
       const initialSelection = analysisResult.cartItems.reduce((acc, item) => {
-        acc[item._id] = true; // All items selected by default
+        acc[item._id] = true; 
         return acc;
       }, {} as { [id: string]: boolean });
       setSelectedItems(initialSelection);
     }
   }, [analysisResult]);
 
-  // טעינת פרטי המוצרים כאשר מתקבלות תוצאות ניתוח הקבלה
   useEffect(() => {
     if (
       analysisResult &&
@@ -149,7 +146,7 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
       if (response.data?.cartItems) {
         const cartItems = response.data.cartItems;
         setAnalysisResult({ cartItems });
-        setActiveStep(1); // Move to selection step instead of opening a dialog
+        setActiveStep(1); 
       } else if (response.data?.message) {
         setAnalysisResult(response.data.message);
       } else {
@@ -164,7 +161,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
   };
 
   const handleToggleItem = (id: string, event?: React.SyntheticEvent) => {
-    // Stop propagation if the event exists
     if (event) {
       event.stopPropagation();
     }
@@ -216,7 +212,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
     setExpandedItem(expandedItem === id ? null : id);
   };
 
-  // טעינת פרטי המוצרים מה-DB לפי מזהה
   const loadProductDetails = async (productIds: string[]) => {
     if (!productIds.length) return;
 
@@ -252,7 +247,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
     }
   };
 
-  // הפונקציה להצגת שם המוצר - משתמשת בנתונים מה-DB אם זמינים
   const getProductName = (item: any, index: number) => {
     if (productDetails[item._id]?.name) {
       return productDetails[item._id].name;
@@ -260,7 +254,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
     return item.name || `מוצר ${index + 1}`;
   };
 
-  // הפונקציה להצגת תמונת המוצר - משתמשת בנתונים מה-DB אם זמינים
   const getProductImage = (item: any) => {
     if (productDetails[item._id]?.image) {
       return productDetails[item._id].image;
@@ -271,7 +264,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ p: 3 }}>
-        {/* Stepper to show progress */}
         <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
           <Step>
             <StepLabel>העלאת קבלה</StepLabel>
@@ -282,7 +274,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
         </Stepper>
 
         {activeStep === 0 ? (
-          // Upload step
           <Box>
             <Typography
               variant="h6"
@@ -430,7 +421,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
             )}
           </Box>
         ) : (
-          // Product selection step
           <Box>
             <Typography
               variant="h6"
@@ -555,7 +545,6 @@ const ReceiptAnalyzer: React.FC<ReceiptAnalyzerProps> = ({ onAddToCart }) => {
                             </Box>
                           </Box>
 
-                          {/* Product Image */}
                           {getProductImage(item) ? (
                             <Box
                               sx={{

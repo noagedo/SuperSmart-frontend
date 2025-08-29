@@ -10,7 +10,7 @@
       password: string;
       profilePicture?: string;
       accessToken?: string;
-      refreshToken?: string; // ✅ תיקון שם
+      refreshToken?: string; 
     }
     
 
@@ -74,7 +74,7 @@
     return { request, cancel: () => abortController.abort() };
   };
 
-  // ✅ פונקציה חדשה לשינוי סיסמה
+  
   const changePassword = (
       userId: string,
       currentPassword: string,
@@ -90,7 +90,7 @@
           signal: abortController.signal,
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // ✅ הוספת ה־token
+            Authorization: `Bearer ${token}`, 
           },
         }
       );
@@ -114,6 +114,6 @@
     uploadImage,
     update,
     getUser,
-    changePassword, // ← כאן הוספת הפונקציה
+    changePassword, 
     logout,
   };

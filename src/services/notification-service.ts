@@ -12,15 +12,15 @@ export interface PriceDropNotification {
   image?: string;
   wishlistId: string;
   wishlistName: string;
-  userId?: string; // Add userId field for client-side filtering
-  cartId?: string; // Ensure cartId field is included for cart-specific notifications
-  type?: "price-drop" | "chat"; // Add type for notification
-  isRead?: boolean; // For chat notifications
-  message?: string; // Add message field for chat notifications
+  userId?: string; 
+  cartId?: string; 
+  type?: "price-drop" | "chat"; 
+  isRead?: boolean; 
+  message?: string; 
 }
 
 class NotificationService {
-  public socket: Socket | null = null; // Changed to public for debugging
+  public socket: Socket | null = null; 
   private onPriceDropCallback:
     | ((notification: PriceDropNotification) => void)
     | null = null;
@@ -30,40 +30,40 @@ class NotificationService {
 
   constructor() {
     this.connectSocket();
-    // Expose socket for debugging
+    
     if (typeof window !== "undefined") {
       (window as any).socket = this.socket;
     }
   }
 
   private connectSocket() {
-    // Get the base URL from the API client or use a fallback
+    
     const apiUrl = apiClient.defaults.baseURL || "https://supersmart.cs.colman.ac.il";
     console.log("Attempting to connect socket to:", apiUrl);
 
-    // Make sure to disconnect any existing socket
+    
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
 
-    // Create socket connection with proper settings
+    
     this.socket = io(apiUrl, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      timeout: 10000, // Increased timeout
+      timeout: 10000, 
       autoConnect: true,
     });
 
-    // Setup event listeners
+    
     this.socket.on("connect", () => {
       console.log("Socket connected successfully to:", apiUrl);
       if (typeof window !== "undefined") {
         (window as any).socketConnected = true;
       }
-      // Resubscribe with user ID after reconnection
+      
       const userId = localStorage.getItem("userId");
       if (userId) {
         this.subscribeToWishlistUpdates(userId);
@@ -78,7 +78,7 @@ class NotificationService {
       console.log("Socket disconnected");
     });
 
-    // Replace direct event binding with our custom method
+    
     this.setupNotificationListener();
     this.setupChatNotificationListener();
   }
@@ -91,7 +91,7 @@ class NotificationService {
         userId: userId,
         onlyUserWishlists: true,
       });
-      // Send a separate message to ensure backward compatibility
+      
       this.socket.emit("set-user-filter", userId);
     }
   }
@@ -106,22 +106,22 @@ class NotificationService {
     this.onChatMessageCallback = callback;
   }
 
-  // Listen for price drop notifications
+  
   private setupNotificationListener() {
     if (!this.socket) return;
 
     this.socket.on("price-drop", (data) => {
       console.log("Received price-drop event:", data);
-      // Create a properly formatted notification
+      
       const notification: PriceDropNotification = {
         id:
           new Date().getTime().toString() +
           Math.random().toString(36).substring(2, 9),
         ...data,
         changeDate: new Date(data.changeDate || new Date()),
-        wishlistId: data.wishlistId || "", // Ensure these fields always exist
+        wishlistId: data.wishlistId || "", 
         wishlistName: data.wishlistName || "רשימת מועדפים",
-        type: "price-drop", // <-- Add type
+        type: "price-drop", 
         isRead: false,
       };
 
@@ -132,18 +132,18 @@ class NotificationService {
     });
   }
 
-  // Listen for chat notifications
+  
   private setupChatNotificationListener() {
     if (!this.socket) return;
 
     this.socket.on("new-chat-notification", (data) => {
       console.log("Received new-chat-notification", data);
 
-      // בדוק אם ההודעה היא מהמשתמש הנוכחי (אין צורך להתריע על הודעות משלך)
+      
       const currentSocketId = this.socket?.id;
       if (data.clientId === currentSocketId) {
         console.log("Ignoring own chat message notification", data);
-        return; // דלג על התראות להודעות שנשלחו מהמשתמש הנוכחי
+        return; 
       }
 
       const notification: PriceDropNotification = {
@@ -153,8 +153,8 @@ class NotificationService {
         cartId: data.cartId,
         productId: "",
         productName: `הודעה חדשה מעגלה: ${data.sender}`,
-        oldPrice: 0, // ערכים כברירת מחדל, לא רלוונטים להתראות צ'אט
-        newPrice: 0, // ערכים כברירת מחדל, לא רלוונטים להתראות צ'אט
+        oldPrice: 0, 
+        newPrice: 0, 
         storeId: "",
         changeDate: new Date(data.timestamp || new Date()),
         image: "",
@@ -162,7 +162,7 @@ class NotificationService {
         wishlistName: "",
         type: "chat",
         isRead: false,
-        message: data.message || "", // Add the message content from the incoming data
+        message: data.message || "", 
       };
 
       if (this.onChatMessageCallback) {
@@ -172,9 +172,7 @@ class NotificationService {
   }
 
   public checkPriceChanges(lastCheckedTimestamp?: Date) {
-    // Ensure the timestamp is never in the future by using either:
-    // 1. The provided timestamp if it's in the past
-    // 2. A timestamp from 24 hours ago if the provided one is in the future or invalid
+    
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setHours(yesterday.getHours() - 24);
@@ -187,10 +185,10 @@ class NotificationService {
       validTimestamp = yesterday;
     }
 
-    // Format as ISO string
+    
     const timestamp = validTimestamp.toISOString();
 
-    // Get the current user ID from localStorage
+    
     const userId = localStorage.getItem("userId");
     if (!userId) {
       console.warn(
@@ -216,17 +214,17 @@ class NotificationService {
           "Error checking price changes:",
           error.response?.data || error.message
         );
-        return { data: [] }; // Return empty data on error
+        return { data: [] }; 
       });
   }
 
-  // Method to check specifically for last 24 hours
+  
   public checkRecentPriceChanges() {
-    // Always use a timestamp that's exactly 24 hours ago from the current time
+    
     const yesterday = new Date();
     yesterday.setHours(yesterday.getHours() - 24);
 
-    // Get the current user ID from localStorage
+    
     const userId = localStorage.getItem("userId");
     if (!userId) {
       console.warn(
@@ -238,7 +236,7 @@ class NotificationService {
     console.log(`Checking price changes in last 24 hours for user: ${userId}`);
     console.log(`Using fixed timestamp: ${yesterday.toISOString()}`);
 
-    // Always use 24 hours as the timeframe and make sure we only get this user's wishlist products
+    
     return apiClient
       .get("/items/wishlist-price-changes", {
         params: {
@@ -252,15 +250,15 @@ class NotificationService {
           "Error checking price changes:",
           error.response?.data || error.message
         );
-        return { data: [] }; // Return empty data on error
+        return { data: [] }; 
       });
   }
 
-  // Check for specific products from wishlists
+  
   public checkProductPrices(productIds: string[]) {
     if (!productIds.length) return Promise.resolve({ data: [] });
 
-    // Get the current user ID from localStorage
+    
     const userId = localStorage.getItem("userId");
     if (!userId) {
       console.warn(
@@ -278,12 +276,12 @@ class NotificationService {
         ids: productIds.join(","),
         includeRecentPrices: true,
         fromWishlists: true,
-        userId: userId, // Add user ID parameter
+        userId: userId, 
       },
     });
   }
 
-  // Improved reconnection method
+  
   public reconnect() {
     console.log("Manually triggering socket reconnection");
     try {
@@ -292,13 +290,13 @@ class NotificationService {
       }
       this.connectSocket();
 
-      // Re-subscribe for the current user if available
+      
       const userId = localStorage.getItem("userId");
       if (userId) {
         setTimeout(() => {
           this.subscribeToWishlistUpdates(userId);
 
-          // Rejoin cart rooms
+        
           const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
           cartIds.forEach((cartId: string) => {
             this.joinCartRoom(cartId);
@@ -320,7 +318,7 @@ class NotificationService {
     }
   }
 
-  // Add these methods to join and leave cart rooms with better logging
+  
   public joinCartRoom(cartId: string) {
     if (!this.socket || !cartId) {
       console.error(
@@ -331,7 +329,7 @@ class NotificationService {
     console.log(`Joining cart room: cart-${cartId}`);
     this.socket.emit("join-cart", cartId);
 
-    // Store cart ID in localStorage for reconnection
+    
     const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
     if (!cartIds.includes(cartId)) {
       cartIds.push(cartId);
@@ -349,13 +347,13 @@ class NotificationService {
     console.log(`Leaving cart room: cart-${cartId}`);
     this.socket.emit("leave-cart", cartId);
 
-    // Remove cart ID from localStorage
+    
     const cartIds = JSON.parse(localStorage.getItem("userCarts") || "[]");
     const updatedCartIds = cartIds.filter((id: string) => id !== cartId);
     localStorage.setItem("userCarts", JSON.stringify(updatedCartIds));
   }
 
-  // Test method for sending cart notifications directly
+  
   public sendTestCartNotification(
     cartId: string,
     productId: string,
@@ -374,7 +372,7 @@ class NotificationService {
       productName,
       oldPrice,
       newPrice,
-      storeId: "1", // Using dummy storeId
+      storeId: "1", 
       changeDate: new Date(),
     };
 
@@ -383,11 +381,11 @@ class NotificationService {
     return true;
   }
 
-  // Add this method to fetch cart price drops via API
+  
   public getCartPriceDrops() {
-    // Get token from localStorage
+    
     const token = localStorage.getItem("token");
-    // Pass Authorization header if token exists
+    
     return apiClient.get("/carts/price-drops", {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
