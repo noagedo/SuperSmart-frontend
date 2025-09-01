@@ -22,7 +22,7 @@ import {
   Box as BoxIcon,
   BarChart2,
   Tag,
-  TrendingUp, // Or any other relevant icon
+  TrendingUp, 
 } from "lucide-react";
 import useItems from "../hooks/useItems";
 import ProductCard from "./ProductCard";

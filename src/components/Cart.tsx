@@ -37,6 +37,7 @@ import useUsers from "../hooks/useUsers";
 import { getStoreName } from "../utils/storeUtils";
 import SuperMap, { Supermarket } from "./SuperMap";
 import { CartParticipant } from "../services/cart-service";
+import { getStoreLocation } from "../services/store-service";
 
 const theme = createTheme({
   palette: {
@@ -113,17 +114,6 @@ interface CartProps {
   onRemoveItem: (id: string) => void;
   participants?: CartParticipant[];
 }
-
-const storeLocations: Record<
-  string,
-  { lat: number; lng: number; address: string }
-> = {
-  shufersal: { lat: 32.0853, lng: 34.7818, address: "שופרסל, תל אביב" },
-  mega: { lat: 32.0836, lng: 34.8004, address: "ויקטורי, תל אביב" },
-  yenotbitan: { lat: 32.0707, lng: 34.8245, address: "יינות ביתן, תל אביב" },
-  ramilevi: { lat: 31.9522, lng: 34.7998, address: "רמי לוי, ראשון לציון" },
-  mahsaneiHashuk: { lat: 32.1019, lng: 34.8271, address: "מחסני השוק, רמת גן" },
-};
 
 export function Cart({ items, onUpdateQuantity, onRemoveItem, participants = [] }: CartProps) {
   const [showShopComparison, setShowShopComparison] = useState(false);
@@ -291,15 +281,11 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem, participants = [] 
     });
   };
 
-  
+
 
   const getMapStores = (): Supermarket[] => {
     return calculateShopTotals().map(([storeId, { name }]) => {
-      const location = storeLocations[storeId] || {
-        lat: 32.0853,
-        lng: 34.7818,
-        address: "Israel",
-      };
+      const location = getStoreLocation(storeId);
       return {
         id: storeId,
         name: name,
@@ -423,11 +409,7 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem, participants = [] 
               <List sx={{ bgcolor: "#f8fafc", borderRadius: 2, p: 2 }}>
                 {calculateShopTotals().map(
                   ([storeId, { total, name }], index) => {
-                    const location = storeLocations[storeId] || {
-                      lat: 32.0853,
-                      lng: 34.7818,
-                      address: "Israel",
-                    };
+                    const location = getStoreLocation(storeId);
                     const storeForMap: Supermarket = {
                       id: storeId,
                       name,
