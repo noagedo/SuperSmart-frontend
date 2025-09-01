@@ -54,14 +54,10 @@ const App: React.FC = () => {
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-
-          {/* Redirect root to home */}
-
-          {/* Product routes */}
           <Route path="/products" element={<ProductList />} />
           <Route path="/products/:productId" element={<ProductDetails />} />
 
-          {/* Auth-protected routes */}
+          
           <Route
             path="/personal-area"
             element={user ? <PersonalArea user={user} /> : <SignIn />}

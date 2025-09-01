@@ -201,16 +201,14 @@ const PriceChart = ({ item, open, onClose }: PriceChartProps) => {
         <Box sx={{ height: 400, mt: 3 }}>
           {chartData.length > 0 ? (
             <LineChart
-              series={chartData.map((series) => {
-                const validPrices = series.data.filter(price => price !== null) as number[];
-                const isIncreasing = validPrices.length > 1 &&
-                  validPrices[validPrices.length - 1] > validPrices[0];
-
+              series={chartData.map((series, index) => {
+                const colors = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+                
                 return {
                   curve: "linear" as const,
                   data: series.data,
                   label: getStoreName(series.storeId),
-                  color: isIncreasing ? '#ef4444' : '#22c55e',
+                  color: colors[index % colors.length],
                   connectNulls: false,
                 };
               })}
