@@ -365,7 +365,7 @@ const SignUp: React.FC = () => {
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   Already have an account?{' '}
                   <Button 
-                    onClick={() => navigate('/signin')}
+                    onClick={() => navigate('/sign-in')}
                     sx={{ 
                       color: '#16a34a',
                       fontWeight: 600,

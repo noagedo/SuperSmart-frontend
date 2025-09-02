@@ -13,13 +13,12 @@ import NotificationDebug from "./components/NotificationDebug";
 import useUsers from "./hooks/useUsers";
 import ProductList from "./components/ProductList";
 import ProductDetails from "./components/ProductDetail";
-import { NotificationProvider } from "./contexts/NotificationContext"; // הוספת ה-provider החדש
+import { NotificationProvider } from "./contexts/NotificationContext"; 
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 const App: React.FC = () => {
   const { user } = useUsers();
 
-  // Initialize socket and check for price changes on app load
   React.useEffect(() => {
     if (user && user._id) {
       const initializeSocket = async () => {
@@ -30,7 +29,6 @@ const App: React.FC = () => {
           notificationService.reconnect();
           console.log("Socket initialized on app startup");
 
-          // Clear any potentially problematic timestamps in localStorage
           localStorage.removeItem("lastPriceCheckTimestamp");
         } catch (error) {
           console.error("Failed to initialize socket:", error);
